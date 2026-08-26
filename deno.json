@@ -1,4 +1,7 @@
 {
+  "imports": {
+    "@std/assert": "jsr:@std/assert@^1.0.19"
+  },
   "fmt": {
     "include": ["src", "README.md", "deno.json"]
   },
@@ -13,9 +16,13 @@
       "description": "Type-check source files",
       "command": "deno check src/**/*.ts"
     },
+    "test": {
+      "description": "Run tests",
+      "command": "deno test"
+    },
     "all": {
       "description": "Run all non-mutating checks",
-      "dependencies": ["format", "lint", "check"]
+      "dependencies": ["format", "lint", "check", "test"]
     }
   }
 }

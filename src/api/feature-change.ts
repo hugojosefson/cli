@@ -41,6 +41,11 @@ export interface ResolvedFeatureChange {
   readonly reason: ResolvedChangeReason;
 }
 
+/** Features whose detected artifacts should later be repaired. */
+export type RepairSelection =
+  | { readonly kind: "all-drifted" }
+  | { readonly kind: "features"; readonly featureIds: readonly FeatureId[] };
+
 /** Feature changes explicitly requested by the caller. */
 export interface FeatureChangeRequest {
   readonly changes: readonly RequestedFeatureChange[];
@@ -48,4 +53,6 @@ export interface FeatureChangeRequest {
   readonly applyDefaults: boolean;
   /** Globally configured selections, or the built-in fallback selections. */
   readonly defaults: readonly DefaultSelection[];
+  /** A future artifact-repair request. Resolution does not repair artifacts. */
+  readonly repair?: RepairSelection;
 }
