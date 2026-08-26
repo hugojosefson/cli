@@ -42,6 +42,14 @@ feature fails while enabled features depend on it. Dependent features must be
 disabled explicitly. The CLI stores no installation reason and has no
 `--auto-remove` mode.
 
+Drift repair is explicit. `--repair` alone repairs every drifted feature;
+combined with positive feature flags, it repairs only those features. Repair may
+restore exact-schema artifacts, including starter code and tests, but never
+adopts an ambiguous implementation.
+
+When Git is enabled, a successful local feature operation validates its plan,
+stages only planned paths, and creates one Conventional Commit.
+
 ## Initial features
 
 The first feature set includes:
@@ -50,7 +58,7 @@ The first feature set includes:
   part of the built-in `--defaults` selection and cannot be removed once commit
   history exists.
 - `deno-fmt`: adds the minimal Deno configuration and tasks needed for
-  `deno fmt`.
+  `deno fmt`. It creates `deno.jsonc` when no Deno configuration exists.
 - `deno-lib`: adds a Deno library; it requires `deno-fmt`.
 - `deno-cli`: adds a Deno CLI; it requires `deno-fmt`.
 - `deno-server`: adds a minimal `Deno.serve` server; it requires `deno-fmt` and
@@ -59,6 +67,18 @@ The first feature set includes:
   `README.md`.
 - `readme-build`: provides the `readme` capability with generated README
   support; it requires `deno-fmt`.
+- `license-*`: generated SPDX license-provider features such as `--license-mit`;
+  exactly one provider may be enabled.
+- `jsr-package`: adds JSR package identity and publishing checks; it requires
+  `deno-fmt`, at least one Deno export, `readme`, and `license`.
+- `github-repo`: creates or connects a Github repository; it requires `git` and
+  cannot be disabled automatically.
+- `github-ci`: adds pull-request checks plus nightly and manual dependency
+  updates; it requires `github-repo` and `deno-fmt`.
+- `github-protection`: protects main history, reviewed main changes, and
+  semantic-version tags; it requires `github-ci`.
+- `jsr-release`: adds the release-writer App and JSR OIDC release workflow; it
+  requires `jsr-package`, `github-ci`, and `github-protection`.
 
 The `readme` capability has exclusive providers. Its default provider is
 `readme-static`. Enabling `readme-build` while `readme-static` is enabled plans
@@ -75,6 +95,22 @@ library, CLI, or server features. Features that need Git, such as publishing or
 release, declare it as a direct dependency. With no enabled features, `hj`
 creates nothing.
 
+Deno source paths and exports remain stable across combinations:
+
+- `deno-lib`: `src/lib/mod.ts`, exported as `.`.
+- `deno-cli`: `src/cli/cli.ts`, exported as `./cli`.
+- `deno-server`: `src/server/server.ts`, exported as `./server`.
+- Tests live under `test/`.
+
+When CLI and server coexist, the CLI owns a generated command registry and the
+server contributes its `serve` command. Neither feature patches the other's
+free-form source.
+
+`jsr-package` starts at version `0.0.0`. It requires a complete license;
+interactive selection defaults to MIT and does not offer an unlicensed choice.
+Attribution resolves from Github identity, then Git configuration, then a
+prompt. Setup fails if required attribution remains unresolved.
+
 ## Shared commands
 
 Large reusable implementations belong in `hj`, not generated repositories. The
@@ -90,7 +126,14 @@ triggers remain declared in each repository. Stateful release orchestration
 belongs in one `hj release` process.
 
 Deno task objects use descriptions and dependencies. Independent checks may run
-in parallel; ordered file mutations remain in a single command.
+in parallel; ordered file mutations remain in a single command. `default`
+regenerates and fixes files before checking. `check` is the normal validation
+aggregate, and `all` adds publish dry-run when `jsr-package` is enabled.
+
+Generated Github workflows use `.github/workflows/hj-ci.yaml`,
+`.github/workflows/hj-deps.yaml`, and `.github/workflows/hj-release.yaml`. CI
+runs for pull requests only. Its minimum Deno version is globally configurable
+and defaults to the current stable version when the feature is enabled.
 
 ## Configuration
 
@@ -107,6 +150,10 @@ hj config unset <key>
 CLI flags override configured defaults. Missing values are asked interactively
 on a TTY. Tokens, private keys, and other secrets are never configuration
 values.
+
+Github repository visibility is prompted when unresolved, with private selected
+by default. Non-interactive creation requires a CLI or global configuration
+value.
 
 The repository default selection is a global list of feature or capability IDs.
 Its built-in value is:
