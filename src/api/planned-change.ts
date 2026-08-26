@@ -20,8 +20,24 @@ export interface WriteFileChange {
   readonly kind: "write-file";
   readonly path: RepositoryPath;
   readonly content: string;
+  /** Applies this mode as part of the write when the file is created. */
+  readonly mode?: FileMode;
   /** `undefined` asserts that the file must be absent. */
   readonly expectedDigest: FileDigest | undefined;
+}
+
+/** Creates a symbolic link after confirming that its path is absent. */
+export interface CreateSymlinkChange {
+  readonly kind: "create-symlink";
+  readonly path: RepositoryPath;
+  readonly target: string;
+}
+
+/** Removes a symbolic link after confirming its target. */
+export interface RemoveSymlinkChange {
+  readonly kind: "remove-symlink";
+  readonly path: RepositoryPath;
+  readonly expectedTarget: string;
 }
 
 /** Removes a file after checking its current digest. */
@@ -117,6 +133,8 @@ export interface AppSetupChange {
 export type PlannedChange =
   | CreateDirectoryChange
   | WriteFileChange
+  | CreateSymlinkChange
+  | RemoveSymlinkChange
   | RemoveFileChange
   | RemoveDirectoryChange
   | FileModeChange
