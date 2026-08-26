@@ -14,6 +14,7 @@ import type {
   JsonValue,
   RepositoryPath,
 } from "./json.ts";
+import type { ArtifactObservation } from "./artifact-inspection.ts";
 
 /** JSON content read from a repository file. */
 export interface FileJson {
@@ -23,6 +24,8 @@ export interface FileJson {
 
 /** Read-only access to files in the target repository. */
 export interface FileReader {
+  /** Observes an artifact without following a final symlink. */
+  observe(path: RepositoryPath): Promise<ArtifactObservation>;
   exists(path: RepositoryPath): Promise<boolean>;
   readText(path: RepositoryPath): Promise<string | undefined>;
   readJson(path: RepositoryPath): Promise<FileJson | undefined>;

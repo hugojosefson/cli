@@ -9,6 +9,7 @@ function detectionContext(isRepository: boolean): DetectionContext {
   return {
     repositoryRoot: new URL("file:///work/target/"),
     files: {
+      observe: () => Promise.resolve({ kind: "absent" }),
       exists: () => Promise.resolve(false),
       readText: () => Promise.resolve(undefined),
       readJson: () => Promise.resolve(undefined),
