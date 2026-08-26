@@ -2,6 +2,19 @@ import { assertEquals } from "@std/assert";
 import type { Feature } from "../api/feature.ts";
 import type { FeatureRegistry } from "./feature-registry.ts";
 import { validateFeatureRegistry } from "./validate-feature-registry.ts";
+import { builtInFeatureRegistry } from "./built-in-feature-registry.ts";
+
+Deno.test("the complete built-in registry validates", () => {
+  assertEquals(validateFeatureRegistry(builtInFeatureRegistry), []);
+  assertEquals(
+    builtInFeatureRegistry.capabilities,
+    [{
+      id: "readme",
+      providerPolicy: "exclusive",
+      defaultProvider: "readme-static",
+    }],
+  );
+});
 
 function feature(
   id: string,
