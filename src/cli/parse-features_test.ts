@@ -1,7 +1,7 @@
 import { assertEquals, assertThrows } from "@std/assert";
 import { builtInFeatureRegistry } from "../features/built-in-feature-registry.ts";
 import { formatFeatureStatus } from "./format-features.ts";
-import { parseFeatures } from "./parse-features.ts";
+import { type FeaturesArguments, parseFeatures } from "./parse-features.ts";
 
 Deno.test("parses built-in features, capability aliases, and defaults", () => {
   assertEquals(
@@ -19,10 +19,10 @@ Deno.test("parses built-in features, capability aliases, and defaults", () => {
     },
   );
   assertEquals(
-    parseFeatures(
+    changeRequest(parseFeatures(
       ["repo", "features", "--no-readme", "--defaults"],
       builtInFeatureRegistry,
-    ).request.changes,
+    )).changes,
     [{ featureId: "readme-static", enabled: false }],
   );
   assertThrows(
@@ -71,10 +71,10 @@ Deno.test("parses explicit repair selections and rejects negative flags", () => 
     },
   );
   assertEquals(
-    parseFeatures(
+    changeRequest(parseFeatures(
       ["repo", "features", "--repair", "--readme"],
       builtInFeatureRegistry,
-    ).request.repair,
+    )).repair,
     { kind: "features", featureIds: ["readme-static"] },
   );
   assertThrows(
@@ -87,3 +87,28 @@ Deno.test("parses explicit repair selections and rejects negative flags", () => 
     "negative",
   );
 });
+
+Deno.test("parses interactive mode and rejects incompatible options", () => {
+  assertEquals(
+    parseFeatures(["repo", "features", "-i"], builtInFeatureRegistry),
+    { kind: "interactive" },
+  );
+  for (
+    const args of [
+      ["repo", "features", "--interactive", "--defaults"],
+      ["repo", "features", "--interactive", "--repair"],
+      ["repo", "features", "--interactive", "--git"],
+    ]
+  ) {
+    assertThrows(
+      () => parseFeatures(args, builtInFeatureRegistry),
+      Error,
+      "cannot",
+    );
+  }
+});
+
+function changeRequest(args: FeaturesArguments) {
+  if (args.kind !== "change") throw new Error("expected change request");
+  return args.request;
+}

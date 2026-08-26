@@ -82,6 +82,20 @@ Deno.test("repairs all drift in one Git commit", async () => {
   });
 });
 
+Deno.test("interactive empty selection returns status without changes", async () => {
+  await withRepository(async (root) => {
+    const result = await runFeatures(
+      root,
+      parseFeatures(
+        ["repo", "features", "--interactive"],
+        builtInFeatureRegistry,
+      ),
+      () => [],
+    );
+    assertEquals(result, "git: disabled\nreadme-static: disabled");
+  });
+});
+
 async function withRepository(
   action: (root: URL) => Promise<void>,
 ): Promise<void> {

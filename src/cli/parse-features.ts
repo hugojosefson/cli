@@ -8,9 +8,10 @@ import type { FeatureRegistry } from "../features/feature-registry.ts";
 
 export type FeaturesArguments =
   | { readonly kind: "status"; readonly request: FeatureChangeRequest }
-  | { readonly kind: "change"; readonly request: FeatureChangeRequest };
+  | { readonly kind: "change"; readonly request: FeatureChangeRequest }
+  | { readonly kind: "interactive" };
 
-const defaults = [
+export const featureDefaults = [
   { kind: "feature" as const, featureId: "git" },
   { kind: "capability" as const, capabilityId: "readme" },
 ];
@@ -30,6 +31,7 @@ export function parseFeatures(
   const requested = new Map<string, boolean>();
   let applyDefaults = false;
   let repair = false;
+  let interactive = false;
   for (const arg of args.slice(2)) {
     if (arg === "--defaults") {
       if (applyDefaults) throw new Error("duplicate `--defaults`");
@@ -42,7 +44,9 @@ export function parseFeatures(
       continue;
     }
     if (arg === "--interactive" || arg === "-i") {
-      throw new Error("interactive mode is not implemented");
+      if (interactive) throw new Error("duplicate `--interactive`");
+      interactive = true;
+      continue;
     }
     if (!arg.startsWith("--")) throw new Error(`unexpected argument: ${arg}`);
     const disabled = arg.startsWith("--no-");
@@ -63,13 +67,21 @@ export function parseFeatures(
       addRequest(requested, capability.defaultProvider, true);
     } else throw new Error(`capability has no default provider: ${id}`);
   }
+  if (interactive) {
+    if (applyDefaults || repair || requested.size > 0) {
+      throw new Error(
+        "`--interactive` cannot be combined with defaults, repair, or feature flags",
+      );
+    }
+    return { kind: "interactive" };
+  }
   const request = {
     changes: [...requested].map(([featureId, enabled]) => ({
       featureId,
       enabled,
     })),
     applyDefaults,
-    defaults,
+    defaults: featureDefaults,
     ...(repair ? { repair: repairSelection(requested) } : {}),
   };
   return requested.size === 0 && !applyDefaults && !repair

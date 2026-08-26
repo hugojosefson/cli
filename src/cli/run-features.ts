@@ -17,12 +17,22 @@ import {
   requireGitIdentity,
 } from "./git-feature-commit.ts";
 import type { FeaturesArguments } from "./parse-features.ts";
+import {
+  type FeatureAction,
+  featureActions,
+  selectedFeatureActionsToRequest,
+} from "./feature-actions.ts";
+import { promptFeatureActions } from "./prompt-feature-actions.ts";
 import { repairFeatureChanges } from "./repair-feature-changes.ts";
+export type FeatureSelector = (
+  actions: readonly FeatureAction[],
+) => readonly string[];
 
 /** Runs the built-in repository feature operation at one local root. */
 export async function runFeatures(
   root: URL,
   args: FeaturesArguments,
+  selectActions: FeatureSelector = promptFeatureActions,
 ): Promise<string> {
   const files = new LocalFileReader(root);
   const git = new LocalGitReader(root);
@@ -31,26 +41,34 @@ export async function runFeatures(
   if (args.kind === "status") {
     return formatFeatureStatus(builtInFeatureRegistry, detections);
   }
+  const request = args.kind === "interactive"
+    ? selectedFeatureActionsToRequest(
+      selectActions(featureActions(builtInFeatureRegistry, detections)),
+    )
+    : args.request;
+  if (request.changes.length === 0 && !request.repair) {
+    return formatFeatureStatus(builtInFeatureRegistry, detections);
+  }
   const resolution = resolveFeatureChanges(
     builtInFeatureRegistry,
     Object.fromEntries(detections),
-    args.request,
+    request,
   );
   if (resolution.issues.length) {
     throw new Error(`resolution failed: ${resolution.issues[0].code}`);
   }
   const changes = [
     ...resolution.changes,
-    ...repairFeatureChanges(detections, args.request.repair),
+    ...repairFeatureChanges(detections, request.repair),
   ];
   const context: OperationContext = {
     repositoryRoot: root,
     files,
     git,
     detections,
-    requestedChanges: args.request.changes,
+    requestedChanges: request.changes,
     resolvedChanges: changes,
-    repair: args.request.repair,
+    repair: request.repair,
     options: {},
   };
   const plans = await plansFor(context, changes);
