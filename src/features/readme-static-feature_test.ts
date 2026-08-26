@@ -25,6 +25,7 @@ function context(observation: ArtifactObservation): OperationContext {
     detections: new Map(),
     requestedChanges: [],
     resolvedChanges: [],
+    repair: undefined,
     options: {},
   };
 }

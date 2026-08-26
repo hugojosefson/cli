@@ -3,6 +3,7 @@
 import type { FeatureDetection } from "./feature-detection.ts";
 import type { FeatureId } from "./feature.ts";
 import type {
+  RepairSelection,
   RequestedFeatureChange,
   ResolvedFeatureChange,
 } from "./feature-change.ts";
@@ -106,6 +107,8 @@ export interface OperationContext extends DetectionContext {
   readonly detections: ReadonlyMap<FeatureId, FeatureDetection>;
   readonly requestedChanges: readonly RequestedFeatureChange[];
   readonly resolvedChanges: readonly ResolvedFeatureChange[];
+  /** Explicit drift-repair intent, separate from state-change resolution. */
+  readonly repair: RepairSelection | undefined;
   /** Non-secret options resolved before planning starts. */
   readonly options: JsonObject;
 }

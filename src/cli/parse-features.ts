@@ -1,6 +1,9 @@
 /** @module Pure parser for `hj repo features` arguments. */
 
-import type { FeatureChangeRequest } from "../api/feature-change.ts";
+import type {
+  FeatureChangeRequest,
+  RepairSelection,
+} from "../api/feature-change.ts";
 import type { FeatureRegistry } from "../features/feature-registry.ts";
 
 export type FeaturesArguments =
@@ -26,14 +29,17 @@ export function parseFeatures(
   );
   const requested = new Map<string, boolean>();
   let applyDefaults = false;
+  let repair = false;
   for (const arg of args.slice(2)) {
     if (arg === "--defaults") {
       if (applyDefaults) throw new Error("duplicate `--defaults`");
       applyDefaults = true;
       continue;
     }
-    if (arg === "--repair" || arg.startsWith("--repair=")) {
-      throw new Error("`--repair` is not implemented");
+    if (arg === "--repair") {
+      if (repair) throw new Error("duplicate `--repair`");
+      repair = true;
+      continue;
     }
     if (arg === "--interactive" || arg === "-i") {
       throw new Error("interactive mode is not implemented");
@@ -64,10 +70,27 @@ export function parseFeatures(
     })),
     applyDefaults,
     defaults,
+    ...(repair ? { repair: repairSelection(requested) } : {}),
   };
-  return requested.size === 0 && !applyDefaults
+  return requested.size === 0 && !applyDefaults && !repair
     ? { kind: "status", request }
     : { kind: "change", request };
+}
+
+function repairSelection(
+  requested: ReadonlyMap<string, boolean>,
+): RepairSelection {
+  const featureIds = [...requested].filter(([, enabled]) => enabled).map((
+    [id],
+  ) => id);
+  if ([...requested.values()].some((enabled) => !enabled)) {
+    throw new Error(
+      "`--repair` cannot be combined with negative feature flags",
+    );
+  }
+  return featureIds.length === 0
+    ? { kind: "all-drifted" }
+    : { kind: "features", featureIds };
 }
 
 function addRequest(

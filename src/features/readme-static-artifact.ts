@@ -68,7 +68,7 @@ export function readmeStaticIssue(
     subject: readmeStaticSubject(),
     observation: "README.md does not exactly match the starter README.",
     resolution:
-      "Repair README.md to exactly match the starter content and mode 0644; repair execution is not available.",
+      "Repair README.md to exactly match the starter content and mode 0644.",
   };
 }
 

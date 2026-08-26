@@ -16,11 +16,17 @@ import {
   readmeStaticFeatureId,
   readmeStaticPath,
 } from "./readme-static-artifact.ts";
+import {
+  checkRepairReadmeStatic,
+  planRepairReadmeStatic,
+} from "./readme-static-repair.ts";
 
 export async function checkEnableReadmeStatic(
   context: OperationContext,
 ): Promise<OperationCheck> {
   const inspection = await inspectReadmeStatic(context);
+  const repair = checkRepairReadmeStatic(context, inspection);
+  if (repair) return repair;
   const plan = planArtifactCreation(inspection);
   if (plan.result === "planned") {
     return {
@@ -86,6 +92,8 @@ export async function planEnableReadmeStatic(
   allowed: AllowedOperation,
 ): Promise<ChangePlan> {
   const plan = planArtifactCreation(await inspectReadmeStatic(context));
+  const repair = await planRepairReadmeStatic(context, allowed);
+  if (repair) return repair;
   if (plan.result !== "planned") {
     throw new Error("README.md cannot be created.");
   }

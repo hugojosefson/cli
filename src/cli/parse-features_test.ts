@@ -53,3 +53,37 @@ Deno.test("formats statuses by stable feature ID", () => {
     "git: enabled\nreadme-static: disabled",
   );
 });
+
+Deno.test("parses explicit repair selections and rejects negative flags", () => {
+  assertEquals(
+    parseFeatures(["repo", "features", "--repair"], builtInFeatureRegistry),
+    {
+      kind: "change",
+      request: {
+        changes: [],
+        applyDefaults: false,
+        defaults: [{ kind: "feature", featureId: "git" }, {
+          kind: "capability",
+          capabilityId: "readme",
+        }],
+        repair: { kind: "all-drifted" },
+      },
+    },
+  );
+  assertEquals(
+    parseFeatures(
+      ["repo", "features", "--repair", "--readme"],
+      builtInFeatureRegistry,
+    ).request.repair,
+    { kind: "features", featureIds: ["readme-static"] },
+  );
+  assertThrows(
+    () =>
+      parseFeatures(
+        ["repo", "features", "--repair", "--no-readme"],
+        builtInFeatureRegistry,
+      ),
+    Error,
+    "negative",
+  );
+});

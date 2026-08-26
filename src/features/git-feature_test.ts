@@ -33,6 +33,7 @@ function operationContext(isRepository: boolean): OperationContext {
     detections: new Map(),
     requestedChanges: [],
     resolvedChanges: [],
+    repair: undefined,
     options: {},
   };
 }

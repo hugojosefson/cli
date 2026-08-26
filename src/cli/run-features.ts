@@ -17,6 +17,7 @@ import {
   requireGitIdentity,
 } from "./git-feature-commit.ts";
 import type { FeaturesArguments } from "./parse-features.ts";
+import { repairFeatureChanges } from "./repair-feature-changes.ts";
 
 /** Runs the built-in repository feature operation at one local root. */
 export async function runFeatures(
@@ -38,16 +39,21 @@ export async function runFeatures(
   if (resolution.issues.length) {
     throw new Error(`resolution failed: ${resolution.issues[0].code}`);
   }
+  const changes = [
+    ...resolution.changes,
+    ...repairFeatureChanges(detections, args.request.repair),
+  ];
   const context: OperationContext = {
     repositoryRoot: root,
     files,
     git,
     detections,
     requestedChanges: args.request.changes,
-    resolvedChanges: resolution.changes,
+    resolvedChanges: changes,
+    repair: args.request.repair,
     options: {},
   };
-  const plans = await plansFor(context);
+  const plans = await plansFor(context, changes);
   rejectUnsupportedValidations(plans);
   await Promise.all(plans.map((plan) => preflightLocalChangePlan(root, plan)));
   const paths = plannedCommitPaths(plans);
@@ -85,9 +91,10 @@ async function detect(root: URL, files: LocalFileReader, git: LocalGitReader) {
 
 async function plansFor(
   context: OperationContext,
+  changes: OperationContext["resolvedChanges"],
 ): Promise<readonly ChangePlan[]> {
   const plans: ChangePlan[] = [];
-  for (const change of context.resolvedChanges) {
+  for (const change of changes) {
     const feature = builtInFeatureRegistry.features.find((item) =>
       item.metadata.id === change.featureId
     )!;

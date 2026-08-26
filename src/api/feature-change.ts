@@ -17,6 +17,7 @@ export interface RequestedFeatureChange {
 /** Why dependency resolution selected a feature state. */
 export type ResolvedChangeReason =
   | { readonly kind: "explicit-request" }
+  | { readonly kind: "repair" }
   | {
     readonly kind: "direct-feature-dependency";
     readonly requiredBy: FeatureId;
@@ -41,7 +42,7 @@ export interface ResolvedFeatureChange {
   readonly reason: ResolvedChangeReason;
 }
 
-/** Features whose detected artifacts should later be repaired. */
+/** Features whose detected artifacts should be repaired. */
 export type RepairSelection =
   | { readonly kind: "all-drifted" }
   | { readonly kind: "features"; readonly featureIds: readonly FeatureId[] };
@@ -53,6 +54,6 @@ export interface FeatureChangeRequest {
   readonly applyDefaults: boolean;
   /** Globally configured selections, or the built-in fallback selections. */
   readonly defaults: readonly DefaultSelection[];
-  /** A future artifact-repair request. Resolution does not repair artifacts. */
+  /** Artifact repair intent; state resolution still treats drifted as present. */
   readonly repair?: RepairSelection;
 }

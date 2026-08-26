@@ -48,6 +48,40 @@ Deno.test("reports status and commits only planned README changes", async () => 
   });
 });
 
+Deno.test("repairs all drift in one Git commit", async () => {
+  await withRepository(async (root) => {
+    await git(["init"], root);
+    await git(["config", "user.name", "Test User"], root);
+    await git(["config", "user.email", "test@example.invalid"], root);
+    await Deno.writeTextFile(new URL("README.md", root), "# edited\n");
+    await Deno.chmod(new URL("README.md", root), 0o755);
+    await git(["add", "README.md"], root);
+    await git(["commit", "-m", "chore: seed"], root);
+
+    const result = await runFeatures(
+      root,
+      parseFeatures(
+        ["repo", "features", "--repair"],
+        builtInFeatureRegistry,
+      ),
+    );
+    assert(result.includes("Created one commit"));
+    assert(
+      (await Deno.readTextFile(new URL("README.md", root))).startsWith(
+        "# hj-cli-features-",
+      ),
+    );
+    assertEquals(
+      (await Deno.stat(new URL("README.md", root))).mode! & 0o777,
+      0o644,
+    );
+    assertEquals(
+      await gitText(["show", "--format=", "--name-only", "HEAD"], root),
+      "README.md",
+    );
+  });
+});
+
 async function withRepository(
   action: (root: URL) => Promise<void>,
 ): Promise<void> {
