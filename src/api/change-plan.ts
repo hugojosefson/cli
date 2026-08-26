@@ -16,6 +16,7 @@ export type Precondition =
     readonly path: RepositoryPath;
     readonly digest: FileDigest | undefined;
   }
+  | { readonly kind: "git-repository"; readonly exists: boolean }
   | { readonly kind: "git-head"; readonly commit: string | undefined }
   | { readonly kind: "clean-worktree" }
   | {
