@@ -18,11 +18,20 @@ export async function applyLocalChangePlan(
   rootUrl: URL,
   plan: ChangePlan,
 ): Promise<void> {
+  await preflightLocalChangePlan(rootUrl, plan);
+  const root = repositoryRoot(rootUrl);
+  for (const change of plan.changes) await apply(root, change);
+}
+
+/** Verifies a local plan without changing the repository. */
+export async function preflightLocalChangePlan(
+  rootUrl: URL,
+  plan: ChangePlan,
+): Promise<void> {
   const root = repositoryRoot(rootUrl);
   rejectRemoteWork(plan);
   await Promise.all(plan.changes.map((change) => validateChange(root, change)));
   await Promise.all(plan.preconditions.map((item) => verify(root, item)));
-  for (const change of plan.changes) await apply(root, change);
 }
 
 function rejectRemoteWork(plan: ChangePlan): void {

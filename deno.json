@@ -22,9 +22,13 @@
       "description": "Run tests",
       "command": "deno test --allow-read=/tmp/opencode --allow-write=/tmp/opencode --allow-run=git"
     },
+    "diff-check": {
+      "description": "Check the working diff for whitespace errors",
+      "command": "git diff --check"
+    },
     "all": {
       "description": "Run all non-mutating checks",
-      "dependencies": ["format", "lint", "check", "test"]
+      "dependencies": ["format", "lint", "check", "test", "diff-check"]
     }
   }
 }
