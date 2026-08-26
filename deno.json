@@ -1,0 +1,21 @@
+{
+  "fmt": {
+    "include": ["src", "README.md", "deno.json"]
+  },
+  "tasks": {
+    "fmt": { "description": "Format project source", "command": "deno fmt" },
+    "format": {
+      "description": "Check project formatting",
+      "command": "deno fmt --check"
+    },
+    "lint": { "description": "Lint source files", "command": "deno lint src" },
+    "check": {
+      "description": "Type-check source files",
+      "command": "deno check src/**/*.ts"
+    },
+    "all": {
+      "description": "Run all non-mutating checks",
+      "dependencies": ["format", "lint", "check"]
+    }
+  }
+}
