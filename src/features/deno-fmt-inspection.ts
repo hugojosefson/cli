@@ -1,0 +1,32 @@
+/** @module Shared inspection for Deno formatting configuration. */
+
+import type { DenoConfigInspection } from "./deno-config.ts";
+import { inspectDenoConfig } from "./deno-config.ts";
+import type { DenoTaskInspection } from "./deno-tasks.ts";
+import { inspectDenoTasks } from "./deno-tasks.ts";
+import type { DetectionContext } from "../api/repository-context.ts";
+
+export const denoFmtFeatureId = "deno-fmt";
+
+export type DenoFmtInspection =
+  | {
+    readonly config: Extract<DenoConfigInspection, { readonly kind: "config" }>;
+    readonly tasks: DenoTaskInspection;
+  }
+  | {
+    readonly config: Exclude<DenoConfigInspection, { readonly kind: "config" }>;
+    readonly tasks: undefined;
+  };
+
+export function denoFmtSubject() {
+  return { kind: "repository-path", identifier: "deno.json|deno.jsonc" };
+}
+
+/** Reads the selected config and classifies the contributed tasks. */
+export async function inspectDenoFmt(
+  context: DetectionContext,
+): Promise<DenoFmtInspection> {
+  const config = await inspectDenoConfig(context);
+  if (config.kind !== "config") return { config, tasks: undefined };
+  return { config, tasks: inspectDenoTasks(config.value) };
+}

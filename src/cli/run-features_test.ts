@@ -16,7 +16,10 @@ Deno.test("reports status and commits only planned README changes", async () => 
       root,
       parseFeatures(["repo", "features"], builtInFeatureRegistry),
     );
-    assertEquals(status, "git: enabled\nreadme-static: disabled");
+    assertEquals(
+      status,
+      "deno-fmt: disabled\ngit: enabled\nreadme-static: disabled",
+    );
     const enabled = await runFeatures(
       root,
       parseFeatures(["repo", "features", "--readme"], builtInFeatureRegistry),
@@ -82,6 +85,30 @@ Deno.test("repairs all drift in one Git commit", async () => {
   });
 });
 
+Deno.test("commits planned deno-fmt changes through the generic Git path", async () => {
+  await withRepository(async (root) => {
+    await git(["init"], root);
+    await git(["config", "user.name", "Test User"], root);
+    await git(["config", "user.email", "test@example.invalid"], root);
+    await Deno.writeTextFile(new URL("keep.txt", root), "keep\n");
+    await git(["add", "keep.txt"], root);
+    await git(["commit", "-m", "chore: seed"], root);
+
+    const result = await runFeatures(
+      root,
+      parseFeatures(
+        ["repo", "features", "--deno-fmt"],
+        builtInFeatureRegistry,
+      ),
+    );
+    assert(result.includes("Created one commit"));
+    assertEquals(
+      await gitText(["show", "--format=", "--name-only", "HEAD"], root),
+      "deno.jsonc",
+    );
+  });
+});
+
 Deno.test("interactive empty selection returns status without changes", async () => {
   await withRepository(async (root) => {
     const result = await runFeatures(
@@ -92,7 +119,10 @@ Deno.test("interactive empty selection returns status without changes", async ()
       ),
       () => [],
     );
-    assertEquals(result, "git: disabled\nreadme-static: disabled");
+    assertEquals(
+      result,
+      "deno-fmt: disabled\ngit: disabled\nreadme-static: disabled",
+    );
   });
 });
 

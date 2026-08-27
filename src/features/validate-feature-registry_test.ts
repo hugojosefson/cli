@@ -7,6 +7,10 @@ import { builtInFeatureRegistry } from "./built-in-feature-registry.ts";
 Deno.test("the complete built-in registry validates", () => {
   assertEquals(validateFeatureRegistry(builtInFeatureRegistry), []);
   assertEquals(
+    builtInFeatureRegistry.features.map((feature) => feature.metadata.id),
+    ["deno-fmt", "git", "readme-static"],
+  );
+  assertEquals(
     builtInFeatureRegistry.capabilities,
     [{
       id: "readme",

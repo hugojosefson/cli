@@ -5,6 +5,13 @@ import { type FeaturesArguments, parseFeatures } from "./parse-features.ts";
 
 Deno.test("parses built-in features, capability aliases, and defaults", () => {
   assertEquals(
+    changeRequest(parseFeatures(
+      ["repo", "features", "--deno-fmt"],
+      builtInFeatureRegistry,
+    )).changes,
+    [{ featureId: "deno-fmt", enabled: true }],
+  );
+  assertEquals(
     parseFeatures(["repo", "features", "--readme"], builtInFeatureRegistry),
     {
       kind: "change",
@@ -46,11 +53,12 @@ Deno.test("formats statuses by stable feature ID", () => {
     formatFeatureStatus(
       builtInFeatureRegistry,
       new Map([
+        ["deno-fmt", { state: "disabled", evidence: [] }],
         ["readme-static", { state: "disabled", evidence: [] }],
         ["git", { state: "enabled", evidence: [] }],
       ]),
     ),
-    "git: enabled\nreadme-static: disabled",
+    "deno-fmt: disabled\ngit: enabled\nreadme-static: disabled",
   );
 });
 

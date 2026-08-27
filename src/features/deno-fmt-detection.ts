@@ -1,0 +1,90 @@
+/** @module Detection for Deno formatting configuration. */
+
+import type { DetectionIssue } from "../api/feature-detection.ts";
+import type { DetectionContext } from "../api/repository-context.ts";
+import { denoFmtSubject, inspectDenoFmt } from "./deno-fmt-inspection.ts";
+import { denoTaskNames } from "./deno-tasks.ts";
+
+/** Detects absent, adopted, drifted, and ambiguous Deno formatting tasks. */
+export async function detectDenoFmt(context: DetectionContext) {
+  const state = await inspectDenoFmt(context);
+  if (state.config.kind === "absent") {
+    return simple("disabled", "Deno configuration is absent.");
+  }
+  if (state.config.kind === "ambiguous") {
+    return ambiguous(state.config.observation);
+  }
+  const tasks = state.tasks!;
+  if (tasks.kind === "missing-tasks") {
+    return simple("disabled", "Deno tasks are absent.");
+  }
+  if (tasks.kind === "ambiguous-tasks") {
+    return ambiguous("The Deno tasks entry is not an object.");
+  }
+  if (tasks.ambiguous.length > 0) {
+    return ambiguous(`Deno task ${tasks.ambiguous[0]} is not an object.`);
+  }
+  if (tasks.missing.length === denoTaskNames.length) {
+    return simple("disabled", "Contributed Deno tasks are absent.");
+  }
+  if (tasks.missing.length > 0 || tasks.drifted.length > 0) {
+    return drifted("One or more contributed Deno tasks are missing or differ.");
+  }
+  return simple("enabled", "Required Deno formatting tasks are adopted.");
+}
+
+function simple(state: "disabled" | "enabled", observation: string) {
+  return {
+    state,
+    evidence: [{
+      code: `deno-fmt-${state}`,
+      kind: "deno-fmt",
+      subject: denoFmtSubject(),
+      observation,
+    }],
+  };
+}
+
+function drifted(observation: string) {
+  return issueDetection(
+    "drifted",
+    "deno-fmt-drifted",
+    observation,
+    "Use --repair to restore contributed task definitions.",
+  );
+}
+
+function ambiguous(observation: string) {
+  return issueDetection(
+    "ambiguous",
+    "deno-fmt-ambiguous",
+    observation,
+    "Resolve the Deno configuration conflict, then retry.",
+  );
+}
+
+function issueDetection(
+  state: "drifted" | "ambiguous",
+  code: string,
+  observation: string,
+  resolution: string,
+) {
+  const subject = denoFmtSubject();
+  const issue: DetectionIssue = {
+    code,
+    kind: "deno-fmt",
+    subject,
+    observation,
+    resolution,
+  };
+  return {
+    state,
+    evidence: [{
+      code: "deno-fmt-inspected",
+      kind: "deno-fmt",
+      subject,
+      observation,
+    }],
+    issues: [issue],
+  };
+}
