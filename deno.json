@@ -21,7 +21,7 @@
     },
     "test": {
       "description": "Run tests",
-      "command": "deno test --allow-read=/tmp/opencode --allow-write=/tmp/opencode --allow-run=git"
+      "command": "deno test --allow-read=/tmp/opencode --allow-write=/tmp/opencode --allow-run=git,deno"
     },
     "diff-check": {
       "description": "Check the working diff for whitespace errors",

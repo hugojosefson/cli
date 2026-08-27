@@ -2,14 +2,25 @@
 
 import type { JsonObject, JsonValue } from "../api/json.ts";
 import type { OperationContext } from "../api/repository-context.ts";
+import { denoCliInitialConfigContribution } from "./deno-cli-artifacts.ts";
+import { denoFmtFeatureId } from "./deno-fmt-inspection.ts";
+import { denoTaskDefinitions } from "./deno-tasks.ts";
 import { denoLibInitialConfigContribution } from "./deno-lib-artifacts.ts";
 
-const contributions = [denoLibInitialConfigContribution];
+const contributions = [
+  {
+    featureId: denoFmtFeatureId,
+    value: { tasks: denoTaskDefinitions },
+  },
+  denoCliInitialConfigContribution,
+  denoLibInitialConfigContribution,
+];
 
 /** Adds declarations from features enabled in this ordered operation. */
 export function initialDenoConfig(
   context: OperationContext,
   base: JsonObject,
+  fallbackFeatureId?: string,
 ): JsonObject {
   return contributions.reduce(
     (value, contribution) =>
@@ -17,9 +28,20 @@ export function initialDenoConfig(
           change.featureId === contribution.featureId && change.enabled
         )
         ? mergeObjects(value, contribution.value)
+        : fallbackFeatureId === contribution.featureId
+        ? mergeObjects(value, contribution.value)
         : value,
     base,
   );
+}
+
+/** Selects one ordered feature to create an initially absent Deno config. */
+export function createsInitialDenoConfig(
+  context: OperationContext,
+  featureId: string,
+): boolean {
+  return context.resolvedChanges.find((change) => change.enabled)?.featureId ===
+      featureId || context.resolvedChanges.every((change) => !change.enabled);
 }
 
 function mergeObjects(left: JsonObject, right: JsonObject): JsonObject {

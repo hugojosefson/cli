@@ -10,7 +10,10 @@ import {
   denoTaskDefinitions,
   denoTaskNames,
 } from "./deno-tasks.ts";
-import { initialDenoConfig } from "./deno-initial-config.ts";
+import {
+  createsInitialDenoConfig,
+  initialDenoConfig,
+} from "./deno-initial-config.ts";
 
 /** Plans creation, completion, or selected repair of Deno formatting tasks. */
 export async function planEnableDenoFmt(
@@ -19,13 +22,16 @@ export async function planEnableDenoFmt(
 ): Promise<ChangePlan> {
   const state = await inspectDenoFmt(context);
   const changes: PlannedChange[] = [];
-  if (state.config.kind === "absent") {
+  if (
+    state.config.kind === "absent" &&
+    createsInitialDenoConfig(context, denoFmtFeatureId)
+  ) {
     changes.push({
       kind: "write-file",
       path: "deno.jsonc",
-      content: denoFmtConfigText(initialDenoConfig(context, {
-        tasks: denoTaskDefinitions,
-      })),
+      content: denoFmtConfigText(
+        initialDenoConfig(context, {}, denoFmtFeatureId),
+      ),
       mode: 0o644,
       expectedDigest: undefined,
     });

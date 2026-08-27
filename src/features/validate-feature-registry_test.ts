@@ -8,7 +8,7 @@ Deno.test("the complete built-in registry validates", () => {
   assertEquals(validateFeatureRegistry(builtInFeatureRegistry), []);
   assertEquals(
     builtInFeatureRegistry.features.map((feature) => feature.metadata.id),
-    ["deno-fmt", "deno-lib", "git", "readme-static"],
+    ["deno-cli", "deno-fmt", "deno-lib", "git", "readme-static"],
   );
   assertEquals(
     builtInFeatureRegistry.capabilities,

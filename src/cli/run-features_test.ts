@@ -18,7 +18,7 @@ Deno.test("reports status and commits only planned README changes", async () => 
     );
     assertEquals(
       status,
-      "deno-fmt: disabled\ndeno-lib: disabled\ngit: enabled\nreadme-static: disabled",
+      "deno-cli: disabled\ndeno-fmt: disabled\ndeno-lib: disabled\ngit: enabled\nreadme-static: disabled",
     );
     const enabled = await runFeatures(
       root,
@@ -132,6 +132,26 @@ Deno.test("commits planned deno-lib files through the generic Git path", async (
   });
 });
 
+Deno.test("commits planned deno-cli files through the generic Git path", async () => {
+  await withRepository(async (root) => {
+    await git(["init"], root);
+    await git(["config", "user.name", "Test User"], root);
+    await git(["config", "user.email", "test@example.invalid"], root);
+    await Deno.writeTextFile(new URL("keep.txt", root), "keep\n");
+    await git(["add", "keep.txt"], root);
+    await git(["commit", "-m", "chore: seed"], root);
+    const result = await runFeatures(
+      root,
+      parseFeatures(["repo", "features", "--deno-cli"], builtInFeatureRegistry),
+    );
+    assert(result.includes("Created one commit"));
+    assertEquals(
+      await gitText(["show", "--format=", "--name-only", "HEAD"], root),
+      "deno.jsonc\nsrc/cli/cli.ts\nsrc/cli/command.ts\nsrc/cli/commands.ts\ntest/cli_test.ts",
+    );
+  });
+});
+
 Deno.test("interactive empty selection returns status without changes", async () => {
   await withRepository(async (root) => {
     const result = await runFeatures(
@@ -144,7 +164,7 @@ Deno.test("interactive empty selection returns status without changes", async ()
     );
     assertEquals(
       result,
-      "deno-fmt: disabled\ndeno-lib: disabled\ngit: disabled\nreadme-static: disabled",
+      "deno-cli: disabled\ndeno-fmt: disabled\ndeno-lib: disabled\ngit: disabled\nreadme-static: disabled",
     );
   });
 });

@@ -1,39 +1,39 @@
-/** @module Ordered Deno library change plans. */
+/** @module Ordered Deno CLI change plans. */
 
 import type { ChangePlan } from "../api/change-plan.ts";
 import type { AllowedOperation } from "../api/feature-operation.ts";
 import type { PlannedChange } from "../api/planned-change.ts";
 import type { OperationContext } from "../api/repository-context.ts";
+import {
+  denoCliArtifacts,
+  denoCliExport,
+  denoCliFeatureId,
+  inspectDenoCliArtifacts,
+} from "./deno-cli-artifacts.ts";
 import { inspectDenoConfig } from "./deno-config.ts";
 import {
   createsInitialDenoConfig,
   initialDenoConfig,
 } from "./deno-initial-config.ts";
-import {
-  denoLibArtifacts,
-  denoLibExport,
-  denoLibFeatureId,
-  inspectDenoLibArtifacts,
-} from "./deno-lib-artifacts.ts";
 import { isObject } from "./deno-tasks.ts";
 
-export async function planEnableDenoLib(
+export async function planEnableDenoCli(
   context: OperationContext,
   allowed: AllowedOperation,
 ): Promise<ChangePlan> {
   const config = await inspectDenoConfig(context);
-  const artifacts = await inspectDenoLibArtifacts(context);
+  const artifacts = await inspectDenoCliArtifacts(context);
   const changes: PlannedChange[] = [];
   if (
     config.kind === "absent" &&
-    createsInitialDenoConfig(context, denoLibFeatureId)
+    createsInitialDenoConfig(context, denoCliFeatureId)
   ) {
     changes.push({
       kind: "write-file",
       path: "deno.jsonc",
       content: `${
         JSON.stringify(
-          initialDenoConfig(context, {}, denoLibFeatureId),
+          initialDenoConfig(context, {}, denoCliFeatureId),
           null,
           2,
         )
@@ -44,50 +44,44 @@ export async function planEnableDenoLib(
   } else if (
     config.kind === "config" &&
     (!isObject(config.value.exports) ||
-      config.value.exports["."] !== denoLibExport)
+      config.value.exports["./cli"] !== denoCliExport)
   ) {
     changes.push({
       kind: "set-json",
       path: config.path,
-      jsonPath: ["exports", "."],
-      value: denoLibExport,
+      jsonPath: ["exports", "./cli"],
+      value: denoCliExport,
       expected: isObject(config.value.exports)
-        ? config.value.exports["."]
+        ? config.value.exports["./cli"]
         : undefined,
     });
   }
-  for (const path of ["src", "src/lib", "test"]) {
+  for (const path of ["src", "src/cli", "test"]) {
     if ((await context.files.observe(path)).kind === "absent") {
       changes.push({ kind: "create-directory", path });
     }
   }
   for (const [index, item] of artifacts.entries()) {
     if (item.result === "matches") continue;
-    const needsWrite = item.result === "absent" ||
-      item.result === "differs" && item.observation.kind === "file" &&
-        item.differences.some((difference) => difference.kind === "content");
-    const expectedDigest =
-      item.result === "differs" && item.observation.kind === "file"
-        ? item.observation.digest
-        : undefined;
-    if (needsWrite) {
-      changes.push({
-        kind: "write-file",
-        path: denoLibArtifacts[index].path,
-        content: denoLibArtifacts[index].content,
-        mode: 0o644,
-        expectedDigest,
-      });
-    }
+    const file = item.result === "differs" && item.observation.kind === "file";
     if (
-      item.result === "differs" && item.schema.kind === "file" &&
-      item.observation.kind === "file" &&
-      item.observation.mode !== item.schema.mode
+      item.result === "absent" ||
+      file &&
+        item.differences.some((difference) => difference.kind === "content")
     ) {
       changes.push({
+        kind: "write-file",
+        path: denoCliArtifacts[index].path,
+        content: denoCliArtifacts[index].content,
+        mode: denoCliArtifacts[index].mode,
+        expectedDigest: file ? item.observation.digest : undefined,
+      });
+    }
+    if (file && item.observation.mode !== denoCliArtifacts[index].mode) {
+      changes.push({
         kind: "set-file-mode",
-        path: denoLibArtifacts[index].path,
-        mode: item.schema.mode,
+        path: denoCliArtifacts[index].path,
+        mode: denoCliArtifacts[index].mode,
         expectedMode: item.observation.mode,
       });
     }
@@ -96,31 +90,31 @@ export async function planEnableDenoLib(
     "enable",
     allowed,
     changes,
-    "Configure Deno library export and starter files.",
+    "Configure Deno CLI export and executable seed.",
     "enabled",
   );
 }
 
-export async function planDisableDenoLib(
+export async function planDisableDenoCli(
   context: OperationContext,
   allowed: AllowedOperation,
 ): Promise<ChangePlan> {
   const config = await inspectDenoConfig(context);
   const changes: PlannedChange[] =
     config.kind === "config" && isObject(config.value.exports) &&
-      config.value.exports["."] === denoLibExport
+      config.value.exports["./cli"] === denoCliExport
       ? [{
         kind: "remove-json",
         path: config.path,
-        jsonPath: ["exports", "."],
-        expected: denoLibExport,
+        jsonPath: ["exports", "./cli"],
+        expected: denoCliExport,
       }]
       : [];
   return plan(
     "disable",
     allowed,
     changes,
-    "Remove the contributed Deno library export.",
+    "Remove the contributed Deno CLI export.",
     "disabled",
   );
 }
@@ -133,7 +127,7 @@ function plan(
   expected: "enabled" | "disabled",
 ): ChangePlan {
   return {
-    featureId: denoLibFeatureId,
+    featureId: denoCliFeatureId,
     action,
     summary,
     warnings: allowed.warnings,
@@ -141,7 +135,7 @@ function plan(
     changes,
     validations: [{
       kind: "feature-redetection",
-      featureId: denoLibFeatureId,
+      featureId: denoCliFeatureId,
       expected,
     }],
   };
