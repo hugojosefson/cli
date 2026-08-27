@@ -39,7 +39,7 @@ Deno.test("keeps repo features dispatch", async () => {
   try {
     assertEquals(
       formatCliOutput(await runCli(root, ["repo", "features"])),
-      "deno-cli: disabled\ndeno-fmt: disabled\ndeno-lib: disabled\ndeno-lint: disabled\ndeno-server: disabled\ndeno-test: disabled\ndeno-typecheck: disabled\ngit: disabled\nreadme-build: disabled\nreadme-static: disabled\n",
+      "deno-cli: disabled\ndeno-fmt: disabled\ndeno-lib: disabled\ndeno-lint: disabled\ndeno-server: disabled\ndeno-test: disabled\ndeno-typecheck: disabled\ngit: disabled\nlicense-mit: disabled\nreadme-build: disabled\nreadme-static: disabled\n",
     );
   } finally {
     await Deno.remove(path, { recursive: true });

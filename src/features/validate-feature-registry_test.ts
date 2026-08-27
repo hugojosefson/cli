@@ -17,6 +17,7 @@ Deno.test("the complete built-in registry validates", () => {
       "deno-lib",
       "deno-server",
       "git",
+      "license-mit",
       "readme-static",
       "readme-build",
     ],
@@ -24,6 +25,10 @@ Deno.test("the complete built-in registry validates", () => {
   assertEquals(
     builtInFeatureRegistry.capabilities,
     [{ id: "deno-export", providerPolicy: "multiple" }, {
+      id: "license",
+      providerPolicy: "exclusive",
+      defaultProvider: "license-mit",
+    }, {
       id: "readme",
       providerPolicy: "exclusive",
       defaultProvider: "readme-static",

@@ -11,6 +11,8 @@ import {
 } from "../operations/local-change-plan.ts";
 import { LocalFileReader } from "../repository/local-file-reader.ts";
 import { LocalGitReader } from "../repository/local-git-reader.ts";
+import { LocalGithubIdentityReader } from "../repository/local-github-identity-reader.ts";
+import type { GithubIdentityReader } from "../api/repository-context.ts";
 import { formatFeatureResult, formatFeatureStatus } from "./format-features.ts";
 import {
   featureCommitPlan,
@@ -27,9 +29,18 @@ import { promptFeatureActions } from "./prompt-feature-actions.ts";
 import { repairFeatureChanges } from "./repair-feature-changes.ts";
 import { requireConfirmation } from "./require-confirmation.ts";
 import { requestedDriftedChanges } from "./requested-drifted-changes.ts";
+import {
+  type AttributionPrompt,
+  resolveLicenseAttribution,
+} from "./license-attribution.ts";
 export type FeatureSelector = (
   actions: readonly FeatureAction[],
 ) => readonly string[];
+
+export interface FeatureOperationServices {
+  readonly promptAttribution?: AttributionPrompt;
+  readonly githubIdentity?: GithubIdentityReader;
+}
 
 /** Runs the built-in repository feature operation at one local root. */
 export async function runFeatures(
@@ -51,9 +62,12 @@ export async function runFeatureOperation(
   args: FeaturesArguments,
   registry: FeatureRegistry,
   selectActions: FeatureSelector = promptFeatureActions,
+  services: FeatureOperationServices = {},
 ): Promise<string> {
   const files = new LocalFileReader(root);
   const git = new LocalGitReader(root);
+  const githubIdentity = services.githubIdentity ??
+    new LocalGithubIdentityReader();
   const detections = await detect(root, files, git, registry);
   if (args.kind === "status") {
     return formatFeatureStatus(registry, detections);
@@ -79,15 +93,26 @@ export async function runFeatureOperation(
     ...requestedDriftedChanges(detections, request),
     ...repairFeatureChanges(detections, request.repair),
   ];
-  const context: OperationContext = {
+  const baseContext = {
     repositoryRoot: root,
     files,
     git,
+    githubIdentity,
     detections,
     requestedChanges: request.changes,
     resolvedChanges: changes,
     repair: request.repair,
-    options: { confirmation: args.confirmation },
+  };
+  const licenseOptions =
+    changes.some((change) =>
+        change.featureId === "license-mit" &&
+        change.enabled && detections.get(change.featureId)?.state === "disabled"
+      )
+      ? await resolveLicenseAttribution(baseContext, services.promptAttribution)
+      : {};
+  const context: OperationContext = {
+    ...baseContext,
+    options: { confirmation: args.confirmation, ...licenseOptions },
   };
   const plans = await plansFor(context, changes, registry);
   requireConfirmation(plans, args.confirmation);

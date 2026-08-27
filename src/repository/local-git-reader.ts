@@ -122,6 +122,12 @@ export class LocalGitReader implements GitReader {
     return undefined;
   }
 
+  async userName(): Promise<string | undefined> {
+    const result = await this.#git(["config", "--get", "user.name"]);
+    const name = result.success ? text(result.stdout).trim() : "";
+    return name || undefined;
+  }
+
   #git(args: readonly string[]): Promise<Deno.CommandOutput> {
     return new Deno.Command("git", { args: [...args], cwd: this.#root.path })
       .output();

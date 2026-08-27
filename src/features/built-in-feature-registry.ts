@@ -13,6 +13,7 @@ import { denoServerFeature } from "./deno-server-feature.ts";
 import { gitFeature } from "./git-feature.ts";
 import { readmeStaticFeature } from "./readme-static-feature.ts";
 import { readmeBuildFeature } from "./readme-build-feature.ts";
+import { licenseMitFeature } from "./license-mit-feature.ts";
 
 /** Features available without repository-specific configuration. */
 export const builtInFeatureRegistry: FeatureRegistry = {
@@ -25,10 +26,15 @@ export const builtInFeatureRegistry: FeatureRegistry = {
     denoLibFeature,
     denoServerFeature,
     gitFeature,
+    licenseMitFeature,
     readmeStaticFeature,
     readmeBuildFeature,
   ],
   capabilities: [{ id: "deno-export", providerPolicy: "multiple" }, {
+    id: "license",
+    providerPolicy: "exclusive",
+    defaultProvider: "license-mit",
+  }, {
     id: "readme",
     providerPolicy: "exclusive",
     defaultProvider: "readme-static",

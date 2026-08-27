@@ -81,9 +81,10 @@ Deno.test("formats statuses by stable feature ID", () => {
         ["readme-static", { state: "disabled", evidence: [] }],
         ["readme-build", { state: "disabled", evidence: [] }],
         ["git", { state: "enabled", evidence: [] }],
+        ["license-mit", { state: "disabled", evidence: [] }],
       ]),
     ),
-    "deno-cli: disabled\ndeno-fmt: disabled\ndeno-lib: disabled\ndeno-lint: disabled\ndeno-server: disabled\ndeno-test: disabled\ndeno-typecheck: disabled\ngit: enabled\nreadme-build: disabled\nreadme-static: disabled",
+    "deno-cli: disabled\ndeno-fmt: disabled\ndeno-lib: disabled\ndeno-lint: disabled\ndeno-server: disabled\ndeno-test: disabled\ndeno-typecheck: disabled\ngit: enabled\nlicense-mit: disabled\nreadme-build: disabled\nreadme-static: disabled",
   );
 });
 

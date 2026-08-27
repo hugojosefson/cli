@@ -67,6 +67,8 @@ export interface GitReader {
   ): Promise<GitStatus | undefined>;
   remotes(): Promise<readonly GitRemote[]>;
   defaultBranch(): Promise<string | undefined>;
+  /** Local identity used for non-secret repository attribution. */
+  userName?(): Promise<string | undefined>;
 }
 
 /** GitHub facts needed by feature checks. */
@@ -86,6 +88,8 @@ export interface GithubResource {
 
 /** Read-only Github access, present only when Github can be queried. */
 export interface GithubReader {
+  /** Authenticated viewer identity, when the adapter supports it. */
+  viewer?(): Promise<{ readonly name: string } | undefined>;
   repository(): Promise<GithubRepository | undefined>;
   rulesets(): Promise<readonly GithubResource[]>;
   environments(): Promise<readonly GithubResource[]>;
@@ -97,12 +101,18 @@ export interface GithubReader {
   resource(kind: string, name: string): Promise<GithubResource | undefined>;
 }
 
+/** Authenticated Github viewer lookup independent of repository access. */
+export interface GithubIdentityReader {
+  viewer(): Promise<{ readonly name: string } | undefined>;
+}
+
 /** Services available while detecting a feature without changing the repository. */
 export interface DetectionContext {
   readonly repositoryRoot: URL;
   readonly files: FileReader;
   readonly git: GitReader;
   readonly github?: GithubReader;
+  readonly githubIdentity?: GithubIdentityReader;
 }
 
 /** Read-only context shared by checks and planners for one repository operation. */

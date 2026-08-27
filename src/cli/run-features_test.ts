@@ -19,7 +19,7 @@ Deno.test("reports status and commits only planned README changes", async () => 
     );
     assertEquals(
       status,
-      "deno-cli: disabled\ndeno-fmt: disabled\ndeno-lib: disabled\ndeno-lint: disabled\ndeno-server: disabled\ndeno-test: disabled\ndeno-typecheck: disabled\ngit: enabled\nreadme-build: disabled\nreadme-static: disabled",
+      "deno-cli: disabled\ndeno-fmt: disabled\ndeno-lib: disabled\ndeno-lint: disabled\ndeno-server: disabled\ndeno-test: disabled\ndeno-typecheck: disabled\ngit: enabled\nlicense-mit: disabled\nreadme-build: disabled\nreadme-static: disabled",
     );
     const enabled = await runFeatures(
       root,
@@ -199,7 +199,7 @@ Deno.test("interactive empty selection returns status without changes", async ()
     );
     assertEquals(
       result,
-      "deno-cli: disabled\ndeno-fmt: disabled\ndeno-lib: disabled\ndeno-lint: disabled\ndeno-server: disabled\ndeno-test: disabled\ndeno-typecheck: disabled\ngit: disabled\nreadme-build: disabled\nreadme-static: disabled",
+      "deno-cli: disabled\ndeno-fmt: disabled\ndeno-lib: disabled\ndeno-lint: disabled\ndeno-server: disabled\ndeno-test: disabled\ndeno-typecheck: disabled\ngit: disabled\nlicense-mit: disabled\nreadme-build: disabled\nreadme-static: disabled",
     );
   });
 });
