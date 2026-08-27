@@ -4,13 +4,16 @@ import type { ChangePlan } from "../api/change-plan.ts";
 import type { AllowedOperation } from "../api/feature-operation.ts";
 import type { PlannedChange } from "../api/planned-change.ts";
 import type { OperationContext } from "../api/repository-context.ts";
+import { sameJson } from "../operations/local-plan-state.ts";
 import { denoFmtFeatureId, inspectDenoFmt } from "./deno-fmt-inspection.ts";
 import {
   denoFmtConfigText,
   denoTaskDefinitions,
   denoTaskNames,
+  desiredReadmeBuild,
   desiredTaskIds,
   presentTaskIds,
+  readmeTaskDefinition,
 } from "./deno-tasks.ts";
 import {
   createsInitialDenoConfig,
@@ -50,8 +53,10 @@ export async function planEnableDenoFmt(
     } else if (tasks.kind === "tasks") {
       const definitions = denoTaskDefinitions(
         desiredTaskIds(context, tasks.values),
+        desiredReadmeBuild(context, tasks.values),
       );
-      for (const name of [...tasks.missing, ...tasks.drifted].sort()) {
+      const aggregateChanges = [...tasks.missing, ...tasks.drifted].sort();
+      for (const name of aggregateChanges) {
         changes.push({
           kind: "set-json",
           path: state.config.path,
@@ -59,6 +64,39 @@ export async function planEnableDenoFmt(
           value: definitions[name],
           expected: tasks.values[name],
         });
+      }
+      const readme = readmeTransition(context);
+      if (readme) {
+        if (
+          readme.enabled && !sameJson(tasks.values.readme, definitions.readme)
+        ) {
+          changes.push({
+            kind: "set-json",
+            path: state.config.path,
+            jsonPath: ["tasks", "readme"],
+            value: readmeTaskDefinition,
+            expected: tasks.values.readme,
+          });
+        } else if (!readme.enabled && tasks.values.readme !== undefined) {
+          changes.push({
+            kind: "remove-json",
+            path: state.config.path,
+            jsonPath: ["tasks", "readme"],
+            expected: readmeTaskDefinition,
+          });
+        }
+        if (
+          !aggregateChanges.includes("default") &&
+          !sameJson(tasks.values.default, definitions.default)
+        ) {
+          changes.push({
+            kind: "set-json",
+            path: state.config.path,
+            jsonPath: ["tasks", "default"],
+            value: definitions.default!,
+            expected: tasks.values.default,
+          });
+        }
       }
     }
   }
@@ -93,7 +131,21 @@ export async function planDisableDenoFmt(
           kind: "remove-json",
           path: state.config.path,
           jsonPath: ["tasks", name],
-          expected: denoTaskDefinitions(presentTaskIds(tasks.values))[name],
+          expected: denoTaskDefinitions(
+            presentTaskIds(tasks.values),
+            tasks.values.readme !== undefined,
+          )[name],
+        });
+      }
+      if (
+        readmeTransition(context)?.enabled === false &&
+        tasks.values.readme !== undefined
+      ) {
+        changes.push({
+          kind: "remove-json",
+          path: state.config.path,
+          jsonPath: ["tasks", "readme"],
+          expected: readmeTaskDefinition,
         });
       }
     }
@@ -104,6 +156,12 @@ export async function planDisableDenoFmt(
     changes,
     "Remove contributed Deno formatting tasks.",
     "disabled",
+  );
+}
+
+function readmeTransition(context: OperationContext) {
+  return context.resolvedChanges.find((change) =>
+    change.featureId === "readme-build"
   );
 }
 

@@ -30,7 +30,7 @@ function context(
   };
 }
 
-Deno.test("readme-static repairs selected drift with digest and mode guards", async () => {
+Deno.test("readme-static preserves selected writable content", async () => {
   const drifted = context({
     kind: "file",
     content: "# edited\n",
@@ -39,32 +39,41 @@ Deno.test("readme-static repairs selected drift with digest and mode guards", as
   });
   const check = await readmeStaticFeature.checkEnable(drifted);
   assertEquals(check, {
-    result: "allowed",
+    result: "no-op",
+    reason: "README.md is already writable.",
     warnings: [],
-    preconditions: [{
-      kind: "file-digest",
-      path: "README.md",
-      digest: "drift-digest",
-    }],
   });
-  if (check.result !== "allowed") throw new Error("test setup requires repair");
+});
+
+Deno.test("readme-static repairs explicitly selected non-writable content", async () => {
+  const drifted = context({
+    kind: "file",
+    content: "# edited\n",
+    digest: "drift-digest",
+    mode: 0o440,
+  });
+  const check = await readmeStaticFeature.checkEnable(drifted);
+  assertEquals(check.result, "allowed");
+  if (check.result !== "allowed") {
+    throw new Error("test setup requires repair");
+  }
   assertEquals((await readmeStaticFeature.planEnable(drifted, check)).changes, [
+    {
+      kind: "set-file-mode",
+      path: "README.md",
+      mode: 0o644,
+      expectedMode: 0o440,
+    },
     {
       kind: "write-file",
       path: "README.md",
       content: "# example\n",
       expectedDigest: "drift-digest",
     },
-    {
-      kind: "set-file-mode",
-      path: "README.md",
-      mode: 0o644,
-      expectedMode: 0o755,
-    },
   ]);
 });
 
-Deno.test("readme-static blocks unselected and ambiguous repair", async () => {
+Deno.test("readme-static preserves unselected writable content and blocks ambiguity", async () => {
   const unselected = context(
     { kind: "file", content: "# edited\n", digest: "x", mode: 0o644 },
     { kind: "features", featureIds: [] },
@@ -75,7 +84,7 @@ Deno.test("readme-static blocks unselected and ambiguous repair", async () => {
   );
   assertEquals(
     (await readmeStaticFeature.checkEnable(unselected)).result,
-    "blocked",
+    "no-op",
   );
   assertEquals(
     (await readmeStaticFeature.checkEnable(ambiguous)).result,

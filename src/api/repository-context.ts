@@ -61,7 +61,10 @@ export interface GitReader {
   isRepository(): Promise<boolean>;
   head(): Promise<GitHead | undefined>;
   /** Reports status for the whole repository or only the requested paths. */
-  status(paths?: readonly RepositoryPath[]): Promise<GitStatus | undefined>;
+  status(
+    paths?: readonly RepositoryPath[],
+    options?: { readonly includeIgnored?: boolean },
+  ): Promise<GitStatus | undefined>;
   remotes(): Promise<readonly GitRemote[]>;
   defaultBranch(): Promise<string | undefined>;
 }

@@ -18,6 +18,7 @@ Deno.test("the complete built-in registry validates", () => {
       "deno-server",
       "git",
       "readme-static",
+      "readme-build",
     ],
   );
   assertEquals(

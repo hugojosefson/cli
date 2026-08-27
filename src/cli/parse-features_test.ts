@@ -45,7 +45,10 @@ Deno.test("parses built-in features, capability aliases, and defaults", () => {
       ["repo", "features", "--no-readme", "--defaults"],
       builtInFeatureRegistry,
     )).changes,
-    [{ featureId: "readme-static", enabled: false }],
+    [{ featureId: "readme-static", enabled: false }, {
+      featureId: "readme-build",
+      enabled: false,
+    }],
   );
   assertThrows(
     () =>
@@ -76,10 +79,11 @@ Deno.test("formats statuses by stable feature ID", () => {
         ["deno-test", { state: "disabled", evidence: [] }],
         ["deno-typecheck", { state: "disabled", evidence: [] }],
         ["readme-static", { state: "disabled", evidence: [] }],
+        ["readme-build", { state: "disabled", evidence: [] }],
         ["git", { state: "enabled", evidence: [] }],
       ]),
     ),
-    "deno-cli: disabled\ndeno-fmt: disabled\ndeno-lib: disabled\ndeno-lint: disabled\ndeno-server: disabled\ndeno-test: disabled\ndeno-typecheck: disabled\ngit: enabled\nreadme-static: disabled",
+    "deno-cli: disabled\ndeno-fmt: disabled\ndeno-lib: disabled\ndeno-lint: disabled\ndeno-server: disabled\ndeno-test: disabled\ndeno-typecheck: disabled\ngit: enabled\nreadme-build: disabled\nreadme-static: disabled",
   );
 });
 
@@ -176,6 +180,7 @@ Deno.test("parses confirmation without changing status or feature resolution", (
   assertEquals(disabled.confirmation, true);
   assertEquals(disabled.request.changes, [
     { featureId: "readme-static", enabled: false },
+    { featureId: "readme-build", enabled: false },
   ]);
   assertThrows(
     () =>

@@ -47,7 +47,12 @@ export function initialDenoConfig(
       )
     ? mergeObjects(result, {
       tasks: {
-        ...denoTaskDefinitions(enabled),
+        ...denoTaskDefinitions(
+          enabled,
+          context.resolvedChanges.some((change) =>
+            change.featureId === "readme-build" && change.enabled
+          ),
+        ),
         ...Object.fromEntries(enabled.map((id) => [
           leafTaskNames[id],
           leafTaskDefinitions[id],

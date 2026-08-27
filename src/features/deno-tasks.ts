@@ -34,18 +34,32 @@ export const leafTaskNames: Readonly<Record<TaskFeatureId, string>> = {
   "deno-test": "test",
 };
 
+export const readmeTaskDefinition: JsonObject = {
+  description: "Generate README.md.",
+  command:
+    'sh -c \'temp=$(mktemp README.md.XXXXXX) && trap "rm -f \\"$temp\\"" EXIT && deno run --allow-read=. jsr:@hugojosefson/cli@0.0.0 readme build > "$temp" && chmod 444 "$temp" && mv "$temp" README.md\'',
+};
+
 /** Returns formatter-owned tasks for the enabled task-feature subset. */
 export function denoTaskDefinitions(
   enabled: readonly TaskFeatureId[] = [],
+  readmeBuild = false,
 ): Readonly<Record<string, JsonObject>> {
   const dependencies = ["format", ...enabled.map((id) => leafTaskNames[id])];
   return {
     fmt: { description: "Fix formatting.", command: "deno fmt" },
     format: { description: "Check formatting.", command: "deno fmt --check" },
     check: { description: "Run project checks.", dependencies },
+    ...(readmeBuild
+      ? {
+        readme: readmeTaskDefinition,
+      }
+      : {}),
     default: {
       description: "Fix formatting, then run checks.",
-      command: "deno fmt && deno task check",
+      command: readmeBuild
+        ? "deno fmt && deno task readme && deno task check"
+        : "deno fmt && deno task check",
     },
     all: { description: "Run all checks.", dependencies: ["check"] },
   };
@@ -74,6 +88,18 @@ export function desiredTaskIds(
   return taskFeatureIds.filter((id) => desired.includes(id));
 }
 
+/** Whether this operation must retain the generated README task. */
+export function desiredReadmeBuild(
+  context: OperationContext,
+  tasks: JsonObject,
+): boolean {
+  const change = context.resolvedChanges.find((item) =>
+    item.featureId === "readme-build"
+  );
+  if (change) return change.enabled;
+  return sameJson(tasks.readme, readmeTaskDefinition);
+}
+
 export type DenoTaskInspection =
   | { readonly kind: "missing-tasks" }
   | { readonly kind: "ambiguous-tasks" }
@@ -94,7 +120,10 @@ export function inspectDenoTasks(config: JsonObject): DenoTaskInspection {
   const drifted: string[] = [];
   const ambiguous: string[] = [];
   const enabled = presentTaskIds(tasks);
-  const definitions = denoTaskDefinitions(enabled);
+  const definitions = denoTaskDefinitions(
+    enabled,
+    sameJson(tasks.readme, readmeTaskDefinition),
+  );
   for (const name of denoTaskNames) {
     const actual = tasks[name];
     if (actual === undefined) {

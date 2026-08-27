@@ -44,13 +44,28 @@ export async function planRepairReadmeStatic(
   ) {
     return undefined;
   }
-  const changes: PlannedChange[] = [{
-    kind: "write-file",
-    path: readmeStaticPath,
-    content: inspection.schema.content,
-    expectedDigest: inspection.observation.digest,
-  }];
-  if (inspection.observation.mode !== inspection.schema.mode) {
+  const contentDiffers = inspection.observation.content !==
+    inspection.schema.content;
+  const unlock = contentDiffers &&
+    (inspection.observation.mode & 0o200) === 0;
+  const changes: PlannedChange[] = [];
+  if (unlock) {
+    changes.push({
+      kind: "set-file-mode",
+      path: readmeStaticPath,
+      mode: inspection.schema.mode,
+      expectedMode: inspection.observation.mode,
+    });
+  }
+  if (contentDiffers) {
+    changes.push({
+      kind: "write-file",
+      path: readmeStaticPath,
+      content: inspection.schema.content,
+      expectedDigest: inspection.observation.digest,
+    });
+  }
+  if (!unlock && inspection.observation.mode !== inspection.schema.mode) {
     changes.push({
       kind: "set-file-mode",
       path: readmeStaticPath,

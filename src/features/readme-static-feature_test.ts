@@ -37,7 +37,7 @@ const exact: ArtifactObservation = {
   mode: 0o644,
 };
 
-Deno.test("readme-static detects absent, adopted, drifted, and ambiguous artifacts", async () => {
+Deno.test("readme-static detects writable content and ambiguous artifacts", async () => {
   assertEquals(await readmeStaticFeature.detect(context({ kind: "absent" })), {
     state: "disabled",
     evidence: [{
@@ -50,17 +50,16 @@ Deno.test("readme-static detects absent, adopted, drifted, and ambiguous artifac
   assertEquals(await readmeStaticFeature.detect(context(exact)), {
     state: "enabled",
     evidence: [{
-      code: "readme-static-adopted",
+      code: "readme-static-writable",
       kind: "readme-static",
       subject: { kind: "repository-path", identifier: "README.md" },
-      observation:
-        "README.md exactly matches the starter README and is adopted.",
+      observation: "README.md is a writable static README.",
     }],
   });
   assertEquals(
     (await readmeStaticFeature.detect(context({ ...exact, mode: 0o755 })))
       .state,
-    "drifted",
+    "enabled",
   );
   assertEquals(
     (await readmeStaticFeature.detect(
@@ -140,7 +139,7 @@ Deno.test("readme-static plans only absent creation and exact digest-guarded rem
   );
 });
 
-Deno.test("readme-static blocks drift and ambiguity without Git", async () => {
+Deno.test("readme-static preserves writable edits and blocks ambiguity without Git", async () => {
   for (
     const observation of [
       { ...exact, content: "# edited\n" },
@@ -151,7 +150,10 @@ Deno.test("readme-static blocks drift and ambiguity without Git", async () => {
       const result = operation === "enable"
         ? await readmeStaticFeature.checkEnable(context(observation))
         : await readmeStaticFeature.checkDisable(context(observation));
-      assertEquals(result.result, "blocked");
+      assertEquals(
+        result.result,
+        observation.kind === "file" ? "no-op" : "blocked",
+      );
       if (result.result === "blocked") {
         assertEquals(result.blockers[0].resolution.includes("README.md"), true);
       }
@@ -162,7 +164,7 @@ Deno.test("readme-static blocks drift and ambiguity without Git", async () => {
 Deno.test("readme-static reports already-satisfied operations as no-ops", async () => {
   assertEquals(await readmeStaticFeature.checkEnable(context(exact)), {
     result: "no-op",
-    reason: "README.md is already adopted.",
+    reason: "README.md is already writable.",
     warnings: [],
   });
   assertEquals(

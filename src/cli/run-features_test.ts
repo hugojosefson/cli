@@ -19,7 +19,7 @@ Deno.test("reports status and commits only planned README changes", async () => 
     );
     assertEquals(
       status,
-      "deno-cli: disabled\ndeno-fmt: disabled\ndeno-lib: disabled\ndeno-lint: disabled\ndeno-server: disabled\ndeno-test: disabled\ndeno-typecheck: disabled\ngit: enabled\nreadme-static: disabled",
+      "deno-cli: disabled\ndeno-fmt: disabled\ndeno-lib: disabled\ndeno-lint: disabled\ndeno-server: disabled\ndeno-test: disabled\ndeno-typecheck: disabled\ngit: enabled\nreadme-build: disabled\nreadme-static: disabled",
     );
     const enabled = await runFeatures(
       root,
@@ -52,7 +52,7 @@ Deno.test("reports status and commits only planned README changes", async () => 
   });
 });
 
-Deno.test("repairs all drift in one Git commit", async () => {
+Deno.test("repair preserves writable static README content", async () => {
   await withRepository(async (root) => {
     await git(["init"], root);
     await git(["config", "user.name", "Test User"], root);
@@ -69,15 +69,14 @@ Deno.test("repairs all drift in one Git commit", async () => {
         builtInFeatureRegistry,
       ),
     );
-    assert(result.includes("Created one commit"));
-    assert(
-      (await Deno.readTextFile(new URL("README.md", root))).startsWith(
-        "# hj-cli-features-",
-      ),
+    assert(!result.includes("Created one commit"));
+    assertEquals(
+      await Deno.readTextFile(new URL("README.md", root)),
+      "# edited\n",
     );
     assertEquals(
       (await Deno.stat(new URL("README.md", root))).mode! & 0o777,
-      0o644,
+      0o755,
     );
     assertEquals(
       await gitText(["show", "--format=", "--name-only", "HEAD"], root),
@@ -200,7 +199,7 @@ Deno.test("interactive empty selection returns status without changes", async ()
     );
     assertEquals(
       result,
-      "deno-cli: disabled\ndeno-fmt: disabled\ndeno-lib: disabled\ndeno-lint: disabled\ndeno-server: disabled\ndeno-test: disabled\ndeno-typecheck: disabled\ngit: disabled\nreadme-static: disabled",
+      "deno-cli: disabled\ndeno-fmt: disabled\ndeno-lib: disabled\ndeno-lint: disabled\ndeno-server: disabled\ndeno-test: disabled\ndeno-typecheck: disabled\ngit: disabled\nreadme-build: disabled\nreadme-static: disabled",
     );
   });
 });

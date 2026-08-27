@@ -25,6 +25,18 @@ export async function checkEnableReadmeStatic(
   context: OperationContext,
 ): Promise<OperationCheck> {
   const inspection = await inspectReadmeStatic(context);
+  if (replacesBuild(context)) return allowed();
+  if (
+    inspection.result !== "absent" && inspection.result !== "unreadable" &&
+    inspection.observation.kind === "file" &&
+    (inspection.observation.mode & 0o200) !== 0
+  ) {
+    return {
+      result: "no-op",
+      reason: "README.md is already writable.",
+      warnings: [],
+    };
+  }
   const repair = checkRepairReadmeStatic(context, inspection);
   if (repair) return repair;
   const plan = planArtifactCreation(inspection);
@@ -56,7 +68,18 @@ export async function checkEnableReadmeStatic(
 export async function checkDisableReadmeStatic(
   context: OperationContext,
 ): Promise<OperationCheck> {
+  if (replacedByBuild(context)) return allowed();
   const inspection = await inspectReadmeStatic(context);
+  if (
+    inspection.result === "differs" && inspection.observation.kind === "file" &&
+    (inspection.observation.mode & 0o200) !== 0
+  ) {
+    return {
+      result: "no-op",
+      reason: "Preserve the writable README.md.",
+      warnings: [],
+    };
+  }
   const plan = planArtifactRemoval(inspection, "owned");
   if (plan.result === "planned") {
     const change = plan.changes[0];
@@ -91,6 +114,7 @@ export async function planEnableReadmeStatic(
   context: OperationContext,
   allowed: AllowedOperation,
 ): Promise<ChangePlan> {
+  if (replacesBuild(context)) return changePlan("enable", allowed, []);
   const plan = planArtifactCreation(await inspectReadmeStatic(context));
   const repair = await planRepairReadmeStatic(context, allowed);
   if (repair) return repair;
@@ -104,11 +128,28 @@ export async function planDisableReadmeStatic(
   context: OperationContext,
   allowed: AllowedOperation,
 ): Promise<ChangePlan> {
+  if (replacedByBuild(context)) return changePlan("disable", allowed, []);
   const plan = planArtifactRemoval(await inspectReadmeStatic(context), "owned");
   if (plan.result !== "planned") {
     throw new Error("README.md cannot be removed.");
   }
   return changePlan("disable", allowed, plan.changes);
+}
+
+function replacedByBuild(context: OperationContext): boolean {
+  return context.resolvedChanges.some((change) =>
+    change.featureId === "readme-build" && change.enabled
+  );
+}
+
+function replacesBuild(context: OperationContext): boolean {
+  return context.resolvedChanges.some((change) =>
+    change.featureId === "readme-build" && !change.enabled
+  );
+}
+
+function allowed(): OperationCheck {
+  return { result: "allowed", warnings: [], preconditions: [] };
 }
 
 function changePlan(

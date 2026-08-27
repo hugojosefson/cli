@@ -49,11 +49,15 @@ export class LocalGitReader implements GitReader {
 
   async status(
     paths?: readonly RepositoryPath[],
+    options?: { readonly includeIgnored?: boolean },
   ): Promise<GitStatus | undefined> {
     if (!await this.isRepository()) {
       return undefined;
     }
     const arguments_ = ["status", "--porcelain=v1", "-z"];
+    if (options?.includeIgnored) {
+      arguments_.push("--ignored=matching", "--untracked-files=all");
+    }
     if (paths && paths.length > 0) {
       for (const path of paths) {
         repositoryUrl(this.#root, path);
