@@ -29,6 +29,7 @@ Deno.test("parses built-in features, capability aliases, and defaults", () => {
     parseFeatures(["repo", "features", "--readme"], builtInFeatureRegistry),
     {
       kind: "change",
+      confirmation: false,
       request: {
         changes: [{ featureId: "readme-static", enabled: true }],
         applyDefaults: false,
@@ -87,6 +88,7 @@ Deno.test("parses explicit repair selections and rejects negative flags", () => 
     parseFeatures(["repo", "features", "--repair"], builtInFeatureRegistry),
     {
       kind: "change",
+      confirmation: false,
       request: {
         changes: [],
         applyDefaults: false,
@@ -119,7 +121,7 @@ Deno.test("parses explicit repair selections and rejects negative flags", () => 
 Deno.test("parses interactive mode and rejects incompatible options", () => {
   assertEquals(
     parseFeatures(["repo", "features", "-i"], builtInFeatureRegistry),
-    { kind: "interactive" },
+    { kind: "interactive", confirmation: false },
   );
   for (
     const args of [
@@ -134,6 +136,56 @@ Deno.test("parses interactive mode and rejects incompatible options", () => {
       "cannot",
     );
   }
+  assertEquals(
+    parseFeatures(
+      ["repo", "features", "--interactive", "--yes"],
+      builtInFeatureRegistry,
+    ),
+    { kind: "interactive", confirmation: true },
+  );
+});
+
+Deno.test("parses confirmation without changing status or feature resolution", () => {
+  assertEquals(
+    parseFeatures(["repo", "features", "--yes"], builtInFeatureRegistry),
+    {
+      kind: "status",
+      confirmation: true,
+      request: {
+        changes: [],
+        applyDefaults: false,
+        defaults: [{ kind: "feature", featureId: "git" }, {
+          kind: "capability",
+          capabilityId: "readme",
+        }],
+      },
+    },
+  );
+  assertEquals(
+    changeRequest(parseFeatures(
+      ["repo", "features", "--yes", "--defaults", "--repair", "--git"],
+      builtInFeatureRegistry,
+    )).changes,
+    [{ featureId: "git", enabled: true }],
+  );
+  const disabled = parseFeatures(
+    ["repo", "features", "--yes", "--no-readme"],
+    builtInFeatureRegistry,
+  );
+  if (disabled.kind !== "change") throw new Error("expected change request");
+  assertEquals(disabled.confirmation, true);
+  assertEquals(disabled.request.changes, [
+    { featureId: "readme-static", enabled: false },
+  ]);
+  assertThrows(
+    () =>
+      parseFeatures(
+        ["repo", "features", "--yes", "--yes"],
+        builtInFeatureRegistry,
+      ),
+    Error,
+    "duplicate `--yes`",
+  );
 });
 
 function changeRequest(args: FeaturesArguments) {

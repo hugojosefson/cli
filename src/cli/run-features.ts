@@ -3,6 +3,7 @@
 import type { ChangePlan, PlannedValidation } from "../api/change-plan.ts";
 import type { OperationContext } from "../api/repository-context.ts";
 import { builtInFeatureRegistry } from "../features/built-in-feature-registry.ts";
+import type { FeatureRegistry } from "../features/feature-registry.ts";
 import { resolveFeatureChanges } from "../features/resolve-feature-changes.ts";
 import {
   applyLocalChangePlan,
@@ -24,6 +25,7 @@ import {
 } from "./feature-actions.ts";
 import { promptFeatureActions } from "./prompt-feature-actions.ts";
 import { repairFeatureChanges } from "./repair-feature-changes.ts";
+import { requireConfirmation } from "./require-confirmation.ts";
 import { requestedDriftedChanges } from "./requested-drifted-changes.ts";
 export type FeatureSelector = (
   actions: readonly FeatureAction[],
@@ -35,23 +37,37 @@ export async function runFeatures(
   args: FeaturesArguments,
   selectActions: FeatureSelector = promptFeatureActions,
 ): Promise<string> {
+  return await runFeatureOperation(
+    root,
+    args,
+    builtInFeatureRegistry,
+    selectActions,
+  );
+}
+
+/** Runs one repository feature operation using the supplied registry. */
+export async function runFeatureOperation(
+  root: URL,
+  args: FeaturesArguments,
+  registry: FeatureRegistry,
+  selectActions: FeatureSelector = promptFeatureActions,
+): Promise<string> {
   const files = new LocalFileReader(root);
   const git = new LocalGitReader(root);
-  const beforeGit = await git.isRepository();
-  const detections = await detect(root, files, git);
+  const detections = await detect(root, files, git, registry);
   if (args.kind === "status") {
-    return formatFeatureStatus(builtInFeatureRegistry, detections);
+    return formatFeatureStatus(registry, detections);
   }
   const request = args.kind === "interactive"
     ? selectedFeatureActionsToRequest(
-      selectActions(featureActions(builtInFeatureRegistry, detections)),
+      selectActions(featureActions(registry, detections)),
     )
     : args.request;
   if (request.changes.length === 0 && !request.repair) {
-    return formatFeatureStatus(builtInFeatureRegistry, detections);
+    return formatFeatureStatus(registry, detections);
   }
   const resolution = resolveFeatureChanges(
-    builtInFeatureRegistry,
+    registry,
     Object.fromEntries(detections),
     request,
   );
@@ -71,11 +87,13 @@ export async function runFeatures(
     requestedChanges: request.changes,
     resolvedChanges: changes,
     repair: request.repair,
-    options: {},
+    options: { confirmation: args.confirmation },
   };
-  const plans = await plansFor(context, changes);
+  const plans = await plansFor(context, changes, registry);
+  requireConfirmation(plans, args.confirmation);
   rejectUnsupportedValidations(plans);
   await Promise.all(plans.map((plan) => preflightLocalChangePlan(root, plan)));
+  const beforeGit = await git.isRepository();
   const paths = plannedCommitPaths(plans);
   const initializedGit = plans.some((plan) =>
     plan.changes.some((change) => change.kind === "git-init")
@@ -88,21 +106,32 @@ export async function runFeatures(
     await preflightLocalChangePlan(root, commit);
   }
   for (const plan of plans) await applyLocalChangePlan(root, plan);
-  await validate(root, files, git, plans.flatMap((plan) => plan.validations));
+  await validate(
+    root,
+    files,
+    git,
+    registry,
+    plans.flatMap((plan) => plan.validations),
+  );
   const committed = commit !== undefined;
   if (commit) await applyLocalChangePlan(root, commit);
   return formatFeatureResult(
-    formatFeatureStatus(builtInFeatureRegistry, await detect(root, files, git)),
+    formatFeatureStatus(registry, await detect(root, files, git, registry)),
     committed,
     !beforeGit && initializedGit,
   );
 }
 
-async function detect(root: URL, files: LocalFileReader, git: LocalGitReader) {
+async function detect(
+  root: URL,
+  files: LocalFileReader,
+  git: LocalGitReader,
+  registry: FeatureRegistry,
+) {
   const context = { repositoryRoot: root, files, git };
   return new Map(
     await Promise.all(
-      builtInFeatureRegistry.features.map(async (feature) =>
+      registry.features.map(async (feature) =>
         [feature.metadata.id, await feature.detect(context)] as const
       ),
     ),
@@ -112,10 +141,11 @@ async function detect(root: URL, files: LocalFileReader, git: LocalGitReader) {
 async function plansFor(
   context: OperationContext,
   changes: OperationContext["resolvedChanges"],
+  registry: FeatureRegistry,
 ): Promise<readonly ChangePlan[]> {
   const plans: ChangePlan[] = [];
   for (const change of changes) {
-    const feature = builtInFeatureRegistry.features.find((item) =>
+    const feature = registry.features.find((item) =>
       item.metadata.id === change.featureId
     )!;
     const check =
@@ -148,9 +178,10 @@ async function validate(
   root: URL,
   files: LocalFileReader,
   git: LocalGitReader,
+  registry: FeatureRegistry,
   validations: readonly PlannedValidation[],
 ): Promise<void> {
-  const detections = await detect(root, files, git);
+  const detections = await detect(root, files, git, registry);
   for (const validation of validations) {
     if (
       validation.kind === "feature-redetection" &&

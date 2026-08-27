@@ -6,10 +6,15 @@ import type {
 } from "../api/feature-change.ts";
 import type { FeatureRegistry } from "../features/feature-registry.ts";
 
+interface FeatureRequestArguments {
+  readonly request: FeatureChangeRequest;
+  readonly confirmation: boolean;
+}
+
 export type FeaturesArguments =
-  | { readonly kind: "status"; readonly request: FeatureChangeRequest }
-  | { readonly kind: "change"; readonly request: FeatureChangeRequest }
-  | { readonly kind: "interactive" };
+  | ({ readonly kind: "status" } & FeatureRequestArguments)
+  | ({ readonly kind: "change" } & FeatureRequestArguments)
+  | { readonly kind: "interactive"; readonly confirmation: boolean };
 
 export const featureDefaults = [
   { kind: "feature" as const, featureId: "git" },
@@ -32,6 +37,7 @@ export function parseFeatures(
   let applyDefaults = false;
   let repair = false;
   let interactive = false;
+  let confirmation = false;
   for (const arg of args.slice(2)) {
     if (arg === "--defaults") {
       if (applyDefaults) throw new Error("duplicate `--defaults`");
@@ -46,6 +52,11 @@ export function parseFeatures(
     if (arg === "--interactive" || arg === "-i") {
       if (interactive) throw new Error("duplicate `--interactive`");
       interactive = true;
+      continue;
+    }
+    if (arg === "--yes") {
+      if (confirmation) throw new Error("duplicate `--yes`");
+      confirmation = true;
       continue;
     }
     if (!arg.startsWith("--")) throw new Error(`unexpected argument: ${arg}`);
@@ -73,7 +84,7 @@ export function parseFeatures(
         "`--interactive` cannot be combined with defaults, repair, or feature flags",
       );
     }
-    return { kind: "interactive" };
+    return { kind: "interactive", confirmation };
   }
   const request = {
     changes: [...requested].map(([featureId, enabled]) => ({
@@ -85,8 +96,8 @@ export function parseFeatures(
     ...(repair ? { repair: repairSelection(requested) } : {}),
   };
   return requested.size === 0 && !applyDefaults && !repair
-    ? { kind: "status", request }
-    : { kind: "change", request };
+    ? { kind: "status", request, confirmation }
+    : { kind: "change", request, confirmation };
 }
 
 function repairSelection(

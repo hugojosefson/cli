@@ -1,7 +1,8 @@
-import { assert, assertEquals } from "@std/assert";
+import { assert, assertEquals, assertRejects } from "@std/assert";
+import type { FeatureRegistry } from "../features/feature-registry.ts";
 import { builtInFeatureRegistry } from "../features/built-in-feature-registry.ts";
 import { parseFeatures } from "./parse-features.ts";
-import { runFeatures } from "./run-features.ts";
+import { runFeatureOperation, runFeatures } from "./run-features.ts";
 
 Deno.test("reports status and commits only planned README changes", async () => {
   await withRepository(async (root) => {
@@ -203,6 +204,110 @@ Deno.test("interactive empty selection returns status without changes", async ()
     );
   });
 });
+
+Deno.test("requires confirmation before preflight or mutation", async () => {
+  await withRepository(async (root) => {
+    const confirmations: unknown[] = [];
+    const registry = confirmationRegistry(confirmations);
+    await assertRejects(
+      () =>
+        runFeatureOperation(
+          root,
+          parseFeatures(["repo", "features", "--test"], registry),
+          registry,
+        ),
+      Error,
+      "confirmation required: Synthetic confirmation warning. Rerun with `--yes`.",
+    );
+    assertEquals(await fileExists(root, "confirmed.txt"), false);
+    await runFeatureOperation(
+      root,
+      parseFeatures(
+        ["repo", "features", "--interactive", "--yes"],
+        registry,
+      ),
+      registry,
+      () => ["enable:test"],
+    );
+    assertEquals(confirmations, [false, true]);
+    assertEquals(await fileExists(root, "confirmed.txt"), true);
+  });
+});
+
+function confirmationRegistry(confirmations: unknown[]): FeatureRegistry {
+  return {
+    capabilities: [],
+    features: [{
+      metadata: { id: "test", name: "Test", summary: "Synthetic test." },
+      dependencies: { requires: [] },
+      capabilities: { provides: [], requires: [] },
+      detect: async (context) => ({
+        state: await context.files.exists("confirmed.txt")
+          ? "enabled"
+          : "disabled",
+        evidence: [],
+      }),
+      checkEnable: () =>
+        Promise.resolve({
+          result: "allowed",
+          warnings: [{
+            code: "test-warning",
+            message: "Synthetic confirmation warning.",
+            subjects: [],
+            requiresConfirmation: true,
+          }],
+          preconditions: [],
+        }),
+      planEnable: (context, allowed) => {
+        confirmations.push(context.options.confirmation);
+        return Promise.resolve({
+          featureId: "test",
+          action: "enable",
+          summary: "Create confirmation marker.",
+          warnings: allowed.warnings,
+          preconditions: [],
+          changes: [{
+            kind: "write-file",
+            path: "confirmed.txt",
+            content: "confirmed\n",
+            expectedDigest: undefined,
+          }],
+          validations: [{
+            kind: "feature-redetection",
+            featureId: "test",
+            expected: "enabled",
+          }],
+        });
+      },
+      checkDisable: () =>
+        Promise.resolve({
+          result: "allowed",
+          warnings: [],
+          preconditions: [],
+        }),
+      planDisable: (_context, allowed) =>
+        Promise.resolve({
+          featureId: "test",
+          action: "disable",
+          summary: "No synthetic change.",
+          warnings: allowed.warnings,
+          preconditions: [],
+          changes: [],
+          validations: [],
+        }),
+    }],
+  };
+}
+
+async function fileExists(root: URL, path: string): Promise<boolean> {
+  try {
+    await Deno.stat(new URL(path, root));
+    return true;
+  } catch (error) {
+    if (error instanceof Deno.errors.NotFound) return false;
+    throw error;
+  }
+}
 
 async function withRepository(
   action: (root: URL) => Promise<void>,
