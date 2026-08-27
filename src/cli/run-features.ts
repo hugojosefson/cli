@@ -24,6 +24,7 @@ import {
 } from "./feature-actions.ts";
 import { promptFeatureActions } from "./prompt-feature-actions.ts";
 import { repairFeatureChanges } from "./repair-feature-changes.ts";
+import { requestedDriftedChanges } from "./requested-drifted-changes.ts";
 export type FeatureSelector = (
   actions: readonly FeatureAction[],
 ) => readonly string[];
@@ -59,6 +60,7 @@ export async function runFeatures(
   }
   const changes = [
     ...resolution.changes,
+    ...requestedDriftedChanges(detections, request),
     ...repairFeatureChanges(detections, request.repair),
   ];
   const context: OperationContext = {
