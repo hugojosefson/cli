@@ -12,6 +12,13 @@ Deno.test("parses built-in features, capability aliases, and defaults", () => {
     [{ featureId: "deno-fmt", enabled: true }],
   );
   assertEquals(
+    changeRequest(parseFeatures(
+      ["repo", "features", "--deno-lib"],
+      builtInFeatureRegistry,
+    )).changes,
+    [{ featureId: "deno-lib", enabled: true }],
+  );
+  assertEquals(
     parseFeatures(["repo", "features", "--readme"], builtInFeatureRegistry),
     {
       kind: "change",
@@ -54,11 +61,12 @@ Deno.test("formats statuses by stable feature ID", () => {
       builtInFeatureRegistry,
       new Map([
         ["deno-fmt", { state: "disabled", evidence: [] }],
+        ["deno-lib", { state: "disabled", evidence: [] }],
         ["readme-static", { state: "disabled", evidence: [] }],
         ["git", { state: "enabled", evidence: [] }],
       ]),
     ),
-    "deno-fmt: disabled\ngit: enabled\nreadme-static: disabled",
+    "deno-fmt: disabled\ndeno-lib: disabled\ngit: enabled\nreadme-static: disabled",
   );
 });
 

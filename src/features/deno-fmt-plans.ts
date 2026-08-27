@@ -10,6 +10,7 @@ import {
   denoTaskDefinitions,
   denoTaskNames,
 } from "./deno-tasks.ts";
+import { initialDenoConfig } from "./deno-initial-config.ts";
 
 /** Plans creation, completion, or selected repair of Deno formatting tasks. */
 export async function planEnableDenoFmt(
@@ -22,7 +23,9 @@ export async function planEnableDenoFmt(
     changes.push({
       kind: "write-file",
       path: "deno.jsonc",
-      content: denoFmtConfigText(),
+      content: denoFmtConfigText(initialDenoConfig(context, {
+        tasks: denoTaskDefinitions,
+      })),
       mode: 0o644,
       expectedDigest: undefined,
     });

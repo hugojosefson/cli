@@ -96,7 +96,7 @@ async function writeFile(
   await Deno.writeTextFile(
     url,
     content,
-    mode === undefined ? undefined : { mode },
+    mode === undefined || observed.kind === "file" ? undefined : { mode },
   );
 }
 

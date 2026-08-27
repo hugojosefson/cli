@@ -52,7 +52,9 @@ export function isObject(value: JsonValue): value is JsonObject {
   return value !== null && !Array.isArray(value) && typeof value === "object";
 }
 
-/** Returns the canonical standalone Deno configuration text. */
-export function denoFmtConfigText(): string {
-  return `${JSON.stringify({ tasks: denoTaskDefinitions }, null, 2)}\n`;
+/** Returns canonical Deno configuration text for the supplied definitions. */
+export function denoFmtConfigText(
+  config: JsonObject = { tasks: denoTaskDefinitions },
+): string {
+  return `${JSON.stringify(config, null, 2)}\n`;
 }
