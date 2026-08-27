@@ -23,7 +23,7 @@ Deno.test("deno tasks distinguish missing, drifted, and ambiguous definitions", 
     },
   );
   assertEquals(
-    inspectDenoTasks({ tasks: { ...denoTaskDefinitions, check: "wrong" } })
+    inspectDenoTasks({ tasks: { ...denoTaskDefinitions(), check: "wrong" } })
       .kind,
     "tasks",
   );
@@ -142,7 +142,7 @@ Deno.test("deno-fmt blocks ambiguous configs and repairs selected task drift", a
     await Deno.writeTextFile(
       new URL("deno.json", root),
       JSON.stringify({
-        tasks: { ...denoTaskDefinitions, fmt: { command: "prettier" } },
+        tasks: { ...denoTaskDefinitions(), fmt: { command: "prettier" } },
       }),
     );
     assertEquals((await denoFmtFeature.detect(context(root))).state, "drifted");

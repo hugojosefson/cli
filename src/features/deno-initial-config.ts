@@ -4,15 +4,16 @@ import type { JsonObject, JsonValue } from "../api/json.ts";
 import type { OperationContext } from "../api/repository-context.ts";
 import { denoCliInitialConfigContribution } from "./deno-cli-artifacts.ts";
 import { denoFmtFeatureId } from "./deno-fmt-inspection.ts";
-import { denoTaskDefinitions } from "./deno-tasks.ts";
+import {
+  denoTaskDefinitions,
+  leafTaskDefinitions,
+  leafTaskNames,
+  taskFeatureIds,
+} from "./deno-tasks.ts";
 import { denoLibInitialConfigContribution } from "./deno-lib-artifacts.ts";
 import { denoServerInitialConfigContribution } from "./deno-server-artifacts.ts";
 
 const contributions = [
-  {
-    featureId: denoFmtFeatureId,
-    value: { tasks: denoTaskDefinitions },
-  },
   denoCliInitialConfigContribution,
   denoLibInitialConfigContribution,
   denoServerInitialConfigContribution,
@@ -24,7 +25,7 @@ export function initialDenoConfig(
   base: JsonObject,
   fallbackFeatureId?: string,
 ): JsonObject {
-  return contributions.reduce(
+  const result = contributions.reduce(
     (value, contribution) =>
       context.resolvedChanges.some((change) =>
           change.featureId === contribution.featureId && change.enabled
@@ -35,6 +36,25 @@ export function initialDenoConfig(
         : value,
     base,
   );
+  const enabled = taskFeatureIds.filter((id) =>
+    context.resolvedChanges.some((change) =>
+      change.featureId === id && change.enabled
+    )
+  );
+  return fallbackFeatureId === denoFmtFeatureId ||
+      context.resolvedChanges.some((change) =>
+        change.featureId === denoFmtFeatureId && change.enabled
+      )
+    ? mergeObjects(result, {
+      tasks: {
+        ...denoTaskDefinitions(enabled),
+        ...Object.fromEntries(enabled.map((id) => [
+          leafTaskNames[id],
+          leafTaskDefinitions[id],
+        ])),
+      },
+    })
+    : result;
 }
 
 /** Selects one ordered feature to create an initially absent Deno config. */

@@ -9,6 +9,8 @@ import {
   denoFmtConfigText,
   denoTaskDefinitions,
   denoTaskNames,
+  desiredTaskIds,
+  presentTaskIds,
 } from "./deno-tasks.ts";
 import {
   createsInitialDenoConfig,
@@ -42,16 +44,19 @@ export async function planEnableDenoFmt(
         kind: "set-json",
         path: state.config.path,
         jsonPath: ["tasks"],
-        value: denoTaskDefinitions,
+        value: initialDenoConfig(context, {}, denoFmtFeatureId).tasks!,
         expected: undefined,
       });
     } else if (tasks.kind === "tasks") {
+      const definitions = denoTaskDefinitions(
+        desiredTaskIds(context, tasks.values),
+      );
       for (const name of [...tasks.missing, ...tasks.drifted].sort()) {
         changes.push({
           kind: "set-json",
           path: state.config.path,
           jsonPath: ["tasks", name],
-          value: denoTaskDefinitions[name],
+          value: definitions[name],
           expected: tasks.values[name],
         });
       }
@@ -88,7 +93,7 @@ export async function planDisableDenoFmt(
           kind: "remove-json",
           path: state.config.path,
           jsonPath: ["tasks", name],
-          expected: denoTaskDefinitions[name],
+          expected: denoTaskDefinitions(presentTaskIds(tasks.values))[name],
         });
       }
     }

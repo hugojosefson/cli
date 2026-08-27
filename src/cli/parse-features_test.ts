@@ -69,13 +69,16 @@ Deno.test("formats statuses by stable feature ID", () => {
       new Map([
         ["deno-cli", { state: "disabled", evidence: [] }],
         ["deno-fmt", { state: "disabled", evidence: [] }],
+        ["deno-lint", { state: "disabled", evidence: [] }],
         ["deno-lib", { state: "disabled", evidence: [] }],
         ["deno-server", { state: "disabled", evidence: [] }],
+        ["deno-test", { state: "disabled", evidence: [] }],
+        ["deno-typecheck", { state: "disabled", evidence: [] }],
         ["readme-static", { state: "disabled", evidence: [] }],
         ["git", { state: "enabled", evidence: [] }],
       ]),
     ),
-    "deno-cli: disabled\ndeno-fmt: disabled\ndeno-lib: disabled\ndeno-server: disabled\ngit: enabled\nreadme-static: disabled",
+    "deno-cli: disabled\ndeno-fmt: disabled\ndeno-lib: disabled\ndeno-lint: disabled\ndeno-server: disabled\ndeno-test: disabled\ndeno-typecheck: disabled\ngit: enabled\nreadme-static: disabled",
   );
 });
 

@@ -59,6 +59,10 @@ The first feature set includes:
   history exists.
 - `deno-fmt`: adds the minimal Deno configuration and tasks needed for
   `deno fmt`. It creates `deno.jsonc` when no Deno configuration exists.
+- `deno-lint`: adds `lint`, which fixes lint locally and runs non-fixing lint in
+  CI.
+- `deno-typecheck`: adds `typecheck`.
+- `deno-test`: adds `test`.
 - `deno-lib`: adds a Deno library; it requires `deno-fmt`.
 - `deno-cli`: adds a Deno CLI; it requires `deno-fmt`.
 - `deno-server`: adds a minimal `Deno.serve` server; it requires `deno-fmt` and
@@ -128,7 +132,8 @@ belongs in one `hj release` process.
 Deno task objects use descriptions and dependencies. Independent checks may run
 in parallel; ordered file mutations remain in a single command. `default`
 regenerates and fixes files before checking. `check` is the normal validation
-aggregate, and `all` adds publish dry-run when `jsr-package` is enabled.
+aggregate, and `all` adds publish dry-run when `jsr-package` is enabled. Lint
+fixes locally, while CI runs a non-fixing lint check.
 
 Generated Github workflows use `.github/workflows/hj-ci.yaml`,
 `.github/workflows/hj-deps.yaml`, and `.github/workflows/hj-release.yaml`. CI
