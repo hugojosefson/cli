@@ -9,6 +9,8 @@ import {
   inspectDenoCliArtifacts,
 } from "./deno-cli-artifacts.ts";
 import { inspectDenoConfig } from "./deno-config.ts";
+import { denoServerExport } from "./deno-server-artifacts.ts";
+import { resolvedServerEnabled } from "./deno-server-state.ts";
 import { isObject } from "./deno-tasks.ts";
 
 export async function checkEnableDenoCli(
@@ -36,7 +38,15 @@ export async function checkEnableDenoCli(
       return blocked(`Starter parent ${path} is not a directory.`);
     }
   }
-  const artifacts = await inspectDenoCliArtifacts(context);
+  const currentServer = config.kind === "config" &&
+    isObject(config.value.exports) &&
+    config.value.exports["./server"] === denoServerExport;
+  const serverEnabled = resolvedServerEnabled(context, currentServer);
+  const artifacts = await inspectDenoCliArtifacts(context, serverEnabled);
+  const alternateArtifacts = await inspectDenoCliArtifacts(
+    context,
+    !serverEnabled,
+  );
   const conflict = artifacts.find((item) =>
     item.result === "unreadable" ||
     item.result === "differs" && item.observation.kind !== "file"
@@ -46,7 +56,17 @@ export async function checkEnableDenoCli(
       `Starter path ${conflict.schema.path} is not a regular file.`,
     );
   }
-  if (artifacts.some((item) => item.result === "differs") && !repair(context)) {
+  const transition = alternateArtifacts.find((item) =>
+    item.schema.path === "src/cli/commands.ts" && item.result === "matches"
+  );
+  const onlyRegistryTransition = !!transition &&
+    artifacts.filter((item) => item.result === "differs").every((item) =>
+      item.schema.path === "src/cli/commands.ts"
+    );
+  if (
+    artifacts.some((item) => item.result === "differs") && !repair(context) &&
+    !onlyRegistryTransition
+  ) {
     return blocked(
       "Executable seed differs. Re-run with --repair to replace it.",
     );

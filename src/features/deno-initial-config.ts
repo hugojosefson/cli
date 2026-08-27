@@ -6,6 +6,7 @@ import { denoCliInitialConfigContribution } from "./deno-cli-artifacts.ts";
 import { denoFmtFeatureId } from "./deno-fmt-inspection.ts";
 import { denoTaskDefinitions } from "./deno-tasks.ts";
 import { denoLibInitialConfigContribution } from "./deno-lib-artifacts.ts";
+import { denoServerInitialConfigContribution } from "./deno-server-artifacts.ts";
 
 const contributions = [
   {
@@ -14,6 +15,7 @@ const contributions = [
   },
   denoCliInitialConfigContribution,
   denoLibInitialConfigContribution,
+  denoServerInitialConfigContribution,
 ];
 
 /** Adds declarations from features enabled in this ordered operation. */

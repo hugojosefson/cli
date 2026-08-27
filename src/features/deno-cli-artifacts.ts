@@ -17,11 +17,11 @@ export const denoCliInitialConfigContribution = {
 const commandContent = `export type CliCommand = {
   readonly name: string;
   readonly description: string;
-  readonly run: (args: readonly string[]) => string;
+  readonly run: (args: readonly string[]) => string | Promise<string>;
 };
 `;
 
-const commandsContent = `import type { CliCommand } from "./command.ts";
+const baseCommandsContent = `import type { CliCommand } from "./command.ts";
 
 const helpCommand: CliCommand = {
   name: "help",
@@ -33,14 +33,31 @@ const helpCommand: CliCommand = {
     ),
 };
 
-/** Generated command registry. Add future feature commands here. */
+/** Generated command registry. Feature composition rewrites this file. */
 export const commands: readonly CliCommand[] = [helpCommand];
+`;
+
+const serverCommandsContent = `import type { CliCommand } from "./command.ts";
+import { serveCommand } from "../server/serve-command.ts";
+
+const helpCommand: CliCommand = {
+  name: "help",
+  description: "Show available commands.",
+  run: () =>
+    "Usage: cli <command>\\n\\n" +
+    commands.map((command) => command.name + "  " + command.description).join(
+      "\\n",
+    ),
+};
+
+/** Generated command registry. Feature composition rewrites this file. */
+export const commands: readonly CliCommand[] = [helpCommand, serveCommand];
 `;
 
 const testContent = `import { commands } from "../src/cli/commands.ts";
 
 Deno.test("generated CLI has help", () => {
-  if (commands.length !== 1 || commands[0].name !== "help") {
+  if (commands[0]?.name !== "help") {
     throw new Error("expected the generated help command");
   }
 });
@@ -53,18 +70,18 @@ export const denoCliArtifacts = [{
 
 import { commands } from "./commands.ts";
 
-function runCli(args: readonly string[]): number {
+async function runCli(args: readonly string[]): Promise<number> {
   const command = commands.find((item) => item.name === (args[0] ?? "help"));
   if (!command) {
     console.error("Unknown command: " + args[0]);
     return 1;
   }
-  console.log(command.run(args.slice(1)));
+  console.log(await command.run(args.slice(1)));
   return 0;
 }
 
 if (import.meta.main) {
-  Deno.exit(runCli(Deno.args));
+  Deno.exit(await runCli(Deno.args));
 }
 `,
   mode: 0o755,
@@ -74,7 +91,7 @@ if (import.meta.main) {
   mode: 0o644,
 }, {
   path: "src/cli/commands.ts",
-  content: commandsContent,
+  content: baseCommandsContent,
   mode: 0o644,
 }, {
   path: "test/cli_test.ts",
@@ -82,14 +99,29 @@ if (import.meta.main) {
   mode: 0o644,
 }] as const;
 
+/** Exact registry variants selected by the current or resolved server export. */
+export function denoCliArtifactsForServer(serverEnabled: boolean) {
+  return denoCliArtifacts.map((artifact) =>
+    artifact.path === "src/cli/commands.ts" && serverEnabled
+      ? { ...artifact, content: serverCommandsContent }
+      : artifact
+  );
+}
+
 /** Inspects the executable seed with exact content and mode checks. */
 export async function inspectDenoCliArtifacts(
   context: DetectionContext,
+  serverEnabled = false,
 ): Promise<readonly ExactArtifactInspection[]> {
-  return await Promise.all(denoCliArtifacts.map(async (artifact) => {
-    const schema: ArtifactSchema = { kind: "file", ...artifact };
-    return inspectArtifact(schema, await context.files.observe(artifact.path));
-  }));
+  return await Promise.all(
+    denoCliArtifactsForServer(serverEnabled).map(async (artifact) => {
+      const schema: ArtifactSchema = { kind: "file", ...artifact };
+      return inspectArtifact(
+        schema,
+        await context.files.observe(artifact.path),
+      );
+    }),
+  );
 }
 
 export function denoCliSubject() {

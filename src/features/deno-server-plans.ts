@@ -1,14 +1,11 @@
-/** @module Ordered Deno CLI change plans. */
+/** @module Ordered Deno server change plans. */
 
 import type { ChangePlan } from "../api/change-plan.ts";
 import type { AllowedOperation } from "../api/feature-operation.ts";
 import type { PlannedChange } from "../api/planned-change.ts";
 import type { OperationContext } from "../api/repository-context.ts";
 import {
-  denoCliArtifacts,
-  denoCliArtifactsForServer,
   denoCliExport,
-  denoCliFeatureId,
   inspectDenoCliArtifacts,
 } from "./deno-cli-artifacts.ts";
 import { inspectDenoConfig } from "./deno-config.ts";
@@ -16,36 +13,35 @@ import {
   createsInitialDenoConfig,
   initialDenoConfig,
 } from "./deno-initial-config.ts";
+import {
+  denoServerExport,
+  denoServerFeatureId,
+  inspectDenoServerArtifacts,
+} from "./deno-server-artifacts.ts";
+import {
+  addServerArtifacts,
+  addServerRegistry,
+} from "./deno-server-plan-artifacts.ts";
+import { resolvedCliEnabled } from "./deno-server-state.ts";
 import { isObject } from "./deno-tasks.ts";
-import { denoServerExport } from "./deno-server-artifacts.ts";
-import { resolvedServerEnabled } from "./deno-server-state.ts";
 
-export async function planEnableDenoCli(
+export async function planEnableDenoServer(
   context: OperationContext,
   allowed: AllowedOperation,
 ): Promise<ChangePlan> {
   const config = await inspectDenoConfig(context);
-  const currentServer = config.kind === "config" &&
-    isObject(config.value.exports) &&
-    config.value.exports["./server"] === denoServerExport;
-  const artifacts = await inspectDenoCliArtifacts(
-    context,
-    resolvedServerEnabled(context, currentServer),
-  );
-  const desiredArtifacts = denoCliArtifactsForServer(
-    resolvedServerEnabled(context, currentServer),
-  );
+  const artifacts = await inspectDenoServerArtifacts(context);
   const changes: PlannedChange[] = [];
   if (
     config.kind === "absent" &&
-    createsInitialDenoConfig(context, denoCliFeatureId)
+    createsInitialDenoConfig(context, denoServerFeatureId)
   ) {
     changes.push({
       kind: "write-file",
       path: "deno.jsonc",
       content: `${
         JSON.stringify(
-          initialDenoConfig(context, {}, denoCliFeatureId),
+          initialDenoConfig(context, {}, denoServerFeatureId),
           null,
           2,
         )
@@ -56,81 +52,86 @@ export async function planEnableDenoCli(
   } else if (
     config.kind === "config" &&
     (!isObject(config.value.exports) ||
-      config.value.exports["./cli"] !== denoCliExport)
+      config.value.exports["./server"] !== denoServerExport)
   ) {
     changes.push({
       kind: "set-json",
       path: config.path,
-      jsonPath: ["exports", "./cli"],
-      value: denoCliExport,
+      jsonPath: ["exports", "./server"],
+      value: denoServerExport,
       expected: isObject(config.value.exports)
-        ? config.value.exports["./cli"]
+        ? config.value.exports["./server"]
         : undefined,
     });
   }
-  for (const path of ["src", "src/cli", "test"]) {
+  for (const path of ["src", "src/server", "test"]) {
     if ((await context.files.observe(path)).kind === "absent") {
       changes.push({ kind: "create-directory", path });
     }
   }
-  for (const [index, item] of artifacts.entries()) {
-    if (item.result === "matches") continue;
-    const file = item.result === "differs" && item.observation.kind === "file";
-    if (
-      item.result === "absent" ||
-      file &&
-        item.differences.some((difference) => difference.kind === "content")
-    ) {
-      changes.push({
-        kind: "write-file",
-        path: desiredArtifacts[index].path,
-        content: desiredArtifacts[index].content,
-        mode: desiredArtifacts[index].mode,
-        expectedDigest: file ? item.observation.digest : undefined,
-      });
-    }
-    if (file && item.observation.mode !== denoCliArtifacts[index].mode) {
-      changes.push({
-        kind: "set-file-mode",
-        path: desiredArtifacts[index].path,
-        mode: desiredArtifacts[index].mode,
-        expectedMode: item.observation.mode,
-      });
-    }
+  addServerArtifacts(changes, artifacts);
+  const cliEnabled = resolvedCliEnabled(
+    context,
+    config.kind === "config" && isObject(config.value.exports) &&
+      config.value.exports["./cli"] === denoCliExport,
+  );
+  if (cliEnabled && !ownsCliChange(context)) {
+    addServerRegistry(
+      changes,
+      await inspectDenoCliArtifacts(context, true),
+      true,
+    );
   }
   return plan(
     "enable",
     allowed,
     changes,
-    "Configure Deno CLI export and executable seed.",
+    "Configure Deno server export and starter files.",
     "enabled",
   );
 }
 
-export async function planDisableDenoCli(
+export async function planDisableDenoServer(
   context: OperationContext,
   allowed: AllowedOperation,
 ): Promise<ChangePlan> {
   const config = await inspectDenoConfig(context);
   const changes: PlannedChange[] =
     config.kind === "config" && isObject(config.value.exports) &&
-      config.value.exports["./cli"] === denoCliExport
+      config.value.exports["./server"] === denoServerExport
       ? [{
         kind: "remove-json",
         path: config.path,
-        jsonPath: ["exports", "./cli"],
-        expected: denoCliExport,
+        jsonPath: ["exports", "./server"],
+        expected: denoServerExport,
       }]
       : [];
+  const cliEnabled = resolvedCliEnabled(
+    context,
+    config.kind === "config" && isObject(config.value.exports) &&
+      config.value.exports["./cli"] === denoCliExport,
+  );
+  if (cliEnabled && !ownsCliChange(context)) {
+    addServerRegistry(
+      changes,
+      await inspectDenoCliArtifacts(context, false),
+      false,
+    );
+  }
   return plan(
     "disable",
     allowed,
     changes,
-    "Remove the contributed Deno CLI export.",
+    "Remove the contributed Deno server export.",
     "disabled",
   );
 }
 
+function ownsCliChange(context: OperationContext): boolean {
+  return context.resolvedChanges.some((change) =>
+    change.featureId === "deno-cli"
+  );
+}
 function plan(
   action: "enable" | "disable",
   allowed: AllowedOperation,
@@ -139,7 +140,7 @@ function plan(
   expected: "enabled" | "disabled",
 ): ChangePlan {
   return {
-    featureId: denoCliFeatureId,
+    featureId: denoServerFeatureId,
     action,
     summary,
     warnings: allowed.warnings,
@@ -147,7 +148,7 @@ function plan(
     changes,
     validations: [{
       kind: "feature-redetection",
-      featureId: denoCliFeatureId,
+      featureId: denoServerFeatureId,
       expected,
     }],
   };

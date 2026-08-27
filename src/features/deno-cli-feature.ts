@@ -4,6 +4,7 @@ import type { DetectionIssue } from "../api/feature-detection.ts";
 import type { DetectionContext } from "../api/repository-context.ts";
 import type { Feature } from "../api/feature.ts";
 import { inspectDenoConfig } from "./deno-config.ts";
+import { denoServerExport } from "./deno-server-artifacts.ts";
 import {
   denoCliExport,
   denoCliFeatureId,
@@ -36,9 +37,11 @@ async function detectDenoCli(context: DetectionContext) {
   if (config.value.exports["./cli"] !== denoCliExport) {
     return issue("drifted", "The CLI export differs.");
   }
-  const invalid = (await inspectDenoCliArtifacts(context)).find((item) =>
-    item.result !== "matches"
-  );
+  const serverEnabled = isObject(config.value.exports) &&
+    config.value.exports["./server"] === denoServerExport;
+  const invalid = (await inspectDenoCliArtifacts(context, serverEnabled)).find((
+    item,
+  ) => item.result !== "matches");
   if (!invalid) {
     return simple("enabled", "CLI export and executable seed are adopted.");
   }

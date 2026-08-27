@@ -70,11 +70,12 @@ Deno.test("formats statuses by stable feature ID", () => {
         ["deno-cli", { state: "disabled", evidence: [] }],
         ["deno-fmt", { state: "disabled", evidence: [] }],
         ["deno-lib", { state: "disabled", evidence: [] }],
+        ["deno-server", { state: "disabled", evidence: [] }],
         ["readme-static", { state: "disabled", evidence: [] }],
         ["git", { state: "enabled", evidence: [] }],
       ]),
     ),
-    "deno-cli: disabled\ndeno-fmt: disabled\ndeno-lib: disabled\ngit: enabled\nreadme-static: disabled",
+    "deno-cli: disabled\ndeno-fmt: disabled\ndeno-lib: disabled\ndeno-server: disabled\ngit: enabled\nreadme-static: disabled",
   );
 });
 

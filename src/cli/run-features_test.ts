@@ -18,7 +18,7 @@ Deno.test("reports status and commits only planned README changes", async () => 
     );
     assertEquals(
       status,
-      "deno-cli: disabled\ndeno-fmt: disabled\ndeno-lib: disabled\ngit: enabled\nreadme-static: disabled",
+      "deno-cli: disabled\ndeno-fmt: disabled\ndeno-lib: disabled\ndeno-server: disabled\ngit: enabled\nreadme-static: disabled",
     );
     const enabled = await runFeatures(
       root,
@@ -152,6 +152,41 @@ Deno.test("commits planned deno-cli files through the generic Git path", async (
   });
 });
 
+Deno.test("composes Deno CLI and server transitions from one plan snapshot", async () => {
+  await withRepository(async (root) => {
+    await run(root, "--deno-cli", "--deno-server");
+    await smoke(root, "test/cli_test.ts", "test/server_test.ts");
+    await deniedServe(root);
+    assert(
+      (await Deno.readTextFile(new URL("src/cli/commands.ts", root))).includes(
+        "serveCommand",
+      ),
+    );
+    await run(root, "--no-deno-server");
+    await smoke(root, "test/cli_test.ts");
+    assert(
+      !(await Deno.readTextFile(new URL("src/cli/commands.ts", root))).includes(
+        "serveCommand",
+      ),
+    );
+    await run(root, "--deno-server");
+    await run(root, "--no-deno-cli");
+    await smoke(root, "test/server_test.ts");
+  });
+});
+
+Deno.test("composes CLI into an existing server and shared lib directories", async () => {
+  await withRepository(async (root) => {
+    await run(root, "--deno-server");
+    await run(root, "--deno-cli");
+    await smoke(root, "test/cli_test.ts", "test/server_test.ts");
+    await run(root, "--no-deno-cli", "--no-deno-server");
+    await run(root, "--deno-lib", "--deno-cli");
+    assert((await Deno.stat(new URL("src/lib/mod.ts", root))).isFile);
+    assert((await Deno.stat(new URL("src/cli/cli.ts", root))).isFile);
+  });
+});
+
 Deno.test("interactive empty selection returns status without changes", async () => {
   await withRepository(async (root) => {
     const result = await runFeatures(
@@ -164,7 +199,7 @@ Deno.test("interactive empty selection returns status without changes", async ()
     );
     assertEquals(
       result,
-      "deno-cli: disabled\ndeno-fmt: disabled\ndeno-lib: disabled\ngit: disabled\nreadme-static: disabled",
+      "deno-cli: disabled\ndeno-fmt: disabled\ndeno-lib: disabled\ndeno-server: disabled\ngit: disabled\nreadme-static: disabled",
     );
   });
 });
@@ -198,4 +233,31 @@ async function gitText(args: readonly string[], cwd: URL): Promise<string> {
   }).output();
   if (!result.success) throw new Error(`git failed: ${args[0]}`);
   return new TextDecoder().decode(result.stdout).trim();
+}
+
+async function run(root: URL, ...flags: string[]): Promise<string> {
+  return await runFeatures(
+    root,
+    parseFeatures(["repo", "features", ...flags], builtInFeatureRegistry),
+  );
+}
+
+async function smoke(root: URL, ...paths: string[]): Promise<void> {
+  const result = await new Deno.Command("deno", {
+    args: ["test", ...paths],
+    cwd: root.pathname,
+  }).output();
+  assert(result.success, new TextDecoder().decode(result.stderr));
+}
+
+async function deniedServe(root: URL): Promise<void> {
+  const result = await new Deno.Command("deno", {
+    args: ["run", "--deny-net", "src/cli/cli.ts", "serve"],
+    cwd: root.pathname,
+  }).output();
+  assert(result.success, new TextDecoder().decode(result.stderr));
+  assertEquals(
+    new TextDecoder().decode(result.stdout).trim(),
+    "Network permission denied.",
+  );
 }
