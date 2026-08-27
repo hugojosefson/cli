@@ -11,11 +11,14 @@ export interface AttributionContext {
 /** Resolves Github viewer, Git name, then an interactive prompt. */
 export async function resolveLicenseAttribution(
   context: AttributionContext,
-  prompt: AttributionPrompt = () => globalThis.prompt("MIT copyright holder"),
+  prompt: AttributionPrompt = () =>
+    globalThis.prompt("License copyright holder"),
 ): Promise<{ readonly licenseHolder: string; readonly licenseYear: string }> {
   const viewer = await context.githubIdentity?.viewer();
   const holder = viewer?.name || await context.git.userName?.() || prompt();
-  if (!holder || !safe(holder)) throw new Error("MIT attribution is required.");
+  if (!holder || !safe(holder)) {
+    throw new Error("License attribution is required.");
+  }
   return {
     licenseHolder: holder.trim(),
     licenseYear: String(new Date().getUTCFullYear()),

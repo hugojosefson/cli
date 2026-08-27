@@ -4,9 +4,13 @@ import type { OperationContext } from "../api/repository-context.ts";
 import { createLicenseMitFeature } from "./license-mit-feature.ts";
 
 const template = "Copyright <year> <copyright holders>\nterms\n";
+const apacheTemplate = "Apache [yyyy] [name of copyright owner]\nterms\n";
 
 Deno.test("MIT provider detects exact, drifted, and ambiguous LICENSE files", async () => {
-  const feature = createLicenseMitFeature(() => Promise.resolve(template));
+  const feature = createLicenseMitFeature(
+    source(template),
+    source(apacheTemplate),
+  );
   assertEquals(
     (await feature.detect(context({ kind: "absent" }))).state,
     "disabled",
@@ -32,7 +36,10 @@ Deno.test("MIT provider detects exact, drifted, and ambiguous LICENSE files", as
 });
 
 Deno.test("MIT provider writes resolved attribution and repairs only mode drift", async () => {
-  const feature = createLicenseMitFeature(() => Promise.resolve(template));
+  const feature = createLicenseMitFeature(
+    source(template),
+    source(apacheTemplate),
+  );
   const absent = context({ kind: "absent" }, {
     licenseHolder: "Ada",
     licenseYear: "2026",
@@ -65,7 +72,10 @@ Deno.test("MIT provider writes resolved attribution and repairs only mode drift"
 });
 
 Deno.test("MIT provider removes only exact downloaded content", async () => {
-  const feature = createLicenseMitFeature(() => Promise.resolve(template));
+  const feature = createLicenseMitFeature(
+    source(template),
+    source(apacheTemplate),
+  );
   const exact = context(file("Copyright 2026 Ada\nterms\n"));
   const check = await feature.checkDisable(exact);
   assertEquals(check.result, "allowed");
@@ -88,7 +98,7 @@ Deno.test("MIT provider does not download while LICENSE is absent", async () => 
   const feature = createLicenseMitFeature(() => {
     calls++;
     return Promise.reject(new Error("offline"));
-  });
+  }, source(apacheTemplate));
   assertEquals(
     (await feature.detect(context({ kind: "absent" }))).state,
     "disabled",
@@ -129,4 +139,8 @@ function context(
 
 function file(content: string, mode = 0o644): ArtifactObservation {
   return { kind: "file", content, digest: "digest", mode };
+}
+
+function source(value: string) {
+  return () => Promise.resolve(value);
 }

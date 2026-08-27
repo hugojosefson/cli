@@ -36,6 +36,6 @@ Deno.test("license attribution prefers Github, then Git, then prompt", async () 
   await assertRejects(
     () => resolveLicenseAttribution(context(), () => undefined),
     Error,
-    "MIT attribution is required",
+    "License attribution is required",
   );
 });

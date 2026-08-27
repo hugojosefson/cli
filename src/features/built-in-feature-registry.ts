@@ -14,6 +14,7 @@ import { gitFeature } from "./git-feature.ts";
 import { readmeStaticFeature } from "./readme-static-feature.ts";
 import { readmeBuildFeature } from "./readme-build-feature.ts";
 import { licenseMitFeature } from "./license-mit-feature.ts";
+import { licenseApache20Feature } from "./license-apache-2.0-feature.ts";
 
 /** Features available without repository-specific configuration. */
 export const builtInFeatureRegistry: FeatureRegistry = {
@@ -27,6 +28,7 @@ export const builtInFeatureRegistry: FeatureRegistry = {
     denoServerFeature,
     gitFeature,
     licenseMitFeature,
+    licenseApache20Feature,
     readmeStaticFeature,
     readmeBuildFeature,
   ],

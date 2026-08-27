@@ -105,7 +105,7 @@ export async function runFeatureOperation(
   };
   const licenseOptions =
     changes.some((change) =>
-        change.featureId === "license-mit" &&
+        change.featureId.startsWith("license-") &&
         change.enabled && detections.get(change.featureId)?.state === "disabled"
       )
       ? await resolveLicenseAttribution(baseContext, services.promptAttribution)

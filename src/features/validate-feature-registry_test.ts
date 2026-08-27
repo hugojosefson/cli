@@ -18,6 +18,7 @@ Deno.test("the complete built-in registry validates", () => {
       "deno-server",
       "git",
       "license-mit",
+      "license-apache-2.0",
       "readme-static",
       "readme-build",
     ],
