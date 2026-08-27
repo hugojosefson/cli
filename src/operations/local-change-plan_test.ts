@@ -92,6 +92,46 @@ Deno.test("applicator guards and changes file modes", async () => {
   });
 });
 
+Deno.test("directory creation composes but rejects other existing kinds", async () => {
+  await withRepository(async (root) => {
+    await applyLocalChangePlan(
+      root,
+      plan([{ kind: "create-directory", path: "src" }]),
+    );
+    await applyLocalChangePlan(
+      root,
+      plan([{ kind: "create-directory", path: "src" }]),
+    );
+    await Deno.writeTextFile(new URL("file", root), "x");
+    await assertRejects(
+      () =>
+        applyLocalChangePlan(
+          root,
+          plan([{ kind: "create-directory", path: "file" }]),
+        ),
+      ChangePlanError,
+    );
+    await git(root, ["init"]);
+    await Deno.writeTextFile(new URL("target", root), "src\n");
+    const target = await git(root, ["hash-object", "-w", "target"]);
+    await git(root, [
+      "update-index",
+      "--add",
+      "--cacheinfo",
+      `120000,${target.trim()},link`,
+    ]);
+    await git(root, ["checkout-index", "-f", "--", "link"]);
+    await assertRejects(
+      () =>
+        applyLocalChangePlan(
+          root,
+          plan([{ kind: "create-directory", path: "link" }]),
+        ),
+      ChangePlanError,
+    );
+  });
+});
+
 Deno.test("applicator initializes and commits a local Git repository", async () => {
   await withRepository(async (root) => {
     await applyLocalChangePlan(

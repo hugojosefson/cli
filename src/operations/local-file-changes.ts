@@ -4,7 +4,9 @@ import type { PlannedChange } from "../api/planned-change.ts";
 import { LocalFileReader } from "../repository/local-file-reader.ts";
 import type { RepositoryRoot } from "../repository/repository-path.ts";
 import { ChangePlanError } from "./change-plan-error.ts";
+import { createDirectory } from "./local-directory-change.ts";
 import { editJson } from "./local-json-change.ts";
+import { pathExists } from "./local-path-exists.ts";
 import { containedUrl, linkTarget } from "./local-plan-state.ts";
 
 type FileChange = Exclude<
@@ -75,11 +77,6 @@ export async function applyFileChange(
   );
 }
 
-async function createDirectory(url: URL, path: string): Promise<void> {
-  if (await exists(url)) throw new ChangePlanError("expected-state", path);
-  await Deno.mkdir(url);
-}
-
 async function writeFile(
   root: RepositoryRoot,
   url: URL,
@@ -105,7 +102,7 @@ async function createLink(
   target: string,
   path: string,
 ): Promise<void> {
-  if (await exists(url)) throw new ChangePlanError("expected-state", path);
+  if (await pathExists(url)) throw new ChangePlanError("expected-state", path);
   await Deno.symlink(target, url);
 }
 
@@ -157,14 +154,4 @@ async function setMode(
     : observed.kind === "file" && observed.mode === expected;
   if (!matches) throw new ChangePlanError("expected-state", path);
   await Deno.chmod(url, mode);
-}
-
-async function exists(url: URL): Promise<boolean> {
-  try {
-    await Deno.lstat(url);
-    return true;
-  } catch (error) {
-    if (error instanceof Deno.errors.NotFound) return false;
-    throw error;
-  }
 }

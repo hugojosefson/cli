@@ -9,7 +9,7 @@ import type {
   RepositoryPath,
 } from "./json.ts";
 
-/** Creates a repository directory when it is absent. */
+/** Creates a repository directory when absent, or accepts an existing directory. */
 export interface CreateDirectoryChange {
   readonly kind: "create-directory";
   readonly path: RepositoryPath;
