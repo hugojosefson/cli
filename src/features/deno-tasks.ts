@@ -3,6 +3,10 @@
 import type { JsonObject, JsonValue } from "../api/json.ts";
 import type { OperationContext } from "../api/repository-context.ts";
 import { sameJson } from "../operations/local-plan-state.ts";
+import {
+  publishCheckDefinition,
+  publishCheckName,
+} from "./jsr-package-config.ts";
 
 export const taskFeatureIds = [
   "deno-lint",
@@ -44,8 +48,13 @@ export const readmeTaskDefinition: JsonObject = {
 export function denoTaskDefinitions(
   enabled: readonly TaskFeatureId[] = [],
   readmeBuild = false,
+  publishCheck = false,
 ): Readonly<Record<string, JsonObject>> {
-  const dependencies = ["format", ...enabled.map((id) => leafTaskNames[id])];
+  const dependencies = [
+    "format",
+    ...enabled.map((id) => leafTaskNames[id]),
+    ...(publishCheck ? [publishCheckName] : []),
+  ];
   return {
     fmt: { description: "Fix formatting.", command: "deno fmt" },
     format: { description: "Check formatting.", command: "deno fmt --check" },
@@ -55,6 +64,7 @@ export function denoTaskDefinitions(
         readme: readmeTaskDefinition,
       }
       : {}),
+    ...(publishCheck ? { [publishCheckName]: publishCheckDefinition } : {}),
     default: {
       description: "Fix formatting, then run checks.",
       command: readmeBuild
@@ -88,6 +98,22 @@ export function desiredTaskIds(
   return taskFeatureIds.filter((id) => desired.includes(id));
 }
 
+/** Whether the JSR task is present, even if its definition differs. */
+export function presentPublishCheck(tasks: JsonObject): boolean {
+  return tasks[publishCheckName] !== undefined;
+}
+
+/** Applies the JSR package transition to the publish task contribution. */
+export function desiredPublishCheck(
+  context: OperationContext,
+  tasks: JsonObject,
+): boolean {
+  const change = context.resolvedChanges.find((item) =>
+    item.featureId === "jsr-package"
+  );
+  return change ? change.enabled : presentPublishCheck(tasks);
+}
+
 /** Whether this operation must retain the generated README task. */
 export function desiredReadmeBuild(
   context: OperationContext,
@@ -98,6 +124,27 @@ export function desiredReadmeBuild(
   );
   if (change) return change.enabled;
   return sameJson(tasks.readme, readmeTaskDefinition);
+}
+
+/** Returns the exact owned check aggregate after resolved task transitions. */
+export function desiredCheckDefinition(
+  context: OperationContext,
+  tasks: JsonObject,
+): JsonObject {
+  return denoTaskDefinitions(
+    desiredTaskIds(context, tasks),
+    desiredReadmeBuild(context, tasks),
+    desiredPublishCheck(context, tasks),
+  ).check!;
+}
+
+/** Returns the exact owned check aggregate for currently present tasks. */
+export function currentCheckDefinition(tasks: JsonObject): JsonObject {
+  return denoTaskDefinitions(
+    presentTaskIds(tasks),
+    sameJson(tasks.readme, readmeTaskDefinition),
+    presentPublishCheck(tasks),
+  ).check!;
 }
 
 export type DenoTaskInspection =
@@ -123,6 +170,7 @@ export function inspectDenoTasks(config: JsonObject): DenoTaskInspection {
   const definitions = denoTaskDefinitions(
     enabled,
     sameJson(tasks.readme, readmeTaskDefinition),
+    presentPublishCheck(tasks),
   );
   for (const name of denoTaskNames) {
     const actual = tasks[name];

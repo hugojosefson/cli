@@ -9,7 +9,9 @@ import {
   isObject,
   leafTaskDefinitions,
   leafTaskNames,
+  presentPublishCheck,
   presentTaskIds,
+  readmeTaskDefinition,
   type TaskFeatureId,
 } from "./deno-tasks.ts";
 
@@ -54,7 +56,11 @@ export async function inspectDenoTask(
     exact,
     aggregate: sameJson(
       tasks.check,
-      denoTaskDefinitions(presentTaskIds(tasks)).check,
+      denoTaskDefinitions(
+        presentTaskIds(tasks),
+        sameJson(tasks.readme, readmeTaskDefinition),
+        presentPublishCheck(tasks),
+      ).check,
     ),
   };
 }

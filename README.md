@@ -74,7 +74,7 @@ The first feature set includes:
 - `license-*`: MIT, Apache-2.0, GPL, AGPL, ISC, BSD, MPL, Unlicense, and CC
   license providers. Exactly one provider may be enabled.
 - `jsr-package`: adds JSR package identity and publishing checks; it requires
-  `deno-fmt`, at least one Deno export, `readme`, and `license`.
+  `deno-fmt`, `github-repo`, at least one Deno export, `readme`, and `license`.
 - `github-repo`: detects authenticated access to the checked-out GitHub
   repository. It does not create or delete repositories.
 - `github-*` repository-setting features independently manage auto-merge,
@@ -93,9 +93,9 @@ The first feature set includes:
 - `github-protected-tags`: requires `github-repo` and protects all tags.
   Repository admins may bypass tag mutation.
 - `github-protection`: weak preset enabling all three protection features.
-- `jsr-release`: will add the release-writer App and JSR OIDC release workflow.
-  Release tooling will validate exact unprefixed SemVer tags; its future App
-  bypass will extend the tag protection ruleset.
+- `jsr-release`: will use JSR OIDC publishing only. It requires external JSR
+  repository linking and an exact unprefixed SemVer tag equal to the config
+  version.
 
 `--github` is a weak preset initialized from the 20 latest non-archived,
 non-fork, non-template repositories owned by the authenticated user, then
@@ -122,9 +122,8 @@ writable static README and plans removal of `readme/`. If Git is enabled and
 the warning.
 
 The Deno features can coexist. Git is not a dependency of Deno formatting,
-library, CLI, or server features. Features that need Git, such as publishing or
-release, declare it as a direct dependency. With no enabled features, `hj`
-creates nothing.
+library, CLI, server, or JSR package features. Features that need Git declare it
+as a direct dependency. With no enabled features, `hj` creates nothing.
 
 Deno source paths and exports remain stable across combinations:
 
@@ -137,10 +136,14 @@ When CLI and server coexist, the CLI owns a generated command registry and the
 server contributes its `serve` command. Neither feature patches the other's
 free-form source.
 
-`jsr-package` starts at version `0.0.0`. It requires a complete license;
-interactive selection defaults to MIT and does not offer an unlicensed choice.
-Attribution resolves from GitHub identity, then Git configuration, then a
-prompt. Setup fails if required attribution remains unresolved.
+`jsr-package` derives its lowercase `@owner/repository` name from the linked
+GitHub repository, starts at version `0.0.0`, and adds the command
+`deno publish --dry-run --check=all` to `check`. A JSR package and GitHub
+repository link remain external prerequisites for later OIDC publishing. It
+requires a complete license; interactive selection defaults to MIT and does not
+offer an unlicensed choice. Attribution resolves from GitHub identity, then Git
+configuration, then a prompt. Setup fails if required attribution remains
+unresolved.
 
 ## Shared commands
 

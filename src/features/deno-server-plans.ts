@@ -41,7 +41,7 @@ export async function planEnableDenoServer(
       path: "deno.jsonc",
       content: `${
         JSON.stringify(
-          initialDenoConfig(context, {}, denoServerFeatureId),
+          await initialDenoConfig(context, {}, denoServerFeatureId),
           null,
           2,
         )

@@ -11,6 +11,7 @@ import { denoFmtSubject } from "./deno-fmt-inspection.ts";
 import { inspectDenoTask } from "./deno-task-inspection.ts";
 import {
   denoTaskDefinitions,
+  desiredPublishCheck,
   desiredTaskIds,
   leafTaskDefinitions,
   leafTaskNames,
@@ -86,7 +87,11 @@ export async function planDenoTask(
       kind: "set-json",
       path: state.config.path,
       jsonPath: ["tasks", "check"],
-      value: denoTaskDefinitions(enabled).check,
+      value: denoTaskDefinitions(
+        enabled,
+        state.tasks.readme !== undefined,
+        desiredPublishCheck(context, state.tasks),
+      ).check,
       expected: state.tasks.check,
     });
   }
@@ -105,7 +110,10 @@ export async function planDenoTask(
   };
 }
 
-function ownsAggregate(context: OperationContext, id: TaskFeatureId): boolean {
+function ownsAggregate(
+  context: OperationContext,
+  id: TaskFeatureId,
+): boolean {
   if (
     context.resolvedChanges.some((change) =>
       change.featureId === "deno-fmt" && !change.enabled

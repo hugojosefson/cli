@@ -12,6 +12,11 @@ import {
 } from "./deno-tasks.ts";
 import { denoLibInitialConfigContribution } from "./deno-lib-artifacts.ts";
 import { denoServerInitialConfigContribution } from "./deno-server-artifacts.ts";
+import { jsrPackageIdentity } from "./jsr-package-identity.ts";
+import {
+  publishCheckDefinition,
+  publishCheckName,
+} from "./jsr-package-config.ts";
 
 const contributions = [
   denoCliInitialConfigContribution,
@@ -20,11 +25,11 @@ const contributions = [
 ];
 
 /** Adds declarations from features enabled in this ordered operation. */
-export function initialDenoConfig(
+export async function initialDenoConfig(
   context: OperationContext,
   base: JsonObject,
   fallbackFeatureId?: string,
-): JsonObject {
+): Promise<JsonObject> {
   const result = contributions.reduce(
     (value, contribution) =>
       context.resolvedChanges.some((change) =>
@@ -41,7 +46,7 @@ export function initialDenoConfig(
       change.featureId === id && change.enabled
     )
   );
-  return fallbackFeatureId === denoFmtFeatureId ||
+  const configured = fallbackFeatureId === denoFmtFeatureId ||
       context.resolvedChanges.some((change) =>
         change.featureId === denoFmtFeatureId && change.enabled
       )
@@ -60,6 +65,30 @@ export function initialDenoConfig(
       },
     })
     : result;
+  if (
+    !context.resolvedChanges.some((change) =>
+      change.featureId === "jsr-package" && change.enabled
+    )
+  ) return configured;
+  const identity = await jsrPackageIdentity(context);
+  if (identity.kind !== "available") return configured;
+  const tasks = configured.tasks as JsonObject | undefined;
+  const check = tasks?.check as JsonObject | undefined;
+  return mergeObjects(configured, {
+    name: identity.name,
+    version: "0.0.0",
+    tasks: {
+      ...tasks,
+      [publishCheckName]: publishCheckDefinition,
+      check: {
+        ...check,
+        dependencies: [
+          ...(check?.dependencies as JsonValue[] ?? []),
+          publishCheckName,
+        ],
+      },
+    },
+  });
 }
 
 /** Selects one ordered feature to create an initially absent Deno config. */

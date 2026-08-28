@@ -10,6 +10,7 @@ import {
   denoFmtConfigText,
   denoTaskDefinitions,
   denoTaskNames,
+  desiredPublishCheck,
   desiredReadmeBuild,
   desiredTaskIds,
   presentTaskIds,
@@ -35,7 +36,7 @@ export async function planEnableDenoFmt(
       kind: "write-file",
       path: "deno.jsonc",
       content: denoFmtConfigText(
-        initialDenoConfig(context, {}, denoFmtFeatureId),
+        await initialDenoConfig(context, {}, denoFmtFeatureId),
       ),
       mode: 0o644,
       expectedDigest: undefined,
@@ -47,13 +48,14 @@ export async function planEnableDenoFmt(
         kind: "set-json",
         path: state.config.path,
         jsonPath: ["tasks"],
-        value: initialDenoConfig(context, {}, denoFmtFeatureId).tasks!,
+        value: (await initialDenoConfig(context, {}, denoFmtFeatureId)).tasks!,
         expected: undefined,
       });
     } else if (tasks.kind === "tasks") {
       const definitions = denoTaskDefinitions(
         desiredTaskIds(context, tasks.values),
         desiredReadmeBuild(context, tasks.values),
+        desiredPublishCheck(context, tasks.values),
       );
       const aggregateChanges = [...tasks.missing, ...tasks.drifted].sort();
       for (const name of aggregateChanges) {
@@ -134,6 +136,7 @@ export async function planDisableDenoFmt(
           expected: denoTaskDefinitions(
             presentTaskIds(tasks.values),
             tasks.values.readme !== undefined,
+            tasks.values["publish-check"] !== undefined,
           )[name],
         });
       }

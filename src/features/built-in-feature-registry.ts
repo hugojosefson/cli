@@ -20,6 +20,7 @@ import {
   githubSettings,
 } from "./github-features.ts";
 import { githubCiFeature } from "./github-ci-feature.ts";
+import { jsrPackageFeature } from "./jsr-package-feature.ts";
 import {
   githubMainProtectionFeature,
   githubMainReviewFeature,
@@ -38,6 +39,7 @@ export const builtInFeatureRegistry: FeatureRegistry = {
     denoServerFeature,
     gitFeature,
     githubRepoFeature,
+    jsrPackageFeature,
     githubCiFeature,
     githubMainProtectionFeature,
     githubMainReviewFeature,
