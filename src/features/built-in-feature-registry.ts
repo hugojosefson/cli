@@ -14,6 +14,11 @@ import { gitFeature } from "./git-feature.ts";
 import { readmeStaticFeature } from "./readme-static-feature.ts";
 import { readmeBuildFeature } from "./readme-build-feature.ts";
 import { licenseFeatures } from "./license-catalog.ts";
+import {
+  githubRepoFeature,
+  githubSettingFeature,
+  githubSettings,
+} from "./github-features.ts";
 
 /** Features available without repository-specific configuration. */
 export const builtInFeatureRegistry: FeatureRegistry = {
@@ -26,6 +31,8 @@ export const builtInFeatureRegistry: FeatureRegistry = {
     denoLibFeature,
     denoServerFeature,
     gitFeature,
+    githubRepoFeature,
+    ...githubSettings.map(githubSettingFeature),
     ...licenseFeatures,
     readmeStaticFeature,
     readmeBuildFeature,
@@ -38,5 +45,17 @@ export const builtInFeatureRegistry: FeatureRegistry = {
     id: "readme",
     providerPolicy: "exclusive",
     defaultProvider: "readme-static",
+  }],
+  presets: [{
+    id: "github",
+    name: "GitHub",
+    summary: "Apply common GitHub repository settings.",
+    changes: [
+      { featureId: "github-repo", enabled: true },
+      ...githubSettings.map((setting) => ({
+        featureId: setting.id,
+        enabled: setting.enabled,
+      })),
+    ],
   }],
 };

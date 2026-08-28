@@ -14,6 +14,12 @@ import { LocalFileReader } from "../repository/local-file-reader.ts";
 import { LocalGitReader } from "../repository/local-git-reader.ts";
 import { LocalGithubIdentityReader } from "../repository/local-github-identity-reader.ts";
 import type { GithubIdentityReader } from "../api/repository-context.ts";
+import type { GithubWriter } from "../api/repository-context.ts";
+import { LocalGithubClient } from "../repository/local-github-client.ts";
+import {
+  applyGithubChangePlans,
+  preflightGithubChangePlan,
+} from "../operations/github-change-plan.ts";
 import { formatFeatureResult, formatFeatureStatus } from "./format-features.ts";
 import {
   featureCommitPlan,
@@ -41,6 +47,7 @@ export type FeatureSelector = (
 export interface FeatureOperationServices {
   readonly promptAttribution?: AttributionPrompt;
   readonly githubIdentity?: GithubIdentityReader;
+  readonly github?: GithubWriter;
 }
 
 /** Runs the built-in repository feature operation at one local root. */
@@ -69,7 +76,8 @@ export async function runFeatureOperation(
   const git = new LocalGitReader(root);
   const githubIdentity = services.githubIdentity ??
     new LocalGithubIdentityReader();
-  const detections = await detect(root, files, git, registry);
+  const github = services.github ?? new LocalGithubClient(root);
+  const detections = await detect(root, files, git, github, registry);
   if (args.kind === "status") {
     return formatFeatureStatus(registry, detections);
   }
@@ -78,7 +86,10 @@ export async function runFeatureOperation(
       selectActions(featureActions(registry, detections)),
     )
     : args.request;
-  if (request.changes.length === 0 && !request.repair) {
+  if (
+    request.changes.length === 0 && request.presets.length === 0 &&
+    !request.applyDefaults && !request.repair
+  ) {
     return formatFeatureStatus(registry, detections);
   }
   const resolution = resolveFeatureChanges(
@@ -99,6 +110,7 @@ export async function runFeatureOperation(
     files,
     git,
     githubIdentity,
+    github,
     detections,
     requestedChanges: request.changes,
     resolvedChanges: changes,
@@ -119,9 +131,15 @@ export async function runFeatureOperation(
     options: { confirmation: args.confirmation, ...licenseOptions },
   };
   const plans = await plansFor(context, changes, registry);
+  rejectMixedMutations(plans);
   requireConfirmation(plans, args.confirmation);
   rejectUnsupportedValidations(plans);
-  await Promise.all(plans.map((plan) => preflightLocalChangePlan(root, plan)));
+  await Promise.all(
+    plans.map((plan) => preflightLocalChangePlan(root, localPlan(plan))),
+  );
+  await Promise.all(
+    plans.map((plan) => preflightGithubChangePlan(github, plan)),
+  );
   const beforeGit = await git.isRepository();
   const paths = plannedCommitPaths(plans);
   const initializedGit = plans.some((plan) =>
@@ -134,18 +152,23 @@ export async function runFeatureOperation(
     await requireGitIdentity(root);
     await preflightLocalChangePlan(root, commit);
   }
-  for (const plan of plans) await applyLocalChangePlan(root, plan);
+  for (const plan of plans) await applyLocalChangePlan(root, localPlan(plan));
+  await applyGithubChangePlans(github, plans);
   await validate(
     root,
     files,
     git,
+    github,
     registry,
     plans.flatMap((plan) => plan.validations),
   );
   const committed = commit !== undefined;
   if (commit) await applyLocalChangePlan(root, commit);
   return formatFeatureResult(
-    formatFeatureStatus(registry, await detect(root, files, git, registry)),
+    formatFeatureStatus(
+      registry,
+      await detect(root, files, git, github, registry),
+    ),
     committed,
     !beforeGit && initializedGit,
   );
@@ -155,9 +178,10 @@ async function detect(
   root: URL,
   files: LocalFileReader,
   git: LocalGitReader,
+  github: GithubWriter,
   registry: FeatureRegistry,
 ) {
-  const context = { repositoryRoot: root, files, git };
+  const context = { repositoryRoot: root, files, git, github };
   return new Map(
     await Promise.all(
       registry.features.map(async (feature) =>
@@ -207,10 +231,11 @@ async function validate(
   root: URL,
   files: LocalFileReader,
   git: LocalGitReader,
+  github: GithubWriter,
   registry: FeatureRegistry,
   validations: readonly PlannedValidation[],
 ): Promise<void> {
-  const detections = await detect(root, files, git, registry);
+  const detections = await detect(root, files, git, github, registry);
   for (const validation of validations) {
     if (
       validation.kind === "feature-redetection" &&
@@ -218,5 +243,33 @@ async function validate(
     ) {
       throw new Error(`validation failed: ${validation.featureId}`);
     }
+  }
+}
+
+function localPlan(plan: ChangePlan): ChangePlan {
+  return {
+    ...plan,
+    preconditions: plan.preconditions.filter((item) =>
+      item.kind !== "github-resource-state"
+    ),
+    changes: plan.changes.filter((item) =>
+      item.kind !== "upsert-github-resource" &&
+      item.kind !== "delete-github-resource" && item.kind !== "app-setup"
+    ),
+  };
+}
+
+function rejectMixedMutations(plans: readonly ChangePlan[]): void {
+  const local = plans.some((plan) => localPlan(plan).changes.length > 0);
+  const remote = plans.some((plan) =>
+    plan.changes.some((change) =>
+      change.kind === "upsert-github-resource" ||
+      change.kind === "delete-github-resource" || change.kind === "app-setup"
+    )
+  );
+  if (local && remote) {
+    throw new Error(
+      "mixed local and GitHub mutations are unsupported because rollback is unavailable",
+    );
   }
 }

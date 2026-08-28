@@ -75,10 +75,10 @@ export interface GitReader {
 export interface GithubRepository {
   readonly owner: string;
   readonly name: string;
-  readonly defaultBranch: string;
+  readonly defaultBranch?: string;
 }
 
-/** A Github resource with a digest of the state relevant to `hj`. */
+/** A GitHub resource with a digest of the state relevant to `hj`. */
 export interface GithubResource {
   readonly kind: string;
   readonly name: string;
@@ -86,7 +86,7 @@ export interface GithubResource {
   readonly definition: JsonObject;
 }
 
-/** Read-only Github access, present only when Github can be queried. */
+/** Read-only GitHub access, present only when GitHub can be queried. */
 export interface GithubReader {
   /** Authenticated viewer identity, when the adapter supports it. */
   viewer?(): Promise<{ readonly name: string } | undefined>;
@@ -101,7 +101,23 @@ export interface GithubReader {
   resource(kind: string, name: string): Promise<GithubResource | undefined>;
 }
 
-/** Authenticated Github viewer lookup independent of repository access. */
+/** Authenticated GitHub mutations, with optimistic per-resource state checks. */
+export interface GithubWriter extends GithubReader {
+  /** Atomically applies compatible resources after one fresh state observation. */
+  upsertResources(
+    resources: readonly GithubResourceUpsert[],
+  ): Promise<void>;
+}
+
+/** A requested GitHub resource replacement with its observed state digest. */
+export interface GithubResourceUpsert {
+  readonly resource: string;
+  readonly name: string;
+  readonly definition: JsonObject;
+  readonly expectedStateDigest: string;
+}
+
+/** Authenticated GitHub viewer lookup independent of repository access. */
 export interface GithubIdentityReader {
   viewer(): Promise<{ readonly name: string } | undefined>;
 }

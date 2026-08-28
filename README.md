@@ -75,14 +75,27 @@ The first feature set includes:
   license providers. Exactly one provider may be enabled.
 - `jsr-package`: adds JSR package identity and publishing checks; it requires
   `deno-fmt`, at least one Deno export, `readme`, and `license`.
-- `github-repo`: creates or connects a Github repository; it requires `git` and
-  cannot be disabled automatically.
+- `github-repo`: detects authenticated access to the checked-out GitHub
+  repository. It does not create or delete repositories.
+- `github-*` repository-setting features independently manage auto-merge,
+  merged-branch deletion, merge strategies, wiki, issues, projects, discussions,
+  branch updates, and web commit signoff.
 - `github-ci`: adds pull-request checks plus nightly and manual dependency
   updates; it requires `github-repo` and `deno-fmt`.
 - `github-protection`: protects main history, reviewed main changes, and
   semantic-version tags; it requires `github-ci`.
 - `jsr-release`: adds the release-writer App and JSR OIDC release workflow; it
   requires `jsr-package`, `github-ci`, and `github-protection`.
+
+`--github` is a weak preset for the dominant settings across the 20 latest
+non-archived, non-fork, non-template repositories owned by the authenticated
+user when the preset was defined. It disables auto-merge, merged-branch
+deletion, wiki, discussions, branch updates, and web commit signoff; it enables
+merge commits, squash merging, rebasing, issues, and projects. Explicit setting
+flags override the preset regardless of argument order. Remote changes require
+`--yes` and use one guarded GitHub API update. `--no-github` is invalid;
+`--no-github-repo` safely blocks because repository deletion is unsupported.
+Visibility and merge-message enum settings remain unchanged.
 
 The `readme` capability has exclusive providers. Its default provider is
 `readme-static`. Enabling `readme-build` while `readme-static` is enabled plans
@@ -112,7 +125,7 @@ free-form source.
 
 `jsr-package` starts at version `0.0.0`. It requires a complete license;
 interactive selection defaults to MIT and does not offer an unlicensed choice.
-Attribution resolves from Github identity, then Git configuration, then a
+Attribution resolves from GitHub identity, then Git configuration, then a
 prompt. Setup fails if required attribution remains unresolved.
 
 ## Shared commands
@@ -135,7 +148,7 @@ regenerates and fixes files before checking. `check` is the normal validation
 aggregate, and `all` adds publish dry-run when `jsr-package` is enabled. Lint
 fixes locally, while CI runs a non-fixing lint check.
 
-Generated Github workflows use `.github/workflows/hj-ci.yaml`,
+Generated GitHub workflows use `.github/workflows/hj-ci.yaml`,
 `.github/workflows/hj-deps.yaml`, and `.github/workflows/hj-release.yaml`. CI
 runs for pull requests only. Its minimum Deno version is globally configurable
 and defaults to the current stable version when the feature is enabled.
@@ -156,7 +169,7 @@ CLI flags override configured defaults. Missing values are asked interactively
 on a TTY. Tokens, private keys, and other secrets are never configuration
 values.
 
-Github repository visibility is prompted when unresolved, with private selected
+GitHub repository visibility is prompted when unresolved, with private selected
 by default. Non-interactive creation requires a CLI or global configuration
 value.
 
