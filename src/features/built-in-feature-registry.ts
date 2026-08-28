@@ -21,6 +21,7 @@ import {
 } from "./github-features.ts";
 import { githubCiFeature } from "./github-ci-feature.ts";
 import { jsrPackageFeature } from "./jsr-package-feature.ts";
+import { jsrReleaseFeature } from "./jsr-release-feature.ts";
 import {
   githubMainProtectionFeature,
   githubMainReviewFeature,
@@ -40,6 +41,7 @@ export const builtInFeatureRegistry: FeatureRegistry = {
     gitFeature,
     githubRepoFeature,
     jsrPackageFeature,
+    jsrReleaseFeature,
     githubCiFeature,
     githubMainProtectionFeature,
     githubMainReviewFeature,

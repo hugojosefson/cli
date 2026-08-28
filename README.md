@@ -93,9 +93,9 @@ The first feature set includes:
 - `github-protected-tags`: requires `github-repo` and protects all tags.
   Repository admins may bypass tag mutation.
 - `github-protection`: weak preset enabling all three protection features.
-- `jsr-release`: will use JSR OIDC publishing only. It requires external JSR
-  repository linking and an exact unprefixed SemVer tag equal to the config
-  version.
+- `jsr-release`: adds JSR OIDC publishing only. It requires an externally linked
+  JSR package and repository, plus an exact unprefixed SemVer tag equal to the
+  `deno.json` or `deno.jsonc` version.
 
 `--github` is a weak preset initialized from the 20 latest non-archived,
 non-fork, non-template repositories owned by the authenticated user, then

@@ -19,6 +19,7 @@ Deno.test("the complete built-in registry validates", () => {
       "git",
       "github-repo",
       "jsr-package",
+      "jsr-release",
       "github-ci",
       "github-main-protection",
       "github-main-review",
