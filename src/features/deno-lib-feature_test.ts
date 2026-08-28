@@ -16,6 +16,7 @@ Deno.test("deno-lib resolution enables deno-fmt first", () => {
   assertEquals(
     resolveFeatureChanges(builtInFeatureRegistry, detections, {
       changes: [{ featureId: "deno-lib", enabled: true }],
+      presets: [],
       applyDefaults: false,
       defaults: [],
     }).changes.map((change) => change.featureId),

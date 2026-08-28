@@ -22,7 +22,7 @@ export interface ResolutionState {
   readonly detections: Readonly<Record<FeatureId, FeatureDetection>>;
   readonly features: ReadonlyMap<FeatureId, Feature>;
   readonly capabilities: ReadonlyMap<CapabilityId, CapabilityDefinition>;
-  readonly explicit: ReadonlyMap<FeatureId, boolean>;
+  readonly explicit: Map<FeatureId, boolean>;
   readonly desired: Map<FeatureId, DesiredFeatureState>;
   readonly touchedCapabilities: Set<CapabilityId>;
   readonly issues: FeatureResolutionIssue[];

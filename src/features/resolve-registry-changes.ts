@@ -29,6 +29,7 @@ export function resolveRegistryChanges(
   for (const [featureId, enabled] of state.explicit) {
     selectFeature(state, featureId, enabled, { kind: "explicit-request" });
   }
+  applyPresets(state, request);
   applyFeatureDefaults(state, request);
   resolveFeatureEnables(state);
   resolveExplicitExclusiveProviders(state);
@@ -42,4 +43,46 @@ export function resolveRegistryChanges(
     changes: orderFeatureChanges(registry, changedFeatures(state)),
     issues: [],
   };
+}
+
+/** Applies non-explicit preset targets before normal dependency resolution. */
+function applyPresets(
+  state: ReturnType<typeof createResolutionState>,
+  request: FeatureChangeRequest,
+): void {
+  const presets = new Map((state.registry.presets ?? []).map((preset) => [
+    preset.id,
+    preset,
+  ]));
+  const targets = new Map<string, Map<boolean, string[]>>();
+  for (const presetId of request.presets) {
+    const preset = presets.get(presetId);
+    if (!preset) {
+      state.issues.push({
+        code: "unknown-requested-preset",
+        relatedId: presetId,
+      });
+      continue;
+    }
+    for (const target of preset.changes) {
+      if (state.explicit.has(target.featureId)) continue;
+      const presetIds = targets.get(target.featureId) ?? new Map();
+      const ids = presetIds.get(target.enabled) ?? [];
+      ids.push(preset.id);
+      presetIds.set(target.enabled, ids);
+      targets.set(target.featureId, presetIds);
+    }
+  }
+  for (const [featureId, selections] of targets) {
+    if (selections.size > 1) {
+      state.issues.push({ code: "conflicting-preset-target", featureId });
+      continue;
+    }
+    const [enabled, presetIds] = [...selections][0];
+    state.explicit.set(featureId, enabled);
+    selectFeature(state, featureId, enabled, {
+      kind: "preset",
+      presetId: [...presetIds].sort()[0],
+    });
+  }
 }

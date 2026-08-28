@@ -17,6 +17,7 @@ export interface RequestedFeatureChange {
 /** Why dependency resolution selected a feature state. */
 export type ResolvedChangeReason =
   | { readonly kind: "explicit-request" }
+  | { readonly kind: "preset"; readonly presetId: string }
   | { readonly kind: "repair" }
   | {
     readonly kind: "direct-feature-dependency";
@@ -50,6 +51,8 @@ export type RepairSelection =
 /** Feature changes explicitly requested by the caller. */
 export interface FeatureChangeRequest {
   readonly changes: readonly RequestedFeatureChange[];
+  /** Preset IDs selected by the caller. */
+  readonly presets: readonly string[];
   /** True only when the caller explicitly passed `--defaults`. */
   readonly applyDefaults: boolean;
   /** Globally configured selections, or the built-in fallback selections. */

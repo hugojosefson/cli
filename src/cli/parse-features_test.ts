@@ -1,7 +1,11 @@
 import { assertEquals, assertThrows } from "@std/assert";
 import { builtInFeatureRegistry } from "../features/built-in-feature-registry.ts";
 import { formatFeatureStatus } from "./format-features.ts";
-import { type FeaturesArguments, parseFeatures } from "./parse-features.ts";
+import {
+  featureDefaults,
+  type FeaturesArguments,
+  parseFeatures,
+} from "./parse-features.ts";
 
 Deno.test("parses built-in features, capability aliases, and defaults", () => {
   assertEquals(
@@ -59,6 +63,7 @@ Deno.test("parses built-in features, capability aliases, and defaults", () => {
       confirmation: false,
       request: {
         changes: [{ featureId: "readme-static", enabled: true }],
+        presets: [],
         applyDefaults: false,
         defaults: [{ kind: "feature", featureId: "git" }, {
           kind: "capability",
@@ -121,6 +126,7 @@ Deno.test("parses explicit repair selections and rejects negative flags", () => 
       confirmation: false,
       request: {
         changes: [],
+        presets: [],
         applyDefaults: false,
         defaults: [{ kind: "feature", featureId: "git" }, {
           kind: "capability",
@@ -183,6 +189,7 @@ Deno.test("parses confirmation without changing status or feature resolution", (
       confirmation: true,
       request: {
         changes: [],
+        presets: [],
         applyDefaults: false,
         defaults: [{ kind: "feature", featureId: "git" }, {
           kind: "capability",
@@ -217,6 +224,54 @@ Deno.test("parses confirmation without changing status or feature resolution", (
     Error,
     "duplicate `--yes`",
   );
+});
+
+Deno.test("parses positive presets and rejects duplicate and negative forms", () => {
+  const registry = {
+    ...builtInFeatureRegistry,
+    presets: [{
+      id: "github",
+      name: "GitHub",
+      summary: "Test preset.",
+      changes: [{ featureId: "git", enabled: true }],
+    }],
+  };
+  assertEquals(
+    parseFeatures(["repo", "features", "--github"], registry),
+    {
+      kind: "change",
+      confirmation: false,
+      request: {
+        changes: [],
+        presets: ["github"],
+        applyDefaults: false,
+        defaults: featureDefaults,
+      },
+    },
+  );
+  assertThrows(
+    () => parseFeatures(["repo", "features", "--github", "--github"], registry),
+    Error,
+    "duplicate preset",
+  );
+  assertThrows(
+    () => parseFeatures(["repo", "features", "--no-github"], registry),
+    Error,
+    "cannot",
+  );
+  for (
+    const args of [
+      ["repo", "features", "--github", "--no-git"],
+      ["repo", "features", "--no-git", "--github"],
+    ]
+  ) {
+    assertEquals(changeRequest(parseFeatures(args, registry)), {
+      changes: [{ featureId: "git", enabled: false }],
+      presets: ["github"],
+      applyDefaults: false,
+      defaults: featureDefaults,
+    });
+  }
 });
 
 function changeRequest(args: FeaturesArguments) {

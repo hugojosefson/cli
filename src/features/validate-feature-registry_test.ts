@@ -186,3 +186,40 @@ Deno.test("detects cycles through a capability default provider", () => {
     ],
   );
 });
+
+Deno.test("validates preset IDs and targets", () => {
+  assertEquals(
+    validateFeatureRegistry({
+      features: [feature("app")],
+      capabilities: [{ id: "cap", providerPolicy: "multiple" }],
+      presets: [{
+        id: "app",
+        name: "App",
+        summary: "Test preset.",
+        changes: [{ featureId: "missing", enabled: true }, {
+          featureId: "missing",
+          enabled: false,
+        }],
+      }, {
+        id: "cap",
+        name: "Cap",
+        summary: "Test preset.",
+        changes: [],
+      }, {
+        id: "cap",
+        name: "Cap duplicate",
+        summary: "Test preset.",
+        changes: [],
+      }],
+    }).map((issue) => issue.code),
+    [
+      "duplicate-preset-id",
+      "preset-id-collides-with-feature-id",
+      "unknown-preset-target-feature",
+      "unknown-preset-target-feature",
+      "contradictory-preset-target",
+      "preset-id-collides-with-capability-id",
+      "preset-id-collides-with-capability-id",
+    ],
+  );
+});

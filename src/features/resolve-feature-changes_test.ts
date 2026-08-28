@@ -67,8 +67,9 @@ function feature(
 function registry(
   features: readonly Feature[],
   capabilities: FeatureRegistry["capabilities"] = [],
+  presets: NonNullable<FeatureRegistry["presets"]> = [],
 ): FeatureRegistry {
-  return { features, capabilities };
+  return { features, capabilities, presets };
 }
 
 function request(
@@ -76,7 +77,7 @@ function request(
   applyDefaults = false,
   defaults: FeatureChangeRequest["defaults"] = [],
 ): FeatureChangeRequest {
-  return { changes, applyDefaults, defaults };
+  return { changes, presets: [], applyDefaults, defaults };
 }
 
 function detections(
@@ -135,6 +136,77 @@ Deno.test("explicit changes override defaults", () => {
     }]),
   );
   assertEquals(result.changes, []);
+});
+
+Deno.test("explicit changes override presets regardless of request order", () => {
+  const presets = [{
+    id: "base",
+    name: "Base",
+    summary: "Test preset.",
+    changes: [{ featureId: "git", enabled: true }],
+  }];
+  for (
+    const changes of [[{ featureId: "git", enabled: false }], [{
+      featureId: "git",
+      enabled: false,
+    }]]
+  ) {
+    assertEquals(
+      resolveFeatureChanges(
+        registry([feature("git")], [], presets),
+        detections({ git: "disabled" }),
+        { ...request(changes), presets: ["base"] },
+      ),
+      { changes: [], issues: [] },
+    );
+  }
+});
+
+Deno.test("preset selections coalesce and conflicting targets are deterministic", () => {
+  const presets = [{
+    id: "a",
+    name: "A",
+    summary: "Test preset.",
+    changes: [{ featureId: "git", enabled: true }],
+  }, {
+    id: "b",
+    name: "B",
+    summary: "Test preset.",
+    changes: [{ featureId: "git", enabled: true }],
+  }, {
+    id: "off",
+    name: "Off",
+    summary: "Test preset.",
+    changes: [{ featureId: "git", enabled: false }],
+  }];
+  const base = registry([feature("git")], [], presets);
+  assertEquals(
+    resolveFeatureChanges(
+      base,
+      detections({ git: "disabled" }),
+      { ...request(), presets: ["b", "a"] },
+    ).changes,
+    [{
+      featureId: "git",
+      enabled: true,
+      reason: { kind: "preset", presetId: "a" },
+    }],
+  );
+  const forward = resolveFeatureChanges(
+    base,
+    detections({ git: "disabled" }),
+    { ...request(), presets: ["a", "off"] },
+  );
+  const reverse = resolveFeatureChanges(
+    base,
+    detections({ git: "disabled" }),
+    { ...request(), presets: ["off", "a"] },
+  );
+  assertEquals(forward.issues, [{
+    code: "conflicting-preset-target",
+    featureId: "git",
+  }]);
+  assertEquals(reverse.issues, forward.issues);
 });
 
 Deno.test("enabling includes transitive direct dependencies", () => {
@@ -364,6 +436,17 @@ Deno.test("resolver blocks invalid registries, unknown defaults, and contradicto
   assertEquals(contradictory.issues.map((issue) => issue.code), [
     "contradictory-feature-request",
   ]);
+});
+
+Deno.test("resolver reports unknown preset API input", () => {
+  assertEquals(
+    resolveFeatureChanges(
+      registry([feature("app")]),
+      detections({ app: "disabled" }),
+      { ...request(), presets: ["gone"] },
+    ).issues,
+    [{ code: "unknown-requested-preset", relatedId: "gone" }],
+  );
 });
 
 Deno.test("exclusive conflicts block ambiguous provider selection", () => {

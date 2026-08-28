@@ -9,6 +9,11 @@ export interface FeatureRegistryIssue {
   readonly code:
     | "duplicate-feature-id"
     | "duplicate-capability-id"
+    | "duplicate-preset-id"
+    | "preset-id-collides-with-feature-id"
+    | "preset-id-collides-with-capability-id"
+    | "unknown-preset-target-feature"
+    | "contradictory-preset-target"
     | "duplicate-direct-dependency"
     | "duplicate-provided-capability"
     | "duplicate-required-capability"
@@ -36,6 +41,7 @@ export function validateFeatureRegistry(
   for (const id of duplicateIds(index.capabilityCounts)) {
     issues.push({ code: "duplicate-capability-id", capabilityId: id });
   }
+  validatePresets(registry, index.featureIds, index.capabilityIds, issues);
   for (
     const feature of [...registry.features].sort((a, b) =>
       a.metadata.id.localeCompare(b.metadata.id)
@@ -59,6 +65,55 @@ export function validateFeatureRegistry(
     );
   }
   return issues;
+}
+
+function validatePresets(
+  registry: FeatureRegistry,
+  featureIds: ReadonlySet<string>,
+  capabilityIds: ReadonlySet<string>,
+  issues: FeatureRegistryIssue[],
+): void {
+  const presets = registry.presets ?? [];
+  const counts = new Map<string, number>();
+  for (const preset of presets) {
+    counts.set(preset.id, (counts.get(preset.id) ?? 0) + 1);
+  }
+  for (const id of duplicateIds(counts)) {
+    issues.push({ code: "duplicate-preset-id", relatedId: id });
+  }
+  for (const preset of [...presets].sort((a, b) => a.id.localeCompare(b.id))) {
+    if (featureIds.has(preset.id)) {
+      issues.push({
+        code: "preset-id-collides-with-feature-id",
+        relatedId: preset.id,
+      });
+    }
+    if (capabilityIds.has(preset.id)) {
+      issues.push({
+        code: "preset-id-collides-with-capability-id",
+        relatedId: preset.id,
+      });
+    }
+    const targets = new Map<string, boolean>();
+    for (const target of preset.changes) {
+      if (!featureIds.has(target.featureId)) {
+        issues.push({
+          code: "unknown-preset-target-feature",
+          featureId: preset.id,
+          relatedId: target.featureId,
+        });
+      }
+      const previous = targets.get(target.featureId);
+      if (previous !== undefined && previous !== target.enabled) {
+        issues.push({
+          code: "contradictory-preset-target",
+          featureId: preset.id,
+          relatedId: target.featureId,
+        });
+      }
+      targets.set(target.featureId, target.enabled);
+    }
+  }
 }
 
 function validateFeature(

@@ -56,6 +56,7 @@ export function selectedFeatureActionsToRequest(
       featureId,
       enabled,
     })),
+    presets: [],
     applyDefaults: false,
     defaults: featureDefaults,
     ...(repairs.size > 0

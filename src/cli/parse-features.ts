@@ -33,7 +33,9 @@ export function parseFeatures(
   const capabilities = new Map(
     registry.capabilities.map((item) => [item.id, item]),
   );
+  const presetIds = new Set((registry.presets ?? []).map((item) => item.id));
   const requested = new Map<string, boolean>();
+  const selectedPresets = new Set<string>();
   let applyDefaults = false;
   let repair = false;
   let interactive = false;
@@ -63,6 +65,12 @@ export function parseFeatures(
     const disabled = arg.startsWith("--no-");
     const id = arg.slice(disabled ? 5 : 2);
     if (!id) throw new Error(`unknown flag: ${arg}`);
+    if (presetIds.has(id)) {
+      if (disabled) throw new Error(`presets cannot be disabled: ${arg}`);
+      if (selectedPresets.has(id)) throw new Error(`duplicate preset: --${id}`);
+      selectedPresets.add(id);
+      continue;
+    }
     if (featureIds.has(id)) {
       addRequest(requested, id, !disabled);
       continue;
@@ -79,7 +87,9 @@ export function parseFeatures(
     } else throw new Error(`capability has no default provider: ${id}`);
   }
   if (interactive) {
-    if (applyDefaults || repair || requested.size > 0) {
+    if (
+      applyDefaults || repair || requested.size > 0 || selectedPresets.size > 0
+    ) {
       throw new Error(
         "`--interactive` cannot be combined with defaults, repair, or feature flags",
       );
@@ -91,11 +101,13 @@ export function parseFeatures(
       featureId,
       enabled,
     })),
+    presets: [...selectedPresets],
     applyDefaults,
     defaults: featureDefaults,
     ...(repair ? { repair: repairSelection(requested) } : {}),
   };
-  return requested.size === 0 && !applyDefaults && !repair
+  return requested.size === 0 && selectedPresets.size === 0 && !applyDefaults &&
+      !repair
     ? { kind: "status", request, confirmation }
     : { kind: "change", request, confirmation };
 }

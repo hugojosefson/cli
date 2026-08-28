@@ -27,6 +27,7 @@ Deno.test("converts selected actions into feature requests", () => {
     selectedFeatureActionsToRequest(["enable:git", "repair:readme-static"]),
     {
       changes: [{ featureId: "git", enabled: true }],
+      presets: [],
       applyDefaults: false,
       defaults: [{ kind: "feature", featureId: "git" }, {
         kind: "capability",

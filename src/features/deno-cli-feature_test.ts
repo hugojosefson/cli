@@ -30,6 +30,7 @@ Deno.test("deno-cli resolves deno-fmt and shares initial exports", async () => {
       featureId: "deno-lib",
       enabled: true,
     }],
+    presets: [],
     applyDefaults: false,
     defaults: [],
   }).changes;

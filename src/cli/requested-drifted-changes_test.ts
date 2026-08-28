@@ -13,6 +13,7 @@ Deno.test("explicit enables reach drift safety checks", () => {
       featureId: "enabled",
       enabled: true,
     }],
+    presets: [],
     applyDefaults: false,
     defaults: [],
   };

@@ -10,6 +10,8 @@ export interface FeatureResolutionIssue {
   readonly code:
     | "invalid-registry"
     | "unknown-requested-feature"
+    | "unknown-requested-preset"
+    | "conflicting-preset-target"
     | "unknown-default-feature"
     | "unknown-default-capability"
     | "contradictory-feature-request"
