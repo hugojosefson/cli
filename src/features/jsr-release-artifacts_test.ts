@@ -34,6 +34,24 @@ Deno.test("jsr-release workflow is the exact OIDC publishing snapshot", () => {
   assert(!jsrReleaseArtifact.content.includes("GH_TOKEN"));
   assert(!jsrReleaseArtifact.content.includes("--allow-dirty"));
   assert(!jsrReleaseArtifact.content.includes("--no-provenance"));
+  assertEquals(jsrReleaseValidationScript.includes("\n"), false);
+});
+
+Deno.test("jsr-release workflow is valid formatted YAML", async () => {
+  const root = await Deno.makeTempDir({
+    dir: "/tmp/opencode",
+    prefix: "hj-release-workflow-",
+  });
+  try {
+    const path = `${root}/hj-release.yaml`;
+    await Deno.writeTextFile(path, jsrReleaseArtifact.content);
+    const result = await new Deno.Command("deno", {
+      args: ["fmt", "--check", path],
+    }).output();
+    assertEquals(result.success, true);
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
 });
 
 Deno.test("jsr-release validator accepts exact stable and prerelease config versions", async () => {

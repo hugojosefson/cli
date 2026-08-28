@@ -17,7 +17,7 @@ export type LicenseSectionState =
   };
 
 export function exactLicenseSection(label: string, target: string): string {
-  return `## License\n\n[${label}](${target})\n\n`;
+  return `## License\n\n[${label}](${target})\n`;
 }
 
 /** Finds only level-two License headings outside matching backtick or tilde fences. */
@@ -69,12 +69,12 @@ export function inspectLicenseSection(
     "\r",
     "\n",
   );
-  if (normalized === exactLicenseSection(label, target)) {
+  if (matchesExact(normalized, exactLicenseSection(label, target))) {
     return { kind: "exact", section };
   }
   if (
     alternateLabels.some((item) =>
-      normalized === exactLicenseSection(item, target)
+      matchesExact(normalized, exactLicenseSection(item, target))
     )
   ) {
     return { kind: "alternate", section };
@@ -99,8 +99,14 @@ export function replaceLicenseSection(
   current: LicenseSection,
   replacement: string,
 ): string {
-  return text.slice(0, current.start) +
-    withEol(replacement, preferredEol(current.text)) + text.slice(current.end);
+  const suffix = text.slice(current.end);
+  const eol = preferredEol(current.text);
+  const rendered = withEol(replacement, eol) + (suffix ? eol : "");
+  return text.slice(0, current.start) + rendered + suffix;
+}
+
+function matchesExact(actual: string, expected: string): boolean {
+  return actual === expected || actual === `${expected}\n`;
 }
 
 function preferredEol(text: string): "\n" | "\r\n" {

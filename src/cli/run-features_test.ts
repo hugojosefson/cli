@@ -286,7 +286,7 @@ Deno.test("owns the static README license section and blocks custom content", as
     );
     assertStringIncludes(
       await read(root, "README.md"),
-      "## License\n\n[MIT](./LICENSE)\n\n",
+      "## License\n\n[MIT](./LICENSE)\n",
     );
     const custom = (await read(root, "README.md")).replace(
       "[MIT](./LICENSE)",
@@ -365,7 +365,7 @@ Deno.test("replaces an injected MIT license in a generated README without partia
     const source = await read(root, "readme/README.md");
     await Deno.writeTextFile(
       new URL("readme/README.md", root),
-      source.replace("## License\n\n[Apache-2.0](../LICENSE)\n\n", ""),
+      source.replace("## License\n\n[Apache-2.0](../LICENSE)\n", ""),
     );
     await runFeatureOperation(
       root,
@@ -374,7 +374,7 @@ Deno.test("replaces an injected MIT license in a generated README without partia
     );
     assertStringIncludes(
       await read(root, "readme/README.md"),
-      "## License\n\n[Apache-2.0](../LICENSE)\n\n",
+      "## License\n\n[Apache-2.0](../LICENSE)\n",
     );
     assertEquals(await buildReadme(root), await read(root, "README.md"));
 

@@ -8,6 +8,14 @@ import {
 
 const own = exactLicenseSection("MIT", "./LICENSE");
 
+Deno.test("renders a formatter-compatible terminal license section", () => {
+  assertEquals(own, "## License\n\n[MIT](./LICENSE)\n");
+  assertEquals(
+    inspectLicenseSection(`${own}\n## Next\n`, "MIT", "./LICENSE", []).kind,
+    "exact",
+  );
+});
+
 Deno.test("parses only unfenced level-two License sections", () => {
   const text = `~~~markdown\n## License\n~~~\n\n${own}`;
   assertEquals(parseLicenseSections(text).length, 1);

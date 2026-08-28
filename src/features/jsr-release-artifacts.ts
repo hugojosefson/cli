@@ -13,17 +13,7 @@ export const jsrReleasePath = ".github/workflows/hj-release.yaml";
 
 /** Runs without environment permission so the tag is passed as an argument. */
 export const jsrReleaseValidationScript =
-  `import { parse } from "npm:jsonc-parser@3.3.1";
-const fail=(message)=>{console.error(message);Deno.exit(1)};
-const tag=Deno.args[0];
-const semver=/^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)(?:-((?:0|[1-9]\\d*|[0-9]*[A-Za-z-][0-9A-Za-z-]*)(?:\\.(?:0|[1-9]\\d*|[0-9]*[A-Za-z-][0-9A-Za-z-]*))*))?(?:\\+[0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*)?$/;
-if(!semver.test(tag??""))fail("Release tag must be strict unprefixed SemVer.");
-const files=[];
-for(const path of ["deno.json","deno.jsonc"]){try{const info=await Deno.stat(path);if(!info.isFile)fail(path+" must be a regular file.");files.push(path)}catch(error){if(error instanceof Deno.errors.NotFound)continue;throw error}}
-if(files.length!==1)fail("Exactly one regular deno.json or deno.jsonc is required.");
-const errors=[];const value=parse(await Deno.readTextFile(files[0]),errors,{allowTrailingComma:true,disallowComments:false});
-if(errors.length>0||value===null||Array.isArray(value)||typeof value!=="object"||typeof value.version!=="string"||!semver.test(value.version))fail("Deno config must contain a strict SemVer version.");
-if(tag!==value.version)fail("Release tag must equal the Deno config version.");`;
+  `import { parse } from "npm:jsonc-parser@3.3.1";const fail=(message)=>{console.error(message);Deno.exit(1)};const tag=Deno.args[0];const semver=/^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)(?:-((?:0|[1-9]\\d*|[0-9]*[A-Za-z-][0-9A-Za-z-]*)(?:\\.(?:0|[1-9]\\d*|[0-9]*[A-Za-z-][0-9A-Za-z-]*))*))?(?:\\+[0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*)?$/;if(!semver.test(tag??""))fail("Release tag must be strict unprefixed SemVer.");const files=[];for(const path of ["deno.json","deno.jsonc"]){try{const info=await Deno.stat(path);if(!info.isFile)fail(path+" must be a regular file.");files.push(path)}catch(error){if(error instanceof Deno.errors.NotFound)continue;throw error}}if(files.length!==1)fail("Exactly one regular deno.json or deno.jsonc is required.");const errors=[];const value=parse(await Deno.readTextFile(files[0]),errors,{allowTrailingComma:true,disallowComments:false});if(errors.length>0||value===null||Array.isArray(value)||typeof value!=="object"||typeof value.version!=="string"||!semver.test(value.version))fail("Deno config must contain a strict SemVer version.");if(tag!==value.version)fail("Release tag must equal the Deno config version.");`;
 
 export const jsrReleaseArtifact = {
   path: jsrReleasePath,
