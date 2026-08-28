@@ -29,6 +29,7 @@ Deno.test("the complete built-in registry validates", () => {
       "github-discussions",
       "github-update-branch",
       "github-web-commit-signoff",
+      "github-private",
       "license-mit",
       "license-apache-2.0",
       "license-gpl-2.0-only",

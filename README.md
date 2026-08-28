@@ -87,15 +87,15 @@ The first feature set includes:
 - `jsr-release`: adds the release-writer App and JSR OIDC release workflow; it
   requires `jsr-package`, `github-ci`, and `github-protection`.
 
-`--github` is a weak preset for the dominant settings across the 20 latest
-non-archived, non-fork, non-template repositories owned by the authenticated
-user when the preset was defined. It disables auto-merge, merged-branch
-deletion, wiki, discussions, branch updates, and web commit signoff; it enables
-merge commits, squash merging, rebasing, issues, and projects. Explicit setting
-flags override the preset regardless of argument order. Remote changes require
-`--yes` and use one guarded GitHub API update. `--no-github` is invalid;
-`--no-github-repo` safely blocks because repository deletion is unsupported.
-Visibility and merge-message enum settings remain unchanged.
+`--github` is a weak preset initialized from the 20 latest non-archived,
+non-fork, non-template repositories owned by the authenticated user, then
+adjusted for explicit preferences. It enables auto-merge, merged-branch
+deletion, squash merging, rebasing, issues, projects, branch updates, and
+private visibility; it disables merge commits, wiki, discussions, and web commit
+signoff. Explicit setting flags override the preset regardless of argument
+order. Remote changes require `--yes` and use one guarded GitHub API update.
+`--no-github` is invalid; `--no-github-repo` safely blocks because repository
+deletion is unsupported. Merge-message enum settings remain unchanged.
 
 The `readme` capability has exclusive providers. Its default provider is
 `readme-static`. Enabling `readme-build` while `readme-static` is enabled plans

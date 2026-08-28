@@ -38,11 +38,28 @@ Deno.test("Github settings require confirmation and only patch their requested f
   });
 });
 
+Deno.test("GitHub private visibility can be explicitly disabled", async () => {
+  await withRoot(async (root) => {
+    const github = new FakeGithub({ private: true });
+    await runFeatureOperation(
+      root,
+      parseFeatures(
+        ["repo", "features", "--no-github-private", "--yes"],
+        builtInFeatureRegistry,
+      ),
+      builtInFeatureRegistry,
+      () => [],
+      { github },
+    );
+    assertEquals(github.patches, [{ private: false }]);
+  });
+});
+
 Deno.test("Github preset values are independently overridable", async () => {
   await withRoot(async (root) => {
     const github = new FakeGithub({
-      allow_auto_merge: true,
-      allow_merge_commit: false,
+      allow_auto_merge: false,
+      allow_merge_commit: true,
       has_issues: true,
     });
     await runFeatureOperation(
@@ -58,8 +75,8 @@ Deno.test("Github preset values are independently overridable", async () => {
       () => [],
       { github },
     );
-    assertEquals(github.values.allow_auto_merge, false);
-    assertEquals(github.values.allow_merge_commit, true);
+    assertEquals(github.values.allow_auto_merge, true);
+    assertEquals(github.values.allow_merge_commit, false);
     assertEquals(github.values.has_issues, false);
   });
 });

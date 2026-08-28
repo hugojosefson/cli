@@ -104,25 +104,26 @@ export interface GithubSetting {
   readonly enabled: boolean;
 }
 export const githubSettings: readonly GithubSetting[] = [
-  { id: "github-auto-merge", field: "allow_auto_merge", enabled: false },
+  { id: "github-auto-merge", field: "allow_auto_merge", enabled: true },
   {
     id: "github-delete-branch-on-merge",
     field: "delete_branch_on_merge",
-    enabled: false,
+    enabled: true,
   },
-  { id: "github-merge-commit", field: "allow_merge_commit", enabled: true },
+  { id: "github-merge-commit", field: "allow_merge_commit", enabled: false },
   { id: "github-squash-merge", field: "allow_squash_merge", enabled: true },
   { id: "github-rebase-merge", field: "allow_rebase_merge", enabled: true },
   { id: "github-wiki", field: "has_wiki", enabled: false },
   { id: "github-issues", field: "has_issues", enabled: true },
   { id: "github-projects", field: "has_projects", enabled: true },
   { id: "github-discussions", field: "has_discussions", enabled: false },
-  { id: "github-update-branch", field: "allow_update_branch", enabled: false },
+  { id: "github-update-branch", field: "allow_update_branch", enabled: true },
   {
     id: "github-web-commit-signoff",
     field: "web_commit_signoff_required",
     enabled: false,
   },
+  { id: "github-private", field: "private", enabled: true },
 ];
 
 /** Creates a feature that changes exactly one GitHub repository boolean field. */
