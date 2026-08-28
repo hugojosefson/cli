@@ -70,7 +70,8 @@ Deno.test("real runner composes and removes leaf tasks from one snapshot", async
     await run(root, ["--no-deno-typecheck", "--no-deno-fmt"]);
     assertEquals(
       await run(root, []),
-      "deno-cli: disabled\ndeno-fmt: disabled\ndeno-lib: disabled\ndeno-lint: disabled\ndeno-server: disabled\ndeno-test: disabled\ndeno-typecheck: disabled\ngit: disabled\nlicense-apache-2.0: disabled\nlicense-mit: disabled\nreadme-build: disabled\nreadme-static: disabled",
+      builtInFeatureRegistry.features.map((feature) => feature.metadata.id)
+        .sort().map((id) => `${id}: disabled`).join("\n"),
     );
   } finally {
     await Deno.remove(path, { recursive: true });

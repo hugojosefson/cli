@@ -12,7 +12,10 @@ export const mitSourceDefinition: SpdxLicenseSourceDefinition = {
   name: "MIT",
   url:
     "https://raw.githubusercontent.com/spdx/license-list-data/v3.28.0/text/MIT.txt",
-  placeholders: ["<year>", "<copyright holders>"],
+  placeholders: [
+    { kind: "year", marker: "<year>" },
+    { kind: "holder", marker: "<copyright holders>" },
+  ],
 };
 export const mitSourceUrl = mitSourceDefinition.url;
 

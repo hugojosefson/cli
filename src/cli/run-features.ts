@@ -3,6 +3,7 @@
 import type { ChangePlan, PlannedValidation } from "../api/change-plan.ts";
 import type { OperationContext } from "../api/repository-context.ts";
 import { builtInFeatureRegistry } from "../features/built-in-feature-registry.ts";
+import { licenseCatalog } from "../features/license-catalog.ts";
 import type { FeatureRegistry } from "../features/feature-registry.ts";
 import { resolveFeatureChanges } from "../features/resolve-feature-changes.ts";
 import {
@@ -103,13 +104,16 @@ export async function runFeatureOperation(
     resolvedChanges: changes,
     repair: request.repair,
   };
-  const licenseOptions =
-    changes.some((change) =>
-        change.featureId.startsWith("license-") &&
-        change.enabled && detections.get(change.featureId)?.state === "disabled"
-      )
-      ? await resolveLicenseAttribution(baseContext, services.promptAttribution)
-      : {};
+  const licenseOptions = changes.some((change) =>
+      change.enabled &&
+      detections.get(change.featureId)?.state === "disabled" &&
+      licenseCatalog.find((provider) => provider.id === change.featureId)
+        ?.definition.placeholders.some(({ kind }) =>
+          kind === "year" || kind === "holder"
+        )
+    )
+    ? await resolveLicenseAttribution(baseContext, services.promptAttribution)
+    : {};
   const context: OperationContext = {
     ...baseContext,
     options: { confirmation: args.confirmation, ...licenseOptions },

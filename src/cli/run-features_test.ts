@@ -1,6 +1,9 @@
 import { assert, assertEquals, assertRejects } from "@std/assert";
 import type { FeatureRegistry } from "../features/feature-registry.ts";
 import { builtInFeatureRegistry } from "../features/built-in-feature-registry.ts";
+import { licenseCatalog } from "../features/license-catalog.ts";
+import { createSpdxLicenseFeature } from "../features/license-spdx-feature.ts";
+import { readmeStaticFeature } from "../features/readme-static-feature.ts";
 import { parseFeatures } from "./parse-features.ts";
 import { runFeatureOperation, runFeatures } from "./run-features.ts";
 
@@ -17,10 +20,7 @@ Deno.test("reports status and commits only planned README changes", async () => 
       root,
       parseFeatures(["repo", "features"], builtInFeatureRegistry),
     );
-    assertEquals(
-      status,
-      "deno-cli: disabled\ndeno-fmt: disabled\ndeno-lib: disabled\ndeno-lint: disabled\ndeno-server: disabled\ndeno-test: disabled\ndeno-typecheck: disabled\ngit: enabled\nlicense-apache-2.0: disabled\nlicense-mit: disabled\nreadme-build: disabled\nreadme-static: disabled",
-    );
+    assertEquals(status, featureStatus("enabled"));
     const enabled = await runFeatures(
       root,
       parseFeatures(["repo", "features", "--readme"], builtInFeatureRegistry),
@@ -197,11 +197,49 @@ Deno.test("interactive empty selection returns status without changes", async ()
       ),
       () => [],
     );
-    assertEquals(
-      result,
-      "deno-cli: disabled\ndeno-fmt: disabled\ndeno-lib: disabled\ndeno-lint: disabled\ndeno-server: disabled\ndeno-test: disabled\ndeno-typecheck: disabled\ngit: disabled\nlicense-apache-2.0: disabled\nlicense-mit: disabled\nreadme-build: disabled\nreadme-static: disabled",
-    );
+    assertEquals(result, featureStatus("disabled"));
   });
+});
+
+Deno.test("MPL and Unlicense do not resolve attribution", async () => {
+  for (const id of ["license-mpl-2.0", "license-unlicense"]) {
+    await withRepository(async (root) => {
+      const provider = licenseCatalog.find((item) => item.id === id)!;
+      const registry: FeatureRegistry = {
+        capabilities: [{
+          id: "license",
+          providerPolicy: "exclusive",
+          defaultProvider: id,
+        }, {
+          id: "readme",
+          providerPolicy: "exclusive",
+          defaultProvider: "readme-static",
+        }],
+        features: [
+          readmeStaticFeature,
+          createSpdxLicenseFeature({
+            ...provider,
+            text: () => Promise.resolve("tiny\n"),
+            alternates: [],
+          }),
+        ],
+      };
+      let prompts = 0;
+      await runFeatureOperation(
+        root,
+        parseFeatures(["repo", "features", `--${id}`], registry),
+        registry,
+        () => [],
+        {
+          promptAttribution: () => {
+            prompts++;
+            return "Ada";
+          },
+        },
+      );
+      assertEquals(prompts, 0);
+    });
+  }
 });
 
 Deno.test("requires confirmation before preflight or mutation", async () => {
@@ -306,6 +344,11 @@ async function fileExists(root: URL, path: string): Promise<boolean> {
     if (error instanceof Deno.errors.NotFound) return false;
     throw error;
   }
+}
+
+function featureStatus(git: string): string {
+  return builtInFeatureRegistry.features.map((feature) => feature.metadata.id)
+    .sort().map((id) => `${id}: ${id === "git" ? git : "disabled"}`).join("\n");
 }
 
 async function withRepository(

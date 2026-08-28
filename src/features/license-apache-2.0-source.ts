@@ -10,7 +10,10 @@ export const apacheSourceDefinition: SpdxLicenseSourceDefinition = {
   name: "Apache-2.0",
   url:
     "https://raw.githubusercontent.com/spdx/license-list-data/v3.28.0/text/Apache-2.0.txt",
-  placeholders: ["[yyyy]", "[name of copyright owner]"],
+  placeholders: [
+    { kind: "year", marker: "[yyyy]" },
+    { kind: "holder", marker: "[name of copyright owner]" },
+  ],
 };
 export const apacheSourceUrl = apacheSourceDefinition.url;
 

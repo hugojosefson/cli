@@ -1,4 +1,5 @@
 import { assertEquals, assertRejects } from "@std/assert";
+import { builtInFeatureRegistry } from "../features/built-in-feature-registry.ts";
 import { formatCliOutput } from "./format-output.ts";
 import { runCli } from "./run-cli.ts";
 
@@ -39,7 +40,8 @@ Deno.test("keeps repo features dispatch", async () => {
   try {
     assertEquals(
       formatCliOutput(await runCli(root, ["repo", "features"])),
-      "deno-cli: disabled\ndeno-fmt: disabled\ndeno-lib: disabled\ndeno-lint: disabled\ndeno-server: disabled\ndeno-test: disabled\ndeno-typecheck: disabled\ngit: disabled\nlicense-apache-2.0: disabled\nlicense-mit: disabled\nreadme-build: disabled\nreadme-static: disabled\n",
+      builtInFeatureRegistry.features.map((feature) => feature.metadata.id)
+        .sort().map((id) => `${id}: disabled`).join("\n") + "\n",
     );
   } finally {
     await Deno.remove(path, { recursive: true });

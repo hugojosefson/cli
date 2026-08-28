@@ -71,8 +71,8 @@ The first feature set includes:
   `README.md`.
 - `readme-build`: provides the `readme` capability with generated README
   support; it requires `deno-fmt`.
-- `license-*`: generated SPDX license-provider features such as `--license-mit`;
-  exactly one provider may be enabled.
+- `license-*`: MIT, Apache-2.0, GPL, AGPL, ISC, BSD, MPL, Unlicense, and CC
+  license providers. Exactly one provider may be enabled.
 - `jsr-package`: adds JSR package identity and publishing checks; it requires
   `deno-fmt`, at least one Deno export, `readme`, and `license`.
 - `github-repo`: creates or connects a Github repository; it requires `git` and

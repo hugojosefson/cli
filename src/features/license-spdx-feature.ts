@@ -8,12 +8,14 @@ import type {
   OperationContext,
 } from "../api/repository-context.ts";
 import type {
+  LicensePlaceholderKind,
   LicenseTextSource,
   SpdxLicenseSourceDefinition,
 } from "./license-spdx-source.ts";
+import { basename, fromFileUrl } from "@std/path";
 
 const path = "LICENSE";
-type Attribution = { readonly year: string; readonly holder: string };
+type Values = Partial<Record<LicensePlaceholderKind, string>>;
 type Source = {
   readonly id: string;
   readonly definition: SpdxLicenseSourceDefinition;
@@ -124,7 +126,7 @@ async function checkEnable(
   if (state.kind !== "absent" && state.kind !== "alternate") {
     return blocked("LICENSE cannot be safely replaced.");
   }
-  if (!attribution(context)) {
+  if (!values(context, provider.definition)) {
     return blocked("License attribution is unresolved.");
   }
   try {
@@ -161,7 +163,7 @@ async function enablePlan(
       expectedMode: state.mode,
     }], "Repair the SPDX license mode.");
   }
-  const value = attribution(context)!;
+  const value = values(context, provider.definition)!;
   return plan(provider.id, "enable", allowed_, [{
     kind: "write-file",
     path,
@@ -192,11 +194,13 @@ function disablePlan(
     );
   }
   return Promise.resolve(
-    plan(provider.id, "disable", allowed_, [{
-      kind: "remove-file",
-      path,
-      expectedDigest: state.digest,
-    }], "Remove the exact SPDX license."),
+    plan(
+      provider.id,
+      "disable",
+      allowed_,
+      [{ kind: "remove-file", path, expectedDigest: state.digest }],
+      "Remove the exact SPDX license.",
+    ),
   );
 }
 
@@ -227,41 +231,69 @@ function parse(
   template: string,
   definition: SpdxLicenseSourceDefinition,
   content: string,
-): Attribution | undefined {
-  const [yearMarker, holderMarker] = definition.placeholders;
-  const [prefix, rest] = template.split(yearMarker);
-  const [middle, suffix] = rest?.split(holderMarker) ?? [];
-  if (
-    prefix === undefined || middle === undefined || suffix === undefined ||
-    !content.startsWith(prefix) || !content.endsWith(suffix)
-  ) return undefined;
-  const values = content.slice(prefix.length, content.length - suffix.length)
-    .split(middle);
-  return values.length === 2 && /^\d{4}$/.test(values[0]) &&
-      safeHolder(values[1])
-    ? { year: values[0], holder: values[1] }
-    : undefined;
+): Values | undefined {
+  let cursor = 0;
+  let pattern = "^";
+  for (const placeholder of definition.placeholders) {
+    const index = template.indexOf(placeholder.marker, cursor);
+    if (index < 0) return undefined;
+    pattern += escape(template.slice(cursor, index)) + "([\\s\\S]*?)";
+    cursor = index + placeholder.marker.length;
+  }
+  const match = new RegExp(`${pattern}${escape(template.slice(cursor))}$`).exec(
+    content,
+  );
+  if (!match) return undefined;
+  const result: Values = {};
+  for (const [index, placeholder] of definition.placeholders.entries()) {
+    const value = match[index + 1];
+    if (!valid(placeholder.kind, value)) return undefined;
+    result[placeholder.kind] = value;
+  }
+  return result;
 }
 
 function render(
   template: string,
   definition: SpdxLicenseSourceDefinition,
-  value: Attribution,
+  value: Values,
 ): string {
-  return template.replace(definition.placeholders[0], value.year).replace(
-    definition.placeholders[1],
-    value.holder,
+  return definition.placeholders.reduce(
+    (text, { kind, marker }) => text.replace(marker, value[kind]!),
+    template,
   );
 }
-function attribution(context: OperationContext): Attribution | undefined {
+function values(
+  context: OperationContext,
+  definition: SpdxLicenseSourceDefinition,
+): Values | undefined {
   const { licenseHolder: holder, licenseYear: year } = context.options;
-  return typeof holder === "string" && typeof year === "string" &&
-      safeHolder(holder) && /^\d{4}$/.test(year)
-    ? { holder, year }
-    : undefined;
+  const required = new Set(definition.placeholders.map(({ kind }) => kind));
+  if (required.has("holder") && (typeof holder !== "string" || !safe(holder))) {
+    return undefined;
+  }
+  if (
+    required.has("year") && (typeof year !== "string" || !/^\d{4}$/.test(year))
+  ) {
+    return undefined;
+  }
+  const project = basename(fromFileUrl(context.repositoryRoot));
+  if (required.has("project") && !safe(project)) return undefined;
+  return {
+    holder: typeof holder === "string" ? holder : undefined,
+    year: typeof year === "string" ? year : undefined,
+    project,
+  };
 }
-function safeHolder(value: string): boolean {
-  return value.trim().length > 0 && !/[\0\r\n]/.test(value);
+function valid(kind: LicensePlaceholderKind, value: string): boolean {
+  return kind === "year" ? /^\d{4}$/.test(value) : safe(value);
+}
+function safe(value: string): boolean {
+  return value.trim().length > 0 && !/[\0\r\n/\\]/.test(value) &&
+    value !== "." && value !== "..";
+}
+function escape(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 function repairSelected(context: OperationContext, id: string): boolean {
   return context.repair?.kind === "all-drifted" ||

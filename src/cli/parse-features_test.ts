@@ -32,6 +32,26 @@ Deno.test("parses built-in features, capability aliases, and defaults", () => {
     )).changes,
     [{ featureId: "license-apache-2.0", enabled: true }],
   );
+  for (
+    const id of [
+      "license-gpl-2.0-only",
+      "license-gpl-3.0-only",
+      "license-agpl-3.0-only",
+      "license-isc",
+      "license-bsd-2-clause",
+      "license-bsd-3-clause",
+      "license-mpl-2.0",
+      "license-unlicense",
+    ]
+  ) {
+    assertEquals(
+      changeRequest(parseFeatures(
+        ["repo", "features", `--${id}`],
+        builtInFeatureRegistry,
+      )).changes,
+      [{ featureId: id, enabled: true }],
+    );
+  }
   assertEquals(
     parseFeatures(["repo", "features", "--readme"], builtInFeatureRegistry),
     {
@@ -77,22 +97,19 @@ Deno.test("formats statuses by stable feature ID", () => {
   assertEquals(
     formatFeatureStatus(
       builtInFeatureRegistry,
-      new Map([
-        ["deno-cli", { state: "disabled", evidence: [] }],
-        ["deno-fmt", { state: "disabled", evidence: [] }],
-        ["deno-lint", { state: "disabled", evidence: [] }],
-        ["deno-lib", { state: "disabled", evidence: [] }],
-        ["deno-server", { state: "disabled", evidence: [] }],
-        ["deno-test", { state: "disabled", evidence: [] }],
-        ["deno-typecheck", { state: "disabled", evidence: [] }],
-        ["readme-static", { state: "disabled", evidence: [] }],
-        ["readme-build", { state: "disabled", evidence: [] }],
-        ["git", { state: "enabled", evidence: [] }],
-        ["license-apache-2.0", { state: "disabled", evidence: [] }],
-        ["license-mit", { state: "disabled", evidence: [] }],
-      ]),
+      new Map(
+        builtInFeatureRegistry.features.map((feature) => [feature.metadata.id, {
+          state: feature.metadata.id === "git"
+            ? "enabled" as const
+            : "disabled" as const,
+          evidence: [],
+        }]),
+      ),
     ),
-    "deno-cli: disabled\ndeno-fmt: disabled\ndeno-lib: disabled\ndeno-lint: disabled\ndeno-server: disabled\ndeno-test: disabled\ndeno-typecheck: disabled\ngit: enabled\nlicense-apache-2.0: disabled\nlicense-mit: disabled\nreadme-build: disabled\nreadme-static: disabled",
+    builtInFeatureRegistry.features.map((feature) => feature.metadata.id).sort()
+      .map((id) => `${id}: ${id === "git" ? "enabled" : "disabled"}`).join(
+        "\n",
+      ),
   );
 });
 
