@@ -28,7 +28,10 @@ function rewriteLinks(line: string, file: string, root: string): string {
           "\\",
           "/",
         );
-        return `${start}${path}${resolved.search}${resolved.hash}${end}`;
+        const formatted = path && !path.startsWith(".") && !path.includes("/")
+          ? `./${path}`
+          : path;
+        return `${start}${formatted}${resolved.search}${resolved.hash}${end}`;
       } catch {
         return match;
       }

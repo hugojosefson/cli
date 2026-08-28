@@ -20,6 +20,8 @@ import {
   checkRepairReadmeStatic,
   planRepairReadmeStatic,
 } from "./readme-static-repair.ts";
+import { selectedLicenseLabel } from "./license-readme-label.ts";
+import { exactLicenseSection } from "../readme/license-section.ts";
 
 export async function checkEnableReadmeStatic(
   context: OperationContext,
@@ -121,7 +123,16 @@ export async function planEnableReadmeStatic(
   if (plan.result !== "planned") {
     throw new Error("README.md cannot be created.");
   }
-  return changePlan("enable", allowed, plan.changes);
+  const label = selectedLicenseLabel(context);
+  const changes = label && plan.changes[0]?.kind === "write-file"
+    ? [{
+      ...plan.changes[0],
+      content: `${plan.changes[0].content}\n${
+        exactLicenseSection(label, "./LICENSE")
+      }`,
+    }]
+    : plan.changes;
+  return changePlan("enable", allowed, changes);
 }
 
 export async function planDisableReadmeStatic(
@@ -138,13 +149,15 @@ export async function planDisableReadmeStatic(
 
 function replacedByBuild(context: OperationContext): boolean {
   return context.resolvedChanges.some((change) =>
-    change.featureId === "readme-build" && change.enabled
+    change.featureId === "readme-build" && change.enabled &&
+    context.detections.get("readme-build")?.state !== "enabled"
   );
 }
 
 function replacesBuild(context: OperationContext): boolean {
   return context.resolvedChanges.some((change) =>
-    change.featureId === "readme-build" && !change.enabled
+    change.featureId === "readme-build" && !change.enabled &&
+    context.detections.get("readme-build")?.state === "enabled"
   );
 }
 

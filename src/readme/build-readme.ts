@@ -11,7 +11,22 @@ export async function buildReadme(
 ): Promise<string> {
   const root = await readmeRoot(rootUrl);
   const source = await readReadmeFile(root, root, input);
-  return await buildFile(root, source, new Set(), await packageImports(root));
+  return await buildReadmeText(rootUrl, source.text, input);
+}
+
+/** Builds output with replacement top-level source text before any files change. */
+export async function buildReadmeText(
+  rootUrl: URL,
+  text: string,
+  input = "readme/README.md",
+): Promise<string> {
+  const root = await readmeRoot(rootUrl);
+  return await buildFile(
+    root,
+    { path: `${root}/${input}`, text },
+    new Set(),
+    await packageImports(root),
+  );
 }
 
 async function buildFile(

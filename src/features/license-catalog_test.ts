@@ -207,7 +207,14 @@ function context(
   return {
     repositoryRoot: new URL("file:///tmp/opencode/repo/"),
     files: {
-      observe: () => Promise.resolve(observation),
+      observe: (path) =>
+        Promise.resolve(
+          path === "LICENSE"
+            ? observation
+            : path === "README.md"
+            ? readme(observation)
+            : { kind: "absent" },
+        ),
       exists: () => Promise.resolve(false),
       readText: () => Promise.resolve(undefined),
       readJson: () => Promise.resolve(undefined),
@@ -231,4 +238,9 @@ function context(
 }
 function file(content: string, mode = 0o644): ArtifactObservation {
   return { kind: "file", content, digest: "digest", mode };
+}
+function readme(observation: ArtifactObservation): ArtifactObservation {
+  if (observation.kind !== "file") return { kind: "absent" };
+  const label = /^fixture-([^\s]+)/.exec(observation.content)?.[1] ?? "MIT";
+  return file(`## License\n\n[${label}](./LICENSE)\n\n`);
 }

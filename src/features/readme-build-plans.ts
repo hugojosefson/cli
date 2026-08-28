@@ -12,6 +12,15 @@ import {
   readmeBuildRootPath,
   readmeBuildSourcePath,
 } from "./readme-build-state.ts";
+import { selectedLicenseLabel } from "./license-readme-label.ts";
+import { licenseCatalog } from "./license-catalog.ts";
+import {
+  appendLicenseSection,
+  exactLicenseSection,
+  inspectLicenseSection,
+  replaceLicenseSection,
+} from "../readme/license-section.ts";
+import { buildReadmeText } from "../readme/build-readme.ts";
 
 export async function planEnableReadmeBuild(
   context: OperationContext,
@@ -19,13 +28,25 @@ export async function planEnableReadmeBuild(
 ): Promise<ChangePlan> {
   const state = await inspectReadmeBuild(context);
   const changes: PlannedChange[] = [];
+  const initialSource = state.source.kind === "file"
+    ? state.source.content
+    : state.initialSource;
+  const sourceContent = buildSourceContent(context, initialSource);
   if (state.source.kind === "absent") {
     changes.push({ kind: "create-directory", path: readmeBuildDirectoryPath }, {
       kind: "write-file",
       path: readmeBuildSourcePath,
-      content: state.initialSource,
+      content: sourceContent,
       mode: 0o644,
       expectedDigest: undefined,
+    });
+  } else if (state.source.kind === "file" && sourceContent !== initialSource) {
+    changes.push({
+      kind: "write-file",
+      path: readmeBuildSourcePath,
+      content: sourceContent,
+      mode: 0o644,
+      expectedDigest: state.source.digest,
     });
   }
   if (state.configPath && !denoFmtChanges(context)) {
@@ -48,7 +69,14 @@ export async function planEnableReadmeBuild(
       });
     }
   }
-  changes.push(...rootEnableChanges(state));
+  if (sourceContent !== initialSource || state.source.kind === "absent") {
+    const output = await buildReadmeText(context.repositoryRoot, sourceContent);
+    changes.push(...rootEnableChanges({
+      ...state,
+      output,
+      rootMatches: state.root.kind === "file" && state.root.content === output,
+    }));
+  } else changes.push(...rootEnableChanges(state));
   return plan(
     "enable",
     allowed,
@@ -56,6 +84,56 @@ export async function planEnableReadmeBuild(
     "Configure generated README output.",
     "enabled",
   );
+}
+
+function buildSourceContent(
+  context: OperationContext,
+  initial: string,
+): string {
+  const label = selectedLicenseLabel(context);
+  const labels = licenseCatalog.map((provider) => provider.definition.name);
+  if (label) {
+    const alternates = labels.filter((item) => item !== label);
+    const source = inspectLicenseSection(
+      initial,
+      label,
+      "../LICENSE",
+      alternates,
+    );
+    if (source.kind === "exact") return initial;
+    if (source.kind === "alternate") {
+      return replaceLicenseSection(
+        initial,
+        source.section,
+        exactLicenseSection(label, "../LICENSE"),
+      );
+    }
+    const root = inspectLicenseSection(initial, label, "./LICENSE", alternates);
+    if (root.kind === "exact" || root.kind === "alternate") {
+      return replaceLicenseSection(
+        initial,
+        root.section,
+        exactLicenseSection(label, "../LICENSE"),
+      );
+    }
+    return source.kind === "missing"
+      ? appendLicenseSection(
+        initial,
+        exactLicenseSection(label, "../LICENSE"),
+      )
+      : initial;
+  }
+  for (const known of labels) {
+    const section = inspectLicenseSection(initial, known, "./LICENSE", []);
+    if (section.kind === "exact") {
+      return replaceLicenseSection(
+        initial,
+        section.section,
+        exactLicenseSection(known, "../LICENSE"),
+      );
+    }
+  }
+  return initial;
 }
 
 export async function planDisableReadmeBuild(

@@ -80,11 +80,11 @@ Deno.test("MIT provider removes only exact downloaded content", async () => {
   const check = await feature.checkDisable(exact);
   assertEquals(check.result, "allowed");
   if (check.result !== "allowed") throw new Error("expected disable");
-  assertEquals((await feature.planDisable(exact, check)).changes, [{
+  assertEquals((await feature.planDisable(exact, check)).changes[0], {
     kind: "remove-file",
     path: "LICENSE",
     expectedDigest: "digest",
-  }]);
+  });
   assertEquals(
     (await feature.checkDisable(
       context(file("Copyright 2026 Ada\ncustom\n")),
@@ -114,7 +114,14 @@ function context(
   return {
     repositoryRoot: new URL("file:///tmp/opencode/license/"),
     files: {
-      observe: () => Promise.resolve(observation),
+      observe: (path) =>
+        Promise.resolve(
+          path === "LICENSE"
+            ? observation
+            : path === "README.md"
+            ? readme(observation)
+            : { kind: "absent" },
+        ),
       exists: () => Promise.resolve(false),
       readText: () => Promise.resolve(undefined),
       readJson: () => Promise.resolve(undefined),
@@ -139,6 +146,13 @@ function context(
 
 function file(content: string, mode = 0o644): ArtifactObservation {
   return { kind: "file", content, digest: "digest", mode };
+}
+function readme(observation: ArtifactObservation): ArtifactObservation {
+  if (observation.kind !== "file") return { kind: "absent" };
+  const label = observation.content.startsWith("Copyright")
+    ? "MIT"
+    : "Apache-2.0";
+  return file(`## License\n\n[${label}](./LICENSE)\n\n`);
 }
 
 function source(value: string) {

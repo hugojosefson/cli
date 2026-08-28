@@ -1,6 +1,7 @@
 /** @module Safe SPDX LICENSE provider implementation. */
 
 import type { ChangePlan } from "../api/change-plan.ts";
+import type { PlannedChange } from "../api/planned-change.ts";
 import type { Feature } from "../api/feature.ts";
 import type { OperationCheck } from "../api/feature-operation.ts";
 import type {
@@ -13,6 +14,17 @@ import type {
   SpdxLicenseSourceDefinition,
 } from "./license-spdx-source.ts";
 import { basename, fromFileUrl } from "@std/path";
+import {
+  inspectLicenseReadme,
+  type LicenseReadmeState,
+} from "./license-readme-state.ts";
+import {
+  appendLicenseSection,
+  exactLicenseSection,
+  removeLicenseSection,
+  replaceLicenseSection,
+} from "../readme/license-section.ts";
+import { buildReadmeText } from "../readme/build-readme.ts";
 
 const path = "LICENSE";
 type Values = Partial<Record<LicensePlaceholderKind, string>>;
@@ -23,9 +35,22 @@ type Source = {
 };
 type State =
   | { readonly kind: "absent" }
-  | { readonly kind: "alternate"; readonly digest: string }
-  | { readonly kind: "exact"; readonly digest: string }
-  | { readonly kind: "drifted"; readonly digest: string; readonly mode: number }
+  | {
+    readonly kind: "alternate";
+    readonly digest: string;
+    readonly readme: LicenseReadmeState;
+  }
+  | {
+    readonly kind: "exact";
+    readonly digest: string;
+    readonly readme: LicenseReadmeState;
+  }
+  | {
+    readonly kind: "drifted";
+    readonly digest: string;
+    readonly mode: number;
+    readonly readme: LicenseReadmeState;
+  }
   | { readonly kind: "ambiguous"; readonly digest?: string };
 
 export interface SpdxLicenseProvider {
@@ -48,7 +73,13 @@ export function createSpdxLicenseFeature(
       summary: `Provides the SPDX ${provider.definition.name} license.`,
     },
     dependencies: { requires: [] },
-    capabilities: { provides: ["license"], requires: [] },
+    capabilities: {
+      provides: ["license"],
+      requires: [{
+        capabilityId: "readme",
+        reason: "License links need a README provider.",
+      }],
+    },
     detect: async (context) => detection(await inspect(context), provider),
     checkEnable: async (context) =>
       checkEnable(context, await inspect(context), provider),
@@ -72,15 +103,40 @@ async function inspectLicense(
     const own = await provider.text();
     const ownAttribution = parse(own, provider.definition, observed.content);
     if (ownAttribution) {
-      return observed.mode === 0o644
-        ? { kind: "exact", digest: observed.digest }
-        : { kind: "drifted", digest: observed.digest, mode: observed.mode };
+      const readme = await inspectLicenseReadme(
+        context,
+        provider.definition.name,
+        provider.alternates.map((item) => item.definition.name),
+      );
+      if (
+        readme.section.kind === "custom" || readme.section.kind === "duplicate"
+      ) return { kind: "ambiguous", digest: observed.digest };
+      if (
+        readme.section.kind === "exact" && readme.rootFresh &&
+        observed.mode === 0o644
+      ) {
+        return { kind: "exact", digest: observed.digest, readme };
+      }
+      return {
+        kind: "drifted",
+        digest: observed.digest,
+        mode: observed.mode,
+        readme,
+      };
     }
     for (const alternate of provider.alternates) {
       if (
         parse(await alternate.text(), alternate.definition, observed.content)
       ) {
-        return { kind: "alternate", digest: observed.digest };
+        return {
+          kind: "alternate",
+          digest: observed.digest,
+          readme: await inspectLicenseReadme(
+            context,
+            provider.definition.name,
+            provider.alternates.map((item) => item.definition.name),
+          ),
+        };
       }
     }
     return { kind: "ambiguous", digest: observed.digest };
@@ -90,8 +146,15 @@ async function inspectLicense(
 }
 
 function detection(state: State, provider: SpdxLicenseProvider) {
-  if (state.kind === "absent" || state.kind === "alternate") {
+  if (state.kind === "absent") {
     return { state: "disabled" as const, evidence: [] };
+  }
+  if (state.kind === "alternate") {
+    const safe = state.readme.section.kind === "missing" ||
+      state.readme.section.kind === "alternate";
+    return safe
+      ? { state: "disabled" as const, evidence: [] }
+      : ambiguous(provider);
   }
   if (state.kind === "exact") {
     return { state: "enabled" as const, evidence: [] };
@@ -105,10 +168,10 @@ function detection(state: State, provider: SpdxLicenseProvider) {
       kind: provider.id,
       subject: subject(),
       observation: drifted
-        ? "LICENSE matches SPDX content but has the wrong mode."
+        ? "LICENSE or its owned README license section needs repair."
         : "LICENSE is not an exact recognizable SPDX license.",
       resolution: drifted
-        ? "Repair the license mode explicitly."
+        ? "Repair the owned license files explicitly."
         : "Replace LICENSE manually, then retry.",
     }],
   };
@@ -156,24 +219,60 @@ async function enablePlan(
   provider: SpdxLicenseProvider,
 ): Promise<ChangePlan> {
   if (state.kind === "drifted") {
-    return plan(provider.id, "enable", allowed_, [{
-      kind: "set-file-mode",
-      path,
-      mode: 0o644,
-      expectedMode: state.mode,
-    }], "Repair the SPDX license mode.");
+    const changes = readmeProviderWillCreate(context)
+      ? []
+      : await readmeChanges(
+        context,
+        state.readme,
+        provider.definition.name,
+      );
+    if (state.mode !== 0o644) {
+      changes.unshift({
+        kind: "set-file-mode",
+        path,
+        mode: 0o644,
+        expectedMode: state.mode,
+      });
+    }
+    return plan(
+      provider.id,
+      "enable",
+      allowed_,
+      changes,
+      "Repair the SPDX license and README link.",
+    );
   }
   const value = values(context, provider.definition)!;
-  return plan(provider.id, "enable", allowed_, [{
+  const changes: PlannedChange[] = [{
     kind: "write-file",
     path,
     content: render(await provider.text(), provider.definition, value),
     mode: 0o644,
     expectedDigest: state.kind === "alternate" ? state.digest : undefined,
-  }], "Write the SPDX license.");
+  }];
+  if (!readmeProviderWillCreate(context)) {
+    changes.push(
+      ...await readmeChanges(
+        context,
+        state.kind === "alternate" ? state.readme : await inspectLicenseReadme(
+          context,
+          provider.definition.name,
+          provider.alternates.map((item) => item.definition.name),
+        ),
+        provider.definition.name,
+      ),
+    );
+  }
+  return plan(
+    provider.id,
+    "enable",
+    allowed_,
+    changes,
+    "Write the SPDX license.",
+  );
 }
 
-function disablePlan(
+async function disablePlan(
   context: OperationContext,
   allowed_: Allowed,
   state: State,
@@ -183,24 +282,23 @@ function disablePlan(
     throw new Error("License cannot be removed.");
   }
   if (replacementSelected(context, provider)) {
-    return Promise.resolve(
-      plan(
-        provider.id,
-        "disable",
-        allowed_,
-        [],
-        "Defer LICENSE removal to the selected provider.",
-      ),
-    );
-  }
-  return Promise.resolve(
-    plan(
+    return plan(
       provider.id,
       "disable",
-      allowed_,
-      [{ kind: "remove-file", path, expectedDigest: state.digest }],
-      "Remove the exact SPDX license.",
-    ),
+      { ...allowed_, preconditions: [] },
+      [],
+      "Defer LICENSE removal to the selected provider.",
+    );
+  }
+  return plan(
+    provider.id,
+    "disable",
+    allowed_,
+    [
+      { kind: "remove-file", path, expectedDigest: state.digest },
+      ...await removeReadmeChanges(context, state.readme),
+    ],
+    "Remove the exact SPDX license.",
   );
 }
 
@@ -308,6 +406,167 @@ function replacementSelected(
     change.enabled &&
     provider.alternates.some((alternate) => alternate.id === change.featureId)
   );
+}
+function readmeProviderWillCreate(context: OperationContext): boolean {
+  return context.resolvedChanges.some((change) =>
+    change.enabled &&
+    (change.featureId === "readme-static" ||
+      change.featureId === "readme-build") &&
+    ["disabled", "drifted"].includes(
+      context.detections.get(change.featureId)?.state ?? "",
+    )
+  );
+}
+async function readmeChanges(
+  context: OperationContext,
+  readme: LicenseReadmeState,
+  label: string,
+): Promise<PlannedChange[]> {
+  if (readme.section.kind === "custom" || readme.section.kind === "duplicate") {
+    throw new Error("README license section is ambiguous.");
+  }
+  const target = readme.mode === "generated" ? "../LICENSE" : "./LICENSE";
+  const desired = exactLicenseSection(label, target);
+  const content = readme.content === undefined
+    ? desired
+    : readme.section.kind === "missing"
+    ? appendLicenseSection(readme.content, desired)
+    : replaceLicenseSection(readme.content, readme.section.section, desired);
+  const changes: PlannedChange[] = [];
+  if (readme.mode === "static") {
+    if (content !== readme.content) {
+      changes.push({
+        kind: "write-file",
+        path: "README.md",
+        content,
+        mode: 0o644,
+        expectedDigest: readme.digest,
+      });
+    }
+    return changes;
+  }
+  if (content !== readme.content) {
+    if (
+      readme.targetMode !== undefined && (readme.targetMode & 0o200) === 0
+    ) {
+      changes.push({
+        kind: "set-file-mode",
+        path: readme.path,
+        mode: 0o644,
+        expectedMode: readme.targetMode,
+      });
+    }
+    changes.push({
+      kind: "write-file",
+      path: readme.path,
+      content,
+      mode: 0o644,
+      expectedDigest: readme.digest,
+    });
+  } else if (readme.targetMode !== 0o644) {
+    changes.push({
+      kind: "set-file-mode",
+      path: readme.path,
+      mode: 0o644,
+      expectedMode: readme.targetMode,
+    });
+  }
+  const root = await buildReadmeText(context.repositoryRoot, content);
+  if (root !== readme.rootContent) {
+    if (readme.rootMode === undefined) {
+      changes.push({
+        kind: "write-file",
+        path: "README.md",
+        content: root,
+        mode: 0o444,
+        expectedDigest: undefined,
+      });
+      return changes;
+    }
+    const writable = readme.rootMode !== undefined &&
+      (readme.rootMode & 0o200) !== 0;
+    if (!writable) {
+      changes.push({
+        kind: "set-file-mode",
+        path: "README.md",
+        mode: 0o644,
+        expectedMode: readme.rootMode,
+      });
+    }
+    changes.push({
+      kind: "write-file",
+      path: "README.md",
+      content: root,
+      expectedDigest: readme.rootDigest,
+    }, {
+      kind: "set-file-mode",
+      path: "README.md",
+      mode: 0o444,
+      expectedMode: writable ? readme.rootMode : 0o644,
+    });
+  } else if (readme.rootMode !== 0o444) {
+    changes.push({
+      kind: "set-file-mode",
+      path: "README.md",
+      mode: 0o444,
+      expectedMode: readme.rootMode,
+    });
+  }
+  return changes;
+}
+async function removeReadmeChanges(
+  context: OperationContext,
+  readme: LicenseReadmeState,
+): Promise<PlannedChange[]> {
+  if (readme.section.kind !== "exact") {
+    throw new Error("README license section cannot be safely removed.");
+  }
+  const content = removeLicenseSection(readme.content!, readme.section.section);
+  if (readme.mode === "static") {
+    return [{
+      kind: "write-file",
+      path: "README.md",
+      content,
+      mode: 0o644,
+      expectedDigest: readme.digest,
+    }];
+  }
+  const root = await buildReadmeText(context.repositoryRoot, content);
+  return [{
+    kind: "write-file",
+    path: readme.path,
+    content,
+    mode: 0o644,
+    expectedDigest: readme.digest,
+  }, {
+    kind: "set-file-mode",
+    path: "README.md",
+    mode: 0o644,
+    expectedMode: 0o444,
+  }, {
+    kind: "write-file",
+    path: "README.md",
+    content: root,
+    expectedDigest: readme.rootDigest,
+  }, {
+    kind: "set-file-mode",
+    path: "README.md",
+    mode: 0o444,
+    expectedMode: 0o644,
+  }];
+}
+function ambiguous(provider: SpdxLicenseProvider) {
+  return {
+    state: "ambiguous" as const,
+    evidence: [],
+    issues: [{
+      code: `${provider.id}-ambiguous`,
+      kind: provider.id,
+      subject: subject(),
+      observation: "README license ownership is ambiguous.",
+      resolution: "Resolve the README license section before retrying.",
+    }],
+  };
 }
 function allowed(digest: string | undefined): Allowed {
   return {
