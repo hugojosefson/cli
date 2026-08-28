@@ -163,6 +163,12 @@ export async function runFeatureOperation(
     plans.flatMap((plan) => plan.validations),
   );
   const committed = commit !== undefined;
+  const githubChanged = plans.some((plan) =>
+    plan.changes.some((change) =>
+      change.kind === "upsert-github-resource" ||
+      change.kind === "delete-github-resource"
+    )
+  );
   if (commit) await applyLocalChangePlan(root, commit);
   return formatFeatureResult(
     formatFeatureStatus(
@@ -171,6 +177,7 @@ export async function runFeatureOperation(
     ),
     committed,
     !beforeGit && initializedGit,
+    githubChanged,
   );
 }
 

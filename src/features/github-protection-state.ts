@@ -1,0 +1,55 @@
+/** @module Exact-state inspection for managed GitHub rulesets. */
+
+import type {
+  DetectionContext,
+  GithubResource,
+} from "../api/repository-context.ts";
+import type { JsonObject } from "../api/json.ts";
+import { canonical, rulesetResource } from "./github-protection-definitions.ts";
+export type RulesetState = {
+  readonly definition: JsonObject;
+  readonly digest?: string;
+  readonly kind: "absent" | "exact" | "drifted" | "ambiguous";
+};
+export async function inspectRulesets(
+  context: DetectionContext,
+  definitions: readonly JsonObject[],
+): Promise<readonly RulesetState[]> {
+  if (!context.github || !await context.github.repository()) {
+    return definitions.map((definition) => ({ definition, kind: "absent" }));
+  }
+  const rulesets = await context.github.rulesets();
+  if (!rulesets) {
+    return definitions.map((definition) => ({ definition, kind: "ambiguous" }));
+  }
+  return definitions.map((definition) => classify(rulesets, definition));
+}
+function classify(
+  rulesets: readonly GithubResource[],
+  expected: JsonObject,
+): RulesetState {
+  const matches = rulesets.filter((item) =>
+    item.kind === rulesetResource && item.name === expected.name
+  );
+  if (!matches.length) return { definition: expected, kind: "absent" };
+  if (matches.length !== 1) return { definition: expected, kind: "ambiguous" };
+  const { id: _id, ...actual } = matches[0].definition;
+  return {
+    definition: expected,
+    digest: matches[0].stateDigest,
+    kind: JSON.stringify(canonical(actual)) === JSON.stringify(expected)
+      ? "exact"
+      : "drifted",
+  };
+}
+export function detected(states: readonly RulesetState[]) {
+  if (states.some((state) => state.kind === "ambiguous")) {
+    return { state: "ambiguous" as const, evidence: [], issues: [] };
+  }
+  if (states.every((state) => state.kind === "absent")) {
+    return { state: "disabled" as const, evidence: [] };
+  }
+  return states.every((state) => state.kind === "exact")
+    ? { state: "enabled" as const, evidence: [] }
+    : { state: "drifted" as const, evidence: [], issues: [] };
+}

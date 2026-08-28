@@ -20,6 +20,11 @@ import {
   githubSettings,
 } from "./github-features.ts";
 import { githubCiFeature } from "./github-ci-feature.ts";
+import {
+  githubMainProtectionFeature,
+  githubMainReviewFeature,
+  githubProtectedTagsFeature,
+} from "./github-protection-features.ts";
 
 /** Features available without repository-specific configuration. */
 export const builtInFeatureRegistry: FeatureRegistry = {
@@ -34,6 +39,9 @@ export const builtInFeatureRegistry: FeatureRegistry = {
     gitFeature,
     githubRepoFeature,
     githubCiFeature,
+    githubMainProtectionFeature,
+    githubMainReviewFeature,
+    githubProtectedTagsFeature,
     ...githubSettings.map(githubSettingFeature),
     ...licenseFeatures,
     readmeStaticFeature,
@@ -58,6 +66,15 @@ export const builtInFeatureRegistry: FeatureRegistry = {
         featureId: setting.id,
         enabled: setting.enabled,
       })),
+    ],
+  }, {
+    id: "github-protection",
+    name: "GitHub protection",
+    summary: "Protect the default branch and tags.",
+    changes: [
+      { featureId: "github-main-protection", enabled: true },
+      { featureId: "github-main-review", enabled: true },
+      { featureId: "github-protected-tags", enabled: true },
     ],
   }, {
     id: "github-public",

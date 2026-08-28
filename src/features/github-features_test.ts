@@ -23,7 +23,7 @@ Deno.test("Github settings require confirmation and only patch their requested f
       })
     );
     assertEquals(github.patches, []);
-    await runFeatureOperation(
+    const result = await runFeatureOperation(
       root,
       parseFeatures(
         ["repo", "features", "--github-issues", "--yes"],
@@ -35,6 +35,7 @@ Deno.test("Github settings require confirmation and only patch their requested f
     );
     assertEquals(github.patches, [{ has_issues: true }]);
     assertEquals(github.values, { has_issues: true, has_wiki: true });
+    assertEquals(result.endsWith("Applied GitHub changes."), true);
   });
 });
 
@@ -282,6 +283,9 @@ class FakeGithub implements GithubWriter {
     }
     Object.assign(this.values, patch);
     this.patches.push(patch);
+  }
+  deleteResources() {
+    return Promise.resolve();
   }
 }
 

@@ -20,11 +20,14 @@ export function formatFeatureResult(
   status: string,
   committed: boolean,
   initializedWithoutCommit: boolean,
+  githubChanged: boolean,
 ): string {
   const note = initializedWithoutCommit
     ? "Git was initialized; no commit was created because identity preflight is unavailable."
     : committed
     ? "Created one commit for planned paths."
+    : githubChanged
+    ? "Applied GitHub changes."
     : "No changes.";
   return `${status}\n${note}`;
 }

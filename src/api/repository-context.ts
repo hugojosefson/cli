@@ -91,7 +91,8 @@ export interface GithubReader {
   /** Authenticated viewer identity, when the adapter supports it. */
   viewer?(): Promise<{ readonly name: string } | undefined>;
   repository(): Promise<GithubRepository | undefined>;
-  rulesets(): Promise<readonly GithubResource[]>;
+  /** `undefined` means the rulesets API could not be read. */
+  rulesets(): Promise<readonly GithubResource[] | undefined>;
   environments(): Promise<readonly GithubResource[]>;
   variables(): Promise<readonly GithubResource[]>;
   secretExists(
@@ -103,10 +104,12 @@ export interface GithubReader {
 
 /** Authenticated GitHub mutations, with optimistic per-resource state checks. */
 export interface GithubWriter extends GithubReader {
-  /** Atomically applies compatible resources after one fresh state observation. */
+  /** Applies compatible resources. Some resource types require sequential requests. */
   upsertResources(
     resources: readonly GithubResourceUpsert[],
   ): Promise<void>;
+  /** Removes resources after a fresh optimistic state check. */
+  deleteResources(resources: readonly GithubResourceDelete[]): Promise<void>;
 }
 
 /** A requested GitHub resource replacement with its observed state digest. */
@@ -114,6 +117,14 @@ export interface GithubResourceUpsert {
   readonly resource: string;
   readonly name: string;
   readonly definition: JsonObject;
+  /** `undefined` asserts that the resource must be absent. */
+  readonly expectedStateDigest: string | undefined;
+}
+
+/** A requested GitHub resource deletion with its observed state digest. */
+export interface GithubResourceDelete {
+  readonly resource: string;
+  readonly name: string;
   readonly expectedStateDigest: string;
 }
 

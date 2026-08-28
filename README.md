@@ -85,10 +85,17 @@ The first feature set includes:
   “Allow GitHub Actions to create and approve pull requests.” Pull-request runs
   created by its dependency workflow require approval from a user with write
   access.
-- `github-protection`: protects main history, reviewed main changes, and
-  semantic-version tags; it requires `github-ci`.
-- `jsr-release`: adds the release-writer App and JSR OIDC release workflow; it
-  requires `jsr-package`, `github-ci`, and `github-protection`.
+- `github-main-protection`: requires `github-ci` and protects the default branch
+  with pull requests, generated CI, resolved review threads, deletion blocking,
+  and force-push blocking.
+- `github-main-review`: layers one stale-dismissed, last-push approval on main;
+  repository admins may bypass this review layer only through a pull request.
+- `github-protected-tags`: requires `github-repo` and protects all tags.
+  Repository admins may bypass tag mutation.
+- `github-protection`: weak preset enabling all three protection features.
+- `jsr-release`: will add the release-writer App and JSR OIDC release workflow.
+  Release tooling will validate exact unprefixed SemVer tags; its future App
+  bypass will extend the tag protection ruleset.
 
 `--github` is a weak preset initialized from the 20 latest non-archived,
 non-fork, non-template repositories owned by the authenticated user, then
