@@ -81,6 +81,40 @@ Deno.test("Github preset values are independently overridable", async () => {
   });
 });
 
+Deno.test("GitHub public preset overlays GitHub but yields to private flag", async () => {
+  await withRoot(async (root) => {
+    const github = new FakeGithub(Object.fromEntries(
+      githubSettings.map(({ field, enabled }) => [field, enabled]),
+    ));
+    await runFeatureOperation(
+      root,
+      parseFeatures(
+        ["repo", "features", "--github", "--github-public", "--yes"],
+        builtInFeatureRegistry,
+      ),
+      builtInFeatureRegistry,
+      () => [],
+      { github },
+    );
+    assertEquals(github.patches, [{ private: false }]);
+    await runFeatureOperation(
+      root,
+      parseFeatures([
+        "repo",
+        "features",
+        "--github-public",
+        "--github",
+        "--github-private",
+        "--yes",
+      ], builtInFeatureRegistry),
+      builtInFeatureRegistry,
+      () => [],
+      { github },
+    );
+    assertEquals(github.patches, [{ private: false }, { private: true }]);
+  });
+});
+
 Deno.test("pure GitHub preset blocks inaccessible repositories before mutation", async () => {
   await withRoot(async (root) => {
     const github = new FakeGithub({}, false);

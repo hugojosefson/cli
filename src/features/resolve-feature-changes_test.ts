@@ -209,6 +209,46 @@ Deno.test("preset selections coalesce and conflicting targets are deterministic"
   assertEquals(reverse.issues, forward.issues);
 });
 
+Deno.test("more-specific presets override prefixes but not explicit flags", () => {
+  const presets = [{
+    id: "base",
+    name: "Base",
+    summary: "Test preset.",
+    changes: [{ featureId: "git", enabled: true }],
+  }, {
+    id: "base-off",
+    name: "Overlay",
+    summary: "Test overlay.",
+    changes: [{ featureId: "git", enabled: false }],
+  }];
+  const base = registry([feature("git")], [], presets);
+  for (const selected of [["base", "base-off"], ["base-off", "base"]]) {
+    assertEquals(
+      resolveFeatureChanges(
+        base,
+        detections({ git: "disabled" }),
+        { ...request(), presets: selected },
+      ),
+      { changes: [], issues: [] },
+    );
+  }
+  assertEquals(
+    resolveFeatureChanges(
+      base,
+      detections({ git: "disabled" }),
+      {
+        ...request([{ featureId: "git", enabled: true }]),
+        presets: ["base", "base-off"],
+      },
+    ).changes,
+    [{
+      featureId: "git",
+      enabled: true,
+      reason: { kind: "explicit-request" },
+    }],
+  );
+});
+
 Deno.test("enabling includes transitive direct dependencies", () => {
   const result = resolveFeatureChanges(
     registry([

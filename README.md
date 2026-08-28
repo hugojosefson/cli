@@ -95,7 +95,11 @@ private visibility; it disables merge commits, wiki, discussions, and web commit
 signoff. Explicit setting flags override the preset regardless of argument
 order. Remote changes require `--yes` and use one guarded GitHub API update.
 `--no-github` is invalid; `--no-github-repo` safely blocks because repository
-deletion is unsupported. Merge-message enum settings remain unchanged.
+deletion is unsupported. The `--github-public` overlay makes the repository
+public when combined with `--github`, while an explicit `--github-private` or
+`--no-github-private` flag still wins. More-specific preset IDs override a
+selected prefix preset; unrelated contradictory presets fail as ambiguous.
+Merge-message enum settings remain unchanged.
 
 The `readme` capability has exclusive providers. Its default provider is
 `readme-static`. Enabling `readme-build` while `readme-static` is enabled plans

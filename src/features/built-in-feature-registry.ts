@@ -57,5 +57,10 @@ export const builtInFeatureRegistry: FeatureRegistry = {
         enabled: setting.enabled,
       })),
     ],
+  }, {
+    id: "github-public",
+    name: "Public GitHub repository",
+    summary: "Make the GitHub repository public.",
+    changes: [{ featureId: "github-private", enabled: false }],
   }],
 };

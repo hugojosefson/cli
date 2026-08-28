@@ -54,7 +54,13 @@ function applyPresets(
     preset.id,
     preset,
   ]));
-  const targets = new Map<string, Map<boolean, string[]>>();
+  const targets = new Map<
+    string,
+    Array<{
+      readonly enabled: boolean;
+      readonly presetId: string;
+    }>
+  >();
   for (const presetId of request.presets) {
     const preset = presets.get(presetId);
     if (!preset) {
@@ -66,23 +72,31 @@ function applyPresets(
     }
     for (const target of preset.changes) {
       if (state.explicit.has(target.featureId)) continue;
-      const presetIds = targets.get(target.featureId) ?? new Map();
-      const ids = presetIds.get(target.enabled) ?? [];
-      ids.push(preset.id);
-      presetIds.set(target.enabled, ids);
-      targets.set(target.featureId, presetIds);
+      const selections = targets.get(target.featureId) ?? [];
+      selections.push({
+        enabled: target.enabled,
+        presetId: preset.id,
+      });
+      targets.set(target.featureId, selections);
     }
   }
   for (const [featureId, selections] of targets) {
-    if (selections.size > 1) {
+    const strongest = selections.filter((selection) =>
+      !selections.some((candidate) =>
+        candidate.presetId.length > selection.presetId.length &&
+        candidate.presetId.startsWith(selection.presetId)
+      )
+    );
+    if (new Set(strongest.map((item) => item.enabled)).size > 1) {
       state.issues.push({ code: "conflicting-preset-target", featureId });
       continue;
     }
-    const [enabled, presetIds] = [...selections][0];
+    const enabled = strongest[0].enabled;
+    const presetId = strongest.map((item) => item.presetId).sort()[0];
     state.explicit.set(featureId, enabled);
     selectFeature(state, featureId, enabled, {
       kind: "preset",
-      presetId: [...presetIds].sort()[0],
+      presetId,
     });
   }
 }
