@@ -330,25 +330,36 @@ function parse(
   definition: SpdxLicenseSourceDefinition,
   content: string,
 ): Values | undefined {
-  let cursor = 0;
-  let pattern = "^";
-  for (const placeholder of definition.placeholders) {
-    const index = template.indexOf(placeholder.marker, cursor);
-    if (index < 0) return undefined;
-    pattern += escape(template.slice(cursor, index)) + "([\\s\\S]*?)";
-    cursor = index + placeholder.marker.length;
-  }
-  const match = new RegExp(`${pattern}${escape(template.slice(cursor))}$`).exec(
-    content,
-  );
-  if (!match) return undefined;
+  let templateCursor = 0;
+  let contentCursor = 0;
   const result: Values = {};
   for (const [index, placeholder] of definition.placeholders.entries()) {
-    const value = match[index + 1];
+    const markerIndex = template.indexOf(placeholder.marker, templateCursor);
+    if (markerIndex < 0) return undefined;
+    const prefix = template.slice(templateCursor, markerIndex);
+    if (!content.startsWith(prefix, contentCursor)) return undefined;
+    contentCursor += prefix.length;
+    templateCursor = markerIndex + placeholder.marker.length;
+    const next = definition.placeholders[index + 1];
+    const nextIndex = next
+      ? template.indexOf(next.marker, templateCursor)
+      : template.length;
+    if (nextIndex < 0) return undefined;
+    const following = template.slice(templateCursor, nextIndex);
+    const valueEnd = following
+      ? content.indexOf(following, contentCursor)
+      : content.length;
+    if (valueEnd < 0) return undefined;
+    const value = content.slice(contentCursor, valueEnd);
     if (!valid(placeholder.kind, value)) return undefined;
     result[placeholder.kind] = value;
+    contentCursor = valueEnd;
   }
-  return result;
+  const suffix = template.slice(templateCursor);
+  return content.startsWith(suffix, contentCursor) &&
+      contentCursor + suffix.length === content.length
+    ? result
+    : undefined;
 }
 
 function render(
@@ -389,9 +400,6 @@ function valid(kind: LicensePlaceholderKind, value: string): boolean {
 function safe(value: string): boolean {
   return value.trim().length > 0 && !/[\0\r\n/\\]/.test(value) &&
     value !== "." && value !== "..";
-}
-function escape(value: string): string {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 function repairSelected(context: OperationContext, id: string): boolean {
   return context.repair?.kind === "all-drifted" ||

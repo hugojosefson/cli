@@ -174,6 +174,22 @@ Deno.test("catalog providers recognize every exact alternate and only new replac
   }
 });
 
+Deno.test("large license templates still recognize an alternate", async () => {
+  const own = licenseCatalog.find(({ id }) => id === "license-agpl-3.0-only")!;
+  const alternate = licenseCatalog.find(({ id }) => id === "license-mit")!;
+  const ownText = `large-${"x".repeat(40_000)} {{ year }} {{ organization }}\n`;
+  const alternateText = template(alternate.definition);
+  const feature = createSpdxLicenseFeature({
+    ...own,
+    text: source(ownText),
+    alternates: [{ ...alternate, text: source(alternateText) }],
+  });
+  assertEquals(
+    (await feature.detect(context(file(rendered(alternate.definition))))).state,
+    "disabled",
+  );
+});
+
 function template(
   definition: typeof licenseCatalog[number]["definition"],
 ): string {
