@@ -18,6 +18,7 @@ Deno.test("the complete built-in registry validates", () => {
       "deno-server",
       "git",
       "github-repo",
+      "github-ci",
       "github-auto-merge",
       "github-delete-branch-on-merge",
       "github-merge-commit",

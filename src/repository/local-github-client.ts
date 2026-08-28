@@ -85,9 +85,12 @@ export class LocalGithubClient implements GithubWriter {
     kind: string,
     name: string,
   ): Promise<GithubResource | undefined> {
-    if (kind !== "repository-setting") return undefined;
     const repository = await this.repository();
     if (!repository) return undefined;
+    if (kind === "actions-workflow-permission") {
+      return await this.#actionsWorkflowPermission(repository, name);
+    }
+    if (kind !== "repository-setting") return undefined;
     const definition = await this.#repositorySettings(repository);
     if (!definition || typeof definition[name] !== "boolean") return undefined;
     return {
@@ -159,6 +162,28 @@ export class LocalGithubClient implements GithubWriter {
     return value && typeof value === "object" && !Array.isArray(value)
       ? value as JsonObject
       : undefined;
+  }
+  async #actionsWorkflowPermission(
+    repository: GithubRepository,
+    name: string,
+  ): Promise<GithubResource | undefined> {
+    if (name !== "can-approve-pull-request-reviews") return undefined;
+    const output = await this.#run([
+      "api",
+      `repos/${repository.owner}/${repository.name}/actions/permissions/workflow`,
+    ]);
+    const value = output && json(output) as {
+      can_approve_pull_request_reviews?: unknown;
+    };
+    if (typeof value?.can_approve_pull_request_reviews !== "boolean") {
+      return undefined;
+    }
+    return {
+      kind: "actions-workflow-permission",
+      name,
+      definition: { value: value.can_approve_pull_request_reviews },
+      stateDigest: await digest(name, value.can_approve_pull_request_reviews),
+    };
   }
 
   async #run(args: readonly string[]): Promise<Uint8Array | undefined> {

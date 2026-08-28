@@ -19,6 +19,7 @@ import {
   githubSettingFeature,
   githubSettings,
 } from "./github-features.ts";
+import { githubCiFeature } from "./github-ci-feature.ts";
 
 /** Features available without repository-specific configuration. */
 export const builtInFeatureRegistry: FeatureRegistry = {
@@ -32,6 +33,7 @@ export const builtInFeatureRegistry: FeatureRegistry = {
     denoServerFeature,
     gitFeature,
     githubRepoFeature,
+    githubCiFeature,
     ...githubSettings.map(githubSettingFeature),
     ...licenseFeatures,
     readmeStaticFeature,

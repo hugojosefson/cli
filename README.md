@@ -81,7 +81,10 @@ The first feature set includes:
   merged-branch deletion, merge strategies, wiki, issues, projects, discussions,
   branch updates, and web commit signoff.
 - `github-ci`: adds pull-request checks plus nightly and manual dependency
-  updates; it requires `github-repo` and `deno-fmt`.
+  updates; it requires `github-repo`, `deno-fmt`, and the repository setting
+  “Allow GitHub Actions to create and approve pull requests.” Pull-request runs
+  created by its dependency workflow require approval from a user with write
+  access.
 - `github-protection`: protects main history, reviewed main changes, and
   semantic-version tags; it requires `github-ci`.
 - `jsr-release`: adds the release-writer App and JSR OIDC release workflow; it

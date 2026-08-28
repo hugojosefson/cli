@@ -99,6 +99,43 @@ Deno.test("LocalGithubClient treats failing repository commands and missing fiel
   );
 });
 
+Deno.test("LocalGithubClient reads Actions pull-request permission and fails closed", async () => {
+  const runner = new FakeRunner([
+    json({ login: "octo" }),
+    json({ nameWithOwner: "owner/repo" }),
+    json({ can_approve_pull_request_reviews: true }),
+  ]);
+  const client = new LocalGithubClient(
+    new URL("file:///tmp/opencode/"),
+    runner,
+  );
+  assertEquals(
+    (await client.resource(
+      "actions-workflow-permission",
+      "can-approve-pull-request-reviews",
+    ))?.definition,
+    { value: true },
+  );
+  assertEquals(runner.calls[2], {
+    args: ["api", "repos/owner/repo/actions/permissions/workflow"],
+  });
+  const malformed = new LocalGithubClient(
+    new URL("file:///tmp/opencode/"),
+    new FakeRunner([
+      json({ login: "octo" }),
+      json({ nameWithOwner: "owner/repo" }),
+      json({ can_approve_pull_request_reviews: "true" }),
+    ]),
+  );
+  assertEquals(
+    await malformed.resource(
+      "actions-workflow-permission",
+      "can-approve-pull-request-reviews",
+    ),
+    undefined,
+  );
+});
+
 class FakeRunner implements GithubCommandRunner {
   readonly calls: { args: readonly string[]; stdin?: string }[] = [];
   constructor(readonly results: readonly (Uint8Array | undefined)[]) {}
