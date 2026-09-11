@@ -1,6 +1,7 @@
 /** @module Exact workflows owned by the GitHub CI feature. */
 
 import { workflowDenoVersion } from "./workflow-toolchain.ts";
+import { hjPackageReference } from "./hj-package.ts";
 
 import type {
   ArtifactSchema,
@@ -56,7 +57,7 @@ jobs:
           deno run
           --allow-env=HJ_RELEASE_ROUTE,HJ_SOURCE_BASE_SHA,HJ_SOURCE_HEAD_SHA
           --allow-run=git
-          jsr:@hugojosefson/cli@0.0.0
+          ${hjPackageReference}
           release publish-tag-prepare
 `,
 }, {

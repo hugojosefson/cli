@@ -1,72 +1,84 @@
-# hugojosefson-cli (`hj`)
+# hj
 
-`hj` configures repositories and automates personal development workflows. It
-uses TypeScript and Deno. Features manage Git, Deno projects, documentation,
-GitHub configuration, and releases.
+[![Simple English: attempted](https://img.shields.io/badge/simple_english-attempted-blue)](https://www.asd-ste100.org/)
 
-This project is unpublished. You can run the CLI from this checkout. The package
-name is `@hugojosefson/cli`. Generated workflows currently reference
-`jsr:@hugojosefson/cli@0.0.0`. They need a published package before they can run
-remotely.
+`hj` configures repositories and automates personal development workflows.
+Install it from [JSR](https://jsr.io/@hugojosefson/cli) and run it in the
+repository you want to manage.
 
-## Run locally
+| Area          | What `hj` manages                                          |
+| ------------- | ---------------------------------------------------------- |
+| Projects      | Git repositories and Deno project files.                   |
+| Documentation | README files and licenses.                                 |
+| GitHub        | Repository settings, protection rules, and workflows.      |
+| Releases      | Version changes, changelogs, tags, and package publishing. |
 
-Install Deno at the version in [toolchain.json](toolchain.json). Install Git for
-repository operations. GitHub operations also need an authenticated `gh`
-installation. The local command uses the installed tools. It does not install
-them.
+## Install
 
-From this checkout, run:
+Install [Deno](https://deno.com/) first. Then install `hj` directly from JSR:
 
 ```bash
-deno task hj --help
-deno task hj repo features --help
-deno task hj repo features
+deno install --global --allow-all --name hj jsr:@hugojosefson/cli
 ```
 
-The last command reports this repository's feature status without changes.
-Feature changes act on the command's working directory. For work in another
-directory, use the
-[development guide](docs/development.md#run-against-another-repository).
+No checkout or separate download of this repository is needed. Add the binary
+directory printed by Deno to your `PATH` if needed. The command grants full Deno
+permissions so `hj` can manage files and run external tools. See the
+[Deno installation reference](https://docs.deno.com/runtime/reference/cli/install/)
+for installation options.
 
-## Install from this checkout
+## Start here
 
-Run `deno task install-local` to install the `hj` command. Add the printed
-binary directory to `PATH`. The command still loads source from this checkout,
-so keep the checkout at the same path. After moving it, reinstall with
-`deno task install-local --force`.
+Change to the directory you want to manage. Inspect its features:
 
-For an isolated installation, run
-`deno task install-local --root /absolute/path/to/tools`. Remove that
-installation with `deno uninstall --global --root /absolute/path/to/tools hj`. A
-registry installation remains unavailable until the package is published.
+```bash
+hj repo features
+```
+
+This command reports the current state without changes. Choose changes
+interactively:
+
+```bash
+hj repo features --interactive
+```
+
+For command help, run:
+
+```bash
+hj --help
+```
+
+Feature operations apply to the current directory. The
+[feature guide](docs/repository-features.md) explains selection and
+confirmation.
+
+## Requirements
+
+Only Deno is needed to install `hj`. Install other tools when you need their
+operations. `hj` uses installed tools and does not install them for you.
+
+| Tool                                         | When it is needed                                                                |
+| -------------------------------------------- | -------------------------------------------------------------------------------- |
+| [Deno](https://deno.com/)                    | Install and run `hj`. The tested version is in [toolchain.json](toolchain.json). |
+| [Git](https://git-scm.com/)                  | Read or change Git repositories.                                                 |
+| [GitHub CLI (`gh`)](https://cli.github.com/) | Manage GitHub repositories. Authenticate with `gh auth login` first.             |
+
+## Update or remove
+
+| Action                           | Command                                                                              |
+| -------------------------------- | ------------------------------------------------------------------------------------ |
+| Update to the latest JSR release | `deno install --global --allow-all --reload --force --name hj jsr:@hugojosefson/cli` |
+| Remove the installed command     | `deno uninstall --global hj`                                                         |
 
 ## Documentation
 
-Each guide owns one topic:
-
-- [Repository features](docs/repository-features.md): Selection, dependencies,
-  repair, and generated project files.
-- [Development](docs/development.md): Local commands, tests, coverage, CI, and
-  adding a feature.
-- [Releases](docs/releases.md): Setup, release behavior, retries, removal, and
-  design constraints.
-- [Planned work](docs/planned.md): Unimplemented configuration and validation
-  that needs a published repository.
-
-Command help comes from [command-help.ts](src/cli/command-help.ts). Run
-`deno task hj <command> --help` for the current usage.
-
-## Validate changes
-
-Run the same checks as CI:
-
-```bash
-deno task ci
-```
-
-This command checks formatting, types, lint, tests, coverage, and whitespace.
-For formatting fixes, run `deno task fmt` first.
+| Guide                                              | Topic                                                         |
+| -------------------------------------------------- | ------------------------------------------------------------- |
+| [Repository features](docs/repository-features.md) | Select, enable, disable, and repair features.                 |
+| [Releases](docs/releases.md)                       | Configure release workflows and recover interrupted releases. |
+| [Development](docs/development.md)                 | Run from source, install locally, test, and contribute.       |
+| [Live validation](docs/live-validation.md)         | Read the scratchpad test results and their limits.            |
+| [Planned work](docs/planned.md)                    | Track unimplemented features and remaining validation.        |
 
 ## License
 

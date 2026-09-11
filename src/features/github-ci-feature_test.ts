@@ -1,3 +1,4 @@
+import { hjPackageReference } from "./hj-package.ts";
 import { assertEquals, assertStringIncludes } from "@std/assert";
 import type { ArtifactObservation } from "../api/artifact-inspection.ts";
 import type {
@@ -87,7 +88,7 @@ Deno.test("github-ci owns deterministic pull-request and dependency workflows", 
   assertStringIncludes(ci, "deno task all");
   assertStringIncludes(ci, "hj-release-commit-validation:");
   assertStringIncludes(ci, "release publish-tag-prepare");
-  assertStringIncludes(ci, "jsr:@hugojosefson/cli@0.0.0");
+  assertStringIncludes(ci, hjPackageReference);
   assertStringIncludes(ci, "HJ_RELEASE_ROUTE: source-validation");
   assertStringIncludes(
     ci,

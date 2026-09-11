@@ -31,11 +31,13 @@ choose defaults.
 
 The JSR package name is `@hugojosefson/cli`. Package metadata, the MIT license,
 the executable export, and a local installation task are present. CI validates
-the package with a dry run. Generated workflows reference version `0.0.0` as a
-development placeholder. Before those workflows run remotely, publish a usable
-package and update their exact package references. Registry installation still
-needs publication. The README describes local installation and the development
-runner.
+the package with a dry run. Generated workflows read the package name and
+version from `deno.json`. Version `0.0.0` is still the development placeholder.
+The README is prepared for the first public JSR release; its registry command
+becomes available after publication. The [development guide](development.md)
+describes current local installation. The
+[first-release checklist](development.md#first-public-release) tracks the
+remaining preparation.
 
 An npm publisher is planned. There is no npm feature, command, or workflow. Its
 proposed trigger is the same tag-success event that starts the current

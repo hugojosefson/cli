@@ -691,3 +691,27 @@ Deno.test("cleanup preserves ambiguous synthetic checks", async () => {
   assertEquals(github.calls, []);
   assertEquals(github.runs.every((run) => run.status === "in_progress"), true);
 });
+
+Deno.test("cleanup confirms auto-merge was disabled after a lost response", async () => {
+  const github = new Github();
+  const clock = new Clock();
+  for (const check of expectedChecks(input)) await github.createCheckRun(check);
+  await github.enablePullRequestAutoMerge({
+    mergeMethod: "REBASE",
+    expectedHeadOid: sha,
+  });
+  github.calls = [];
+  const disable = github.disablePullRequestAutoMerge.bind(github);
+  github.disablePullRequestAutoMerge = async () => {
+    await disable();
+    throw new Error("response lost after disabling auto-merge");
+  };
+  await cleanStatusRecovery(github, clock, 60_000, input);
+  assertEquals(github.pr.autoMerge, undefined);
+  assertEquals(github.calls, [
+    "disable",
+    "complete:cancelled",
+    "complete:cancelled",
+  ]);
+  assertEquals(clock.time, 0);
+});

@@ -2,7 +2,7 @@
 
 This guide describes work on `hj` itself. The
 [feature guide](repository-features.md) describes files and tasks that `hj` adds
-to other repositories. Use the Deno version in
+to other repositories. Use the [Deno](https://deno.com/) version in
 [toolchain.json](../toolchain.json). The lockfile records dependency versions.
 Test and type-check tasks use `--frozen` to reject unexpected dependency
 changes.
@@ -35,6 +35,18 @@ configuration. The report excludes test files and shared test fixtures. Deno
 reports loaded modules, so the total does not prove that every executable path
 has a test. The executable has a separate smoke test for help without
 application permissions.
+
+## Install from a checkout
+
+Run `deno task install-local` to install a development command. Add the printed
+binary directory to `PATH`. This installation loads source from the checkout, so
+keep it at the same path. After moving it, run
+`deno task install-local --force`.
+
+| Action                          | Command                                                     |
+| ------------------------------- | ----------------------------------------------------------- |
+| Install in a separate directory | `deno task install-local --root /absolute/path/to/tools`    |
+| Remove that installation        | `deno uninstall --global --root /absolute/path/to/tools hj` |
 
 ## Run against another repository
 
@@ -74,10 +86,13 @@ It has read-only repository access and does not publish anything. Actions use
 exact commit references.
 
 The same toolchain file supplies Deno versions for newly generated CI and
-release workflows. The legacy release template stays unchanged because migration
-recognizes its exact bytes. To update Deno, edit the toolchain file, install
-that version, and run `deno task ci`. A toolchain change can make an existing
-generated workflow drifted. Repair remains an explicit feature operation.
+release workflows. Generated workflows and README build tasks use the exact `hj`
+package reference from `name` and `version` in `deno.json`, so a version change
+also updates new workflow output. The legacy release template stays unchanged
+because migration recognizes its exact bytes. To update Deno, edit the toolchain
+file, install that version, and run `deno task ci`. A toolchain change can make
+an existing generated workflow drifted. Repair remains an explicit feature
+operation.
 
 To run this repository's workflow locally with Docker and `act`, use:
 
@@ -125,6 +140,24 @@ synthetic checks, which are check runs that `hj` creates. `apply-observation.ts`
 handles bounded polling and uncertain requests. `apply-cleanup.ts` owns cleanup
 after failure or collision. The [release guide](releases.md#design-constraints)
 owns the release invariants.
+
+## First public release
+
+The README describes installation after the first JSR release. Registry
+installation is not yet available. Publication remains a separate, authorized
+step. Complete these checks before announcing the release:
+
+| Preparation                  | State or next action                                                                                                           |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| Package identity and license | The package name, executable export, and MIT license are present.                                                              |
+| First version                | Replace the development version `0.0.0` in `deno.json` with the selected release version. New workflows use this same version. |
+| Release notes                | Record the initial supported features and known limits.                                                                        |
+| Validation                   | Run `deno task ci`, including the package dry run. Test installation on each supported operating system.                       |
+| JSR access                   | Confirm access to the `hugojosefson` scope and the `cli` package name on [JSR](https://jsr.io/).                               |
+| Repository publication       | Create the public repository only when authorized. Configure branch protection and allow rebase merges only.                   |
+| Package publication          | Connect the package to its public repository and publish the selected version when authorized.                                 |
+| Registry installation        | Run the README command in a clean environment and check help and a local feature operation.                                    |
+| Release workflows            | Complete the [remaining live validation](planned.md#remaining-live-validation) in scratchpad.                                  |
 
 ## Git history
 

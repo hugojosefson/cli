@@ -1,5 +1,7 @@
 /** @module Deno task definitions and pure task inspection. */
 
+import { hjPackageReference } from "./hj-package.ts";
+
 import type { JsonObject, JsonValue } from "../api/json.ts";
 import type { OperationContext } from "../api/repository-context.ts";
 import { sameJson } from "../operations/local-plan-state.ts";
@@ -41,7 +43,9 @@ export const leafTaskNames: Readonly<Record<TaskFeatureId, string>> = {
 export const readmeTaskDefinition: JsonObject = {
   description: "Generate README.md.",
   command:
-    'sh -c \'temp=$(mktemp README.md.XXXXXX) && trap "rm -f \\"$temp\\"" EXIT && deno run --allow-read=. jsr:@hugojosefson/cli@0.0.0 readme build > "$temp" && chmod 444 "$temp" && mv "$temp" README.md\'',
+    'sh -c \'temp=$(mktemp README.md.XXXXXX) && trap "rm -f \\"$temp\\"" EXIT && deno run --allow-read=. ' +
+    hjPackageReference +
+    ' readme build > "$temp" && chmod 444 "$temp" && mv "$temp" README.md\'',
 };
 
 /** Returns formatter-owned tasks for the enabled task-feature subset. */

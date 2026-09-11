@@ -1,10 +1,10 @@
 # Releases
 
-The release implementation is available locally. Generated release workflows
-need a published `hj` package before they can run on GitHub. See
-[planned work](planned.md) for distribution and live validation. This guide
-replaces the previous release plan and owns release setup, operation, and design
-constraints.
+This guide describes release setup, operation, and recovery. Generated workflows
+use the exact `hj` package version that generated them. That version must be
+available on [JSR](https://jsr.io/@hugojosefson/cli). The
+[live validation record](live-validation.md) describes completed checks and
+limits.
 
 ## Setup and workflow roles
 

@@ -1,3 +1,4 @@
+import { hjPackageReference } from "./hj-package.ts";
 import { assertEquals, assertRejects, assertStringIncludes } from "@std/assert";
 import type { ArtifactObservation } from "../api/artifact-inspection.ts";
 import type {
@@ -72,7 +73,7 @@ Deno.test("release workflows have pinned actions, routes, permissions, and concu
       artifact.content,
       "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
     );
-    assertStringIncludes(artifact.content, "jsr:@hugojosefson/cli@0.0.0");
+    assertStringIncludes(artifact.content, hjPackageReference);
   }
   assertStringIncludes(publishTagArtifact.content, "release-needed == 'true'");
   assertStringIncludes(publishTagArtifact.content, "branches: [main]");

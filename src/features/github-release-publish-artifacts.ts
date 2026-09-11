@@ -1,6 +1,7 @@
 /** @module Exact workflows owned by release-publication features. */
 
 import { workflowDenoVersion } from "./workflow-toolchain.ts";
+import { hjPackageReference } from "./hj-package.ts";
 
 import type {
   ArtifactSchema,
@@ -20,7 +21,7 @@ const checkout =
   "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1";
 const deno =
   "denoland/setup-deno@22d081ff2d3a40755e97629de92e3bcbfa7cf2ed # v2.0.5";
-const hj = "jsr:@hugojosefson/cli@0.0.0";
+const hj = hjPackageReference;
 
 export const publishTagArtifact = {
   path: publishTagWorkflow,
