@@ -19,18 +19,19 @@ and changelog changes. Both target `main`.
 The [feature guide](repository-features.md) owns feature dependencies. SemVer is
 a version format such as `1.2.3`.
 
-| Setup requirement                       | Reason                                                                    |
-| --------------------------------------- | ------------------------------------------------------------------------- |
-| One Deno version configuration          | Supply the exact SemVer release version.                                  |
-| Generated CI                            | Validate source commits and project checks.                               |
-| Compatible main protection              | Require the two release checks and rebase-only PR merges.                 |
-| Protected tags                          | Allow tag creation while blocking later changes.                          |
-| Zero required approvals                 | Allow the generated release PR to merge unattended.                       |
-| Auto-merge enabled                      | Let GitHub merge after the checks pass.                                   |
-| Actions allowed to create PRs           | Permit the release workflow to create its PR.                             |
-| No `github-main-review`                 | This review feature conflicts with unattended releases.                   |
-| Workflow files in `CODEOWNERS`, if used | Cover the generated workflow files in the repository's ownership policy.  |
-| JSR package linked to GitHub            | Required for the JSR publisher. Disable its actor-membership requirement. |
+| Setup requirement                       | Reason                                                                          |
+| --------------------------------------- | ------------------------------------------------------------------------------- |
+| One Deno version configuration          | Supply the exact SemVer release version.                                        |
+| Generated CI                            | Validate source commits and project checks.                                     |
+| Compatible main protection              | Require the two release checks and rebase-only PR merges.                       |
+| Protected tags                          | Allow tag creation while blocking later changes.                                |
+| Zero required approvals                 | Allow the generated release PR to merge unattended.                             |
+| Auto-merge enabled                      | Let GitHub merge after the checks pass.                                         |
+| Actions allowed to create PRs           | Permit the release workflow to create its PR.                                   |
+| No `github-main-review`                 | This review feature conflicts with unattended releases.                         |
+| Workflow files in `CODEOWNERS`, if used | Cover the generated workflow files in the repository's ownership policy.        |
+| JSR package linked to GitHub            | Configure the link in the package settings.                                     |
+| JSR scope permits bot publication       | Configure [GitHub Actions security](#jsr-scope-security) in the scope settings. |
 
 The Actions PR setting also permits review approval, but these workflows do not
 create review approvals. OIDC gives the JSR workflow temporary identity
@@ -51,6 +52,23 @@ paid plan. The CLI reports this restriction when GitHub rejects setup.
 For this package's first publication, follow the
 [first-release plan](first-release.md). It uses these features and tracks the
 missing bootstrap support needed before a JSR copy of `hj` exists.
+
+## JSR scope security
+
+A scope is a group of packages, such as `@hugojosefson`. The actor is the
+account that starts a GitHub Actions run. Our release bot is not a JSR scope
+member, so publication must not require actor membership.
+
+| Step | Action                                                                                     |
+| ---- | ------------------------------------------------------------------------------------------ |
+| 1    | Open [the scope settings](https://jsr.io/@hugojosefson/~/settings) in your normal browser. |
+| 2    | Find **GitHub Actions security**.                                                          |
+| 3    | Click **Do not restrict publishing**. The button saves the change immediately.             |
+
+This setting applies to every package in the scope. Publication still requires a
+workflow in the GitHub repository linked to the package. See the
+[JSR scope security documentation](https://jsr.io/docs/scopes#github-actions-publishing-security)
+for the policy. Repository linking remains a separate package setting.
 
 ## Normal release
 

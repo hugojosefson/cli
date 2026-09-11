@@ -49,20 +49,21 @@ Let feature operations create their own commits for managed files.
 Complete these steps only after the owner authorizes repository and package
 publication. Each step lacks an implemented `hj` operation:
 
-| Prerequisite                         | Existing tool or interface                                  | Why it is outside `hj`                                                                               |
-| ------------------------------------ | ----------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
-| GitHub authentication                | [GitHub CLI](https://cli.github.com/), with `gh auth login` | `hj` uses an existing login.                                                                         |
-| Repository creation                  | GitHub CLI repository creation                              | `github-repo` manages an existing linked repository. Creation is planned.                            |
-| Remote connection and initial push   | [Git](https://git-scm.com/)                                 | `git` initializes and commits selected files. It does not connect or publish a remote.               |
-| Actions PR permission                | GitHub repository Settings > Actions > General              | `github-ci` checks this permission but does not enable it.                                           |
-| JSR scope and package access         | [JSR](https://jsr.io/)                                      | `jsr-package` configures local files. It does not create registry accounts or packages.              |
-| JSR repository link and actor policy | JSR package settings                                        | The publisher requires this configuration but does not manage it.                                    |
-| Source PRs and pushes                | Git and GitHub CLI                                          | Feature operations commit local files. They do not submit ordinary source PRs or push those commits. |
+| Prerequisite                       | Existing tool or interface                                  | Why it is outside `hj`                                                                               |
+| ---------------------------------- | ----------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| GitHub authentication              | [GitHub CLI](https://cli.github.com/), with `gh auth login` | `hj` uses an existing login.                                                                         |
+| Repository creation                | GitHub CLI repository creation                              | `github-repo` manages an existing linked repository. Creation is planned.                            |
+| Remote connection and initial push | [Git](https://git-scm.com/)                                 | `git` initializes and commits selected files. It does not connect or publish a remote.               |
+| Actions PR permission              | GitHub repository Settings > Actions > General              | `github-ci` checks this permission but does not enable it.                                           |
+| JSR scope and package access       | [JSR](https://jsr.io/)                                      | `jsr-package` configures local files. It does not create registry accounts or packages.              |
+| JSR repository link                | JSR package settings                                        | The publisher requires the link but does not manage it.                                              |
+| GitHub Actions actor policy        | JSR scope settings                                          | The release bot needs permission to trigger publication without JSR scope membership.                |
+| Source PRs and pushes              | Git and GitHub CLI                                          | Feature operations commit local files. They do not submit ordinary source PRs or push those commits. |
 
 For Actions, enable “Allow GitHub Actions to create and approve pull requests”.
-For JSR, link the package to its GitHub repository and disable the
-actor-membership requirement. The
-[release guide](releases.md#setup-and-workflow-roles) owns these requirements.
+For JSR, link the package in its package settings. Then follow the
+[scope security instructions](releases.md#jsr-scope-security) for bot
+publication.
 
 ## Configure GitHub through features
 
