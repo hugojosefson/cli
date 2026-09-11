@@ -31,7 +31,7 @@ a version format such as `1.2.3`.
 | No `github-main-review`                 | This review feature conflicts with unattended releases.                  |
 | Workflow files in `CODEOWNERS`, if used | Cover the generated workflow files in the repository's ownership policy. |
 | JSR package linked to GitHub            | Configure the link in the package settings.                              |
-| JSR scope requires CI and membership    | Use the [scope security configuration](#jsr-scope-security).             |
+| JSR scope allows the release bot        | Use the [scope security configuration](#jsr-scope-security).             |
 
 The Actions PR setting also permits review approval, but these workflows do not
 create review approvals. OIDC gives the JSR workflow temporary identity
@@ -56,36 +56,31 @@ missing bootstrap support needed before a JSR copy of `hj` exists.
 ## JSR scope security
 
 A scope is a group of packages, such as `@hugojosefson`. The actor is the
-account that starts a GitHub Actions run. The generated JSR workflow expects a
-scope member to start publication through their GitHub account.
+account that starts a GitHub Actions run. The release bot starts JSR publication
+after it creates the release tag.
 
 In your scope settings, use this configuration:
 
-| Setting                        | Value   | Effect                                                                   |
-| ------------------------------ | ------- | ------------------------------------------------------------------------ |
-| Restrict publishing to members | Enabled | Require the account that starts the workflow to belong to the JSR scope. |
-| Require Publishing from CI     | Enabled | Accept uploads only through GitHub Actions identity credentials.         |
+| Setting                    | Value                      | Effect                                                                   |
+| -------------------------- | -------------------------- | ------------------------------------------------------------------------ |
+| GitHub Actions security    | Do not restrict publishing | Allow the release bot to start publication without JSR scope membership. |
+| Require Publishing from CI | Enabled                    | Accept uploads only through GitHub Actions identity credentials.         |
 
-These settings apply to every package in the scope. `hj` generates a compatible
-workflow, but it does not change JSR account configuration. The package must
-also link to the GitHub repository where the workflow runs. See the
+These settings apply to every package in the scope. Publication still requires a
+workflow in the GitHub repository linked to the package. The membership setting
+does not give arbitrary GitHub users write access to that repository. See the
 [JSR scope security documentation](https://jsr.io/docs/scopes#github-actions-publishing-security).
 
-After the release tag exists, a scope member starts publication from the linked
-repository with [GitHub CLI](https://cli.github.com/):
+For this package, use the
+[scope settings](https://jsr.io/@hugojosefson/~/settings). Select **Do not
+restrict publishing** under **GitHub Actions security**. Keep **Require
+Publishing from CI** enabled. `hj` generates the workflow but does not change
+these account settings.
 
-```bash
-gh workflow run hj-release-publish-jsr.yaml --ref main -f tag=1.2.3
-```
-
-Replace `1.2.3` with the exact release tag. Use `--ref main` to select the
-workflow definition. The workflow checks out the requested tag and validates its
-remote commit before upload. You can also use **Run workflow** on the workflow
-page in GitHub Actions.
-
-The JSR workflow does not listen to the bot's release event. That event starts
-as `github-actions[bot]`, which is not a scope member. Member dispatch keeps
-both restrictions enabled and needs no stored JSR token.
+Once setup is complete, merging source into `main` starts the release pipeline.
+The pipeline creates the release tag and starts both publishers automatically.
+No extra publishing command or stored JSR token is required. Manual workflow
+runs remain available for [retry and recovery](#retry-and-recovery).
 
 ## Normal release
 
@@ -103,7 +98,7 @@ is validated data describing the exact proposed changes.
 | Validate merge         | Confirm the rebased commit's parent, tree, and release files.                                     |
 | Publish tag            | Create the lightweight tag and remove the owned release branch.                                   |
 | Publish GitHub Release | Send `hj-release-publish-tag-success` to start the GitHub Release publisher.                      |
-| Publish JSR package    | A scope member starts the JSR workflow for the new tag.                                           |
+| Publish JSR package    | The same success event starts the JSR publisher automatically.                                    |
 
 Preparation runs package checks on uncommitted candidate files. The generated
 `publish-check` task uses `--dry-run --allow-dirty --check=all`. It uploads
@@ -182,10 +177,10 @@ published packages, releases, tags, changelogs, and version files.
 
 ## Migration and repair
 
-To replace an older bot-triggered JSR workflow, run
+To update a generated JSR workflow that requires manual publication, run
 `hj repo features --repair --github-release-publish-jsr`. Review the generated
 commit and merge it through the normal source process. The repaired workflow
-requires member dispatch for each upload.
+starts publication automatically after tag creation.
 
 `github-release-publish-jsr` replaces the legacy `jsr-release` feature. Enable
 or repair can migrate the exact `.github/workflows/hj-release.yaml` template.

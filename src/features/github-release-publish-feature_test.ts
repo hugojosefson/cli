@@ -15,8 +15,8 @@ import {
   githubReleasePublishJsrFeature,
   githubReleasePublishTagFeature,
 } from "./github-release-publish-feature.ts";
-import { jsrReleaseArtifact } from "./jsr-release-artifacts.ts";
 import { parse } from "yaml";
+import { jsrReleaseArtifact } from "./jsr-release-artifacts.ts";
 
 function context(
   observations: Record<string, ArtifactObservation>,
@@ -112,18 +112,18 @@ Deno.test("release workflows have pinned actions, routes, permissions, and concu
     publishTagArtifact.content,
     "hj-release-publish-tag-main",
   );
-  assertEquals(
-    publishJsrArtifact.content.includes("repository_dispatch"),
-    false,
-  );
+  assertStringIncludes(publishJsrArtifact.content, "repository_dispatch:");
   assertStringIncludes(
-    publishGithubArtifact.content,
+    publishJsrArtifact.content,
     "types: [hj-release-publish-tag-success]",
   );
   assertStringIncludes(publishJsrArtifact.content, "id-token: write");
   assertStringIncludes(publishGithubArtifact.content, "contents: write");
   for (const artifact of [publishJsrArtifact, publishGithubArtifact]) {
+    assertStringIncludes(artifact.content, "HJ_RELEASE_SCHEMA:");
+    assertStringIncludes(artifact.content, "HJ_RELEASE_SHA:");
     assertStringIncludes(artifact.content, "HJ_RELEASE_TAG:");
+    assertStringIncludes(artifact.content, "HJ_RELEASE_VERSION:");
     assertStringIncludes(artifact.content, "GH_TOKEN: ${{ github.token }}");
     assertStringIncludes(artifact.content, "gh auth setup-git");
     assertEquals(artifact.content.includes("--token"), false);
@@ -140,70 +140,6 @@ Deno.test("release workflows have pinned actions, routes, permissions, and concu
     "--allow-read=.",
   ]);
   assertStringIncludes(publishGithubArtifact.content, "--allow-run=gh,git");
-});
-
-Deno.test("JSR publishing requires member dispatch and uses only the selected tag", () => {
-  const workflow = parse(publishJsrArtifact.content);
-  assertEquals(workflow.on, {
-    workflow_dispatch: {
-      inputs: {
-        tag: {
-          description: "Existing unprefixed SemVer tag",
-          required: true,
-          type: "string",
-        },
-      },
-    },
-  });
-  assertEquals(workflow.permissions, { contents: "read", "id-token": "write" });
-  assertEquals(
-    workflow.concurrency.group,
-    "hj-release-publish-jsr-${{ inputs.tag }}",
-  );
-  const steps = workflow.jobs["publish-jsr"].steps;
-  assertEquals(steps[0].with.ref, "${{ inputs.tag }}");
-  const publish = steps.at(-1);
-  assertEquals(publish.env, {
-    GH_TOKEN: "${{ github.token }}",
-    GITHUB_REPOSITORY: "${{ github.repository }}",
-    HJ_RELEASE_ROUTE: "user",
-    HJ_RELEASE_TAG: "${{ inputs.tag }}",
-  });
-  const github = parse(publishGithubArtifact.content);
-  assertEquals(github.on.repository_dispatch, {
-    types: ["hj-release-publish-tag-success"],
-  });
-});
-
-Deno.test("repair replaces the bot-triggered JSR workflow with member dispatch", async () => {
-  const previous = publishJsrArtifact.content.replace(
-    "on:\n",
-    "on:\n  repository_dispatch:\n    types: [hj-release-publish-tag-success]\n",
-  );
-  const before = context({ [publishJsrArtifact.path]: exact(previous) });
-  assertEquals(
-    (await githubReleasePublishJsrFeature.detect(before)).state,
-    "drifted",
-  );
-  assertEquals(
-    (await githubReleasePublishJsrFeature.checkEnable(before)).result,
-    "blocked",
-  );
-  const repair: OperationContext = {
-    ...before,
-    repair: {
-      kind: "features",
-      featureIds: [githubReleasePublishJsrFeature.metadata.id],
-    },
-  };
-  const allowed = await githubReleasePublishJsrFeature.checkEnable(repair);
-  if (allowed.result !== "allowed") {
-    throw new Error("Expected repair to be allowed");
-  }
-  const plan = await githubReleasePublishJsrFeature.planEnable(repair, allowed);
-  const write = plan.changes.find((change) => change.kind === "write-file");
-  assertEquals(write?.content, publishJsrArtifact.content);
-  assertEquals(write?.expectedDigest, "digest");
 });
 
 Deno.test("JSR publisher migrates exact legacy workflow states without adopting custom data", async () => {
@@ -363,4 +299,57 @@ Deno.test("only the JSR publisher contributes the usual-route pre-tag command", 
       contributions: [],
     }],
   );
+});
+
+Deno.test("JSR publication starts automatically after tag success and supports manual retries", () => {
+  const workflow = parse(publishJsrArtifact.content);
+  assertEquals(Object.keys(workflow.on).sort(), [
+    "repository_dispatch",
+    "workflow_dispatch",
+  ]);
+  assertEquals(workflow.on.repository_dispatch, {
+    types: ["hj-release-publish-tag-success"],
+  });
+  assertEquals(workflow.on.workflow_dispatch.inputs.tag.required, true);
+  assertEquals(workflow.permissions, { contents: "read", "id-token": "write" });
+  const steps = workflow.jobs["publish-jsr"].steps;
+  assertEquals(
+    steps[0].with.ref,
+    "${{ github.event_name == 'repository_dispatch' && github.event.client_payload.releaseSha || inputs.tag }}",
+  );
+  assertEquals(
+    steps.at(-1).env.HJ_RELEASE_ROUTE,
+    "${{ github.event_name == 'repository_dispatch' && 'event' || 'user' }}",
+  );
+});
+
+Deno.test("repair restores automatic publication to a generated manual-only JSR workflow", async () => {
+  const manual = publishJsrArtifact.content.replace(
+    "  repository_dispatch:\n    types: [hj-release-publish-tag-success]\n",
+    "",
+  );
+  const before = context({ [publishJsrArtifact.path]: exact(manual) });
+  assertEquals(
+    (await githubReleasePublishJsrFeature.detect(before)).state,
+    "drifted",
+  );
+  assertEquals(
+    (await githubReleasePublishJsrFeature.checkEnable(before)).result,
+    "blocked",
+  );
+  const repair: OperationContext = {
+    ...before,
+    repair: {
+      kind: "features",
+      featureIds: [githubReleasePublishJsrFeature.metadata.id],
+    },
+  };
+  const allowed = await githubReleasePublishJsrFeature.checkEnable(repair);
+  if (allowed.result !== "allowed") {
+    throw new Error("Expected repair to be allowed");
+  }
+  const plan = await githubReleasePublishJsrFeature.planEnable(repair, allowed);
+  const write = plan.changes.find((change) => change.kind === "write-file");
+  assertEquals(write?.content, publishJsrArtifact.content);
+  assertEquals(write?.expectedDigest, "digest");
 });

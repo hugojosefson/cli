@@ -125,41 +125,16 @@ function publisherArtifact(
   command: string,
   permissions: string,
   allowRun: string,
-  trigger: "member" | "automatic",
   allowNet = "",
 ): { readonly path: string; readonly content: string } {
-  const automatic = trigger === "automatic";
-  const tag = automatic
-    ? "${{ github.event.client_payload.tag || inputs.tag }}"
-    : "${{ inputs.tag }}";
-  const ref = automatic
-    ? "${{ github.event_name == 'repository_dispatch' && github.event.client_payload.releaseSha || inputs.tag }}"
-    : "${{ inputs.tag }}";
-  const route = automatic
-    ? "${{ github.event_name == 'repository_dispatch' && 'event' || 'user' }}"
-    : "user";
-  const releaseEnvironment = automatic
-    ? `          HJ_RELEASE_SCHEMA: \${{ github.event.client_payload.schema }}
-          HJ_RELEASE_SHA: \${{ github.event.client_payload.releaseSha }}
-          HJ_RELEASE_TAG: \${{ github.event_name == 'repository_dispatch' && github.event.client_payload.tag || inputs.tag }}
-          HJ_RELEASE_VERSION: \${{ github.event.client_payload.version }}
-`
-    : `          HJ_RELEASE_TAG: ${tag}\n`;
-  const allowEnv = automatic
-    ? "GITHUB_REPOSITORY,HJ_RELEASE_ROUTE,HJ_RELEASE_SCHEMA,HJ_RELEASE_SHA,HJ_RELEASE_TAG,HJ_RELEASE_VERSION"
-    : "GITHUB_REPOSITORY,HJ_RELEASE_ROUTE,HJ_RELEASE_TAG";
   return {
     path,
     content: `${releaseWorkflowMarker}name: ${name}
 
 on:
-${
-      automatic
-        ? `  repository_dispatch:
+  repository_dispatch:
     types: [hj-release-publish-tag-success]
-`
-        : "  # A JSR scope member starts this workflow with their GitHub account.\n"
-    }  workflow_dispatch:
+  workflow_dispatch:
     inputs:
       tag:
         description: Existing unprefixed SemVer tag
@@ -170,7 +145,7 @@ permissions:
 ${permissions}
 
 concurrency:
-  group: hj-release-publish-${job}-${tag}
+  group: hj-release-publish-${job}-\${{ github.event.client_payload.tag || inputs.tag }}
   cancel-in-progress: false
 
 jobs:
@@ -180,7 +155,7 @@ jobs:
     steps:
       - uses: ${checkout}
         with:
-          ref: ${ref}
+          ref: \${{ github.event_name == 'repository_dispatch' && github.event.client_payload.releaseSha || inputs.tag }}
           fetch-depth: 0
           persist-credentials: false
       - uses: ${deno}
@@ -193,10 +168,14 @@ jobs:
       - env:
           GH_TOKEN: \${{ github.token }}
           GITHUB_REPOSITORY: \${{ github.repository }}
-          HJ_RELEASE_ROUTE: ${route}
-${releaseEnvironment}        run: >-
+          HJ_RELEASE_ROUTE: \${{ github.event_name == 'repository_dispatch' && 'event' || 'user' }}
+          HJ_RELEASE_SCHEMA: \${{ github.event.client_payload.schema }}
+          HJ_RELEASE_SHA: \${{ github.event.client_payload.releaseSha }}
+          HJ_RELEASE_TAG: \${{ github.event_name == 'repository_dispatch' && github.event.client_payload.tag || inputs.tag }}
+          HJ_RELEASE_VERSION: \${{ github.event.client_payload.version }}
+        run: >-
           deno run
-          --allow-env=${allowEnv}
+          --allow-env=GITHUB_REPOSITORY,HJ_RELEASE_ROUTE,HJ_RELEASE_SCHEMA,HJ_RELEASE_SHA,HJ_RELEASE_TAG,HJ_RELEASE_VERSION
           --allow-read=.
 ${allowNet ? `${allowNet}\n` : ""}          --allow-run=${allowRun}
           ${hj}
@@ -212,7 +191,6 @@ export const publishJsrArtifact = publisherArtifact(
   "release publish-jsr",
   "  contents: read\n  id-token: write",
   "deno,git",
-  "member",
   "          --allow-net=api.jsr.io,jsr.io,rekor.sigstore.dev",
 );
 export const publishGithubArtifact = publisherArtifact(
@@ -222,7 +200,6 @@ export const publishGithubArtifact = publisherArtifact(
   "release publish-github",
   "  contents: write",
   "gh,git",
-  "automatic",
 );
 
 export async function inspectReleaseArtifact(

@@ -235,6 +235,29 @@ package. The repository contains no unpublished CLI source.
 | Permissions | The generated permissions allowed Git authentication and the child Deno process to obtain temporary credentials. |
 | Cleanup     | Actions were disabled after the successful run.                                                                  |
 
-This test proves the GitHub identity route used with both JSR restrictions. It
-does not prove that JSR accepts an upload or that registry provenance matches.
-Those checks still need an authorized package publication.
+This test proves the manual retry route used with both JSR restrictions. The
+default automatic route requires the scope to permit publication by the release
+bot. This test does not prove that JSR accepts an upload or that registry
+provenance matches. Those checks still need an authorized package publication.
+
+## Automatic JSR workflow, 2026-09-12
+
+The automatic workflow passed in the same disposable repository. The
+[launcher run](https://github.com/hugojosefson/scratchpad-hj-jsr-identity/actions/runs/34656625560)
+sent the tag-success event with its GitHub Actions token. That event started
+[publisher run 34656635383](https://github.com/hugojosefson/scratchpad-hj-jsr-identity/actions/runs/34656635383)
+without a separate user command for the publisher.
+
+| Check              | Observed result                                                                              |
+| ------------------ | -------------------------------------------------------------------------------------------- |
+| Generated workflow | Used the automatic JSR template, with only the CLI reference replaced by the test script.    |
+| Trigger            | Received `hj-release-publish-tag-success` through `repository_dispatch`.                     |
+| Identity           | GitHub issued credentials with actor `github-actions[bot]` and event `repository_dispatch`.  |
+| Checkout           | Selected the commit for tag `0.0.2`, although `main` pointed to a later commit.              |
+| Permissions        | Git authentication and temporary identity credentials worked with the generated permissions. |
+| Cleanup            | Actions were disabled after both runs succeeded.                                             |
+
+The bot identity explains why automatic publication needs **Do not restrict
+publishing** in JSR. **Require Publishing from CI** remains compatible with this
+route. This test performed no JSR upload, so registry acceptance and provenance
+still need live publication validation.

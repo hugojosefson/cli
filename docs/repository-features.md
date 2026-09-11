@@ -258,18 +258,18 @@ Recognition is a file-management check, not a legal assessment.
 GitHub operations require [GitHub CLI](https://cli.github.com/) authentication
 and an existing repository link. These features do not create repositories.
 
-| Feature                         | Behavior                                                                                                    |
-| ------------------------------- | ----------------------------------------------------------------------------------------------------------- |
-| `github-repo`                   | Detect authenticated access to the linked GitHub repository.                                                |
-| `github-*` settings             | Manage individual repository settings. See the preset table below.                                          |
-| `github-ci`                     | Add PR checks and nightly or manual dependency updates; requires `github-repo` and `deno-fmt`.              |
-| `github-main-protection`        | Require PRs and generated checks on the default branch; block deletion and force-pushes.                    |
-| `github-main-review`            | Require one approval after the last push; dismiss stale approvals. Admin bypass applies only through a PR.  |
-| `github-protected-tags`         | Apply the layered tag rules described in the [release guide](releases.md#tag-policy).                       |
-| `github-protection`             | Select main protection and protected tags. Keep an enabled review layer without selecting it automatically. |
-| `github-release-publish-tag`    | Prepare release PRs and lightweight tags; conflicts with `github-main-review`.                              |
-| `github-release-publish-jsr`    | Publish after member dispatch with temporary GitHub identity credentials; requires `jsr-package`.           |
-| `github-release-publish-github` | Create the GitHub Release after tag publication.                                                            |
+| Feature                         | Behavior                                                                                                     |
+| ------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| `github-repo`                   | Detect authenticated access to the linked GitHub repository.                                                 |
+| `github-*` settings             | Manage individual repository settings. See the preset table below.                                           |
+| `github-ci`                     | Add PR checks and nightly or manual dependency updates; requires `github-repo` and `deno-fmt`.               |
+| `github-main-protection`        | Require PRs and generated checks on the default branch; block deletion and force-pushes.                     |
+| `github-main-review`            | Require one approval after the last push; dismiss stale approvals. Admin bypass applies only through a PR.   |
+| `github-protected-tags`         | Apply the layered tag rules described in the [release guide](releases.md#tag-policy).                        |
+| `github-protection`             | Select main protection and protected tags. Keep an enabled review layer without selecting it automatically.  |
+| `github-release-publish-tag`    | Prepare release PRs and lightweight tags; conflicts with `github-main-review`.                               |
+| `github-release-publish-jsr`    | Publish automatically after tag creation with temporary GitHub identity credentials; requires `jsr-package`. |
+| `github-release-publish-github` | Create the GitHub Release after tag publication.                                                             |
 
 `github-ci` also requires the Actions setting that allows PR creation and
 approval. PR workflow runs created by its dependency updater need approval from
@@ -320,10 +320,10 @@ hj repo features --jsr --yes
 
 The preset preserves repository visibility and does not select GitHub Release
 creation. Add `--github-release-publish-github` when you want that publisher
-too. The JSR workflow requires a scope member to start each upload through
-GitHub Actions. Use both
-[JSR security settings](releases.md#jsr-scope-security). `hj` does not change
-those account settings.
+too. The JSR workflow starts automatically after tag creation. Require CI
+publication and permit the release bot in the
+[JSR scope settings](releases.md#jsr-scope-security). `hj` does not change those
+account settings.
 
 `jsr-package` detects local package configuration without GitHub access. It
 requires a valid scoped name, an exact SemVer version, local export paths, and a
