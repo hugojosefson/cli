@@ -122,7 +122,7 @@ jobs:
 function publisherArtifact(
   path: string,
   name: string,
-  job: string,
+  job: "jsr" | "github",
   command: string,
   permissions: string,
   allowRun: string,
@@ -151,6 +151,11 @@ concurrency:
 
 jobs:
   publish-${job}:
+${
+      job === "jsr"
+        ? "    if: github.event_name == 'workflow_dispatch' || github.sha == github.event.client_payload.releaseSha\n"
+        : ""
+    }\
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -181,9 +186,31 @@ jobs:
 ${allowNet ? `${allowNet}\n` : ""}          --allow-run=${allowRun}
           ${hj}
           ${command}
+${job === "jsr" ? jsrTagDispatch : ""}\
 `,
   };
 }
+
+// repository_dispatch starts on main. A later merge must not change the
+// workflow identity recorded in the package's signed publication provenance.
+const jsrTagDispatch = `  dispatch-tag:
+    if: github.event_name == 'repository_dispatch' && github.sha != github.event.client_payload.releaseSha
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      actions: write
+      contents: read
+    steps:
+      - name: Start publication at the release tag
+        env:
+          GH_TOKEN: \${{ github.token }}
+          GH_REPO: \${{ github.repository }}
+          HJ_RELEASE_TAG: \${{ github.event.client_payload.tag }}
+        run: >-
+          gh workflow run ${publishJsrWorkflow.split("/").at(-1)}
+          --repo "$GH_REPO" --ref "$HJ_RELEASE_TAG"
+          -f "tag=$HJ_RELEASE_TAG"
+`;
 
 export const publishJsrArtifact = publisherArtifact(
   publishJsrWorkflow,

@@ -6,6 +6,63 @@ import {
   publishTagArtifact,
 } from "./github-release-publish-artifacts.ts";
 
+Deno.test("JSR dispatch selects the protected tag without interpreting input as shell code", async () => {
+  const workflow = parse(publishJsrArtifact.content) as {
+    permissions: Record<string, string>;
+    jobs: Record<string, {
+      if: string;
+      permissions?: Record<string, string>;
+      steps: { run: string }[];
+    }>;
+  };
+  assertEquals(workflow.permissions, { contents: "read", "id-token": "write" });
+  const dispatch = workflow.jobs["dispatch-tag"];
+  assertEquals(dispatch.permissions, { actions: "write", contents: "read" });
+  assertEquals(
+    dispatch.if,
+    "github.event_name == 'repository_dispatch' && github.sha != github.event.client_payload.releaseSha",
+  );
+  assertEquals(
+    workflow.jobs["publish-jsr"].if,
+    "github.event_name == 'workflow_dispatch' || github.sha == github.event.client_payload.releaseSha",
+  );
+  const root = await Deno.makeTempDir({
+    dir: "/tmp/opencode",
+    prefix: "hj-dispatch-",
+  });
+  try {
+    await Deno.writeTextFile(
+      `${root}/gh`,
+      "#!/bin/sh\nprintf '%s\\0' \"$@\"\n",
+    );
+    await Deno.chmod(`${root}/gh`, 0o755);
+    const tag = "0.1.0; $(exit 42) `exit 43`";
+    const result = await new Deno.Command("sh", {
+      args: ["-eu", "-c", dispatch.steps[0].run],
+      env: {
+        PATH: `${root}:/usr/bin:/bin`,
+        GH_REPO: "owner/repo",
+        HJ_RELEASE_TAG: tag,
+      },
+    }).output();
+    assertEquals(result.success, true);
+    assertEquals(new TextDecoder().decode(result.stdout).split("\0"), [
+      "workflow",
+      "run",
+      "hj-release-publish-jsr.yaml",
+      "--repo",
+      "owner/repo",
+      "--ref",
+      tag,
+      "-f",
+      `tag=${tag}`,
+      "",
+    ]);
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});
+
 Deno.test("generated release YAML runs one complete command with quoted output paths", async () => {
   const root = await Deno.makeTempDir({
     dir: "/tmp/opencode",
