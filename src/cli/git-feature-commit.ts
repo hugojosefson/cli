@@ -21,14 +21,22 @@ export function plannedCommitPaths(
   return [...new Set(paths)].sort();
 }
 
-/** Fails before mutation when Git cannot identify the commit author. */
+/** Git can resolve both commit identities before a repository exists. */
 export async function requireGitIdentity(root: URL): Promise<void> {
-  const result = await new Deno.Command("git", {
-    args: ["var", "GIT_AUTHOR_IDENT"],
-    cwd: repositoryRoot(root).path,
-  }).output();
-  if (!result.success) {
-    throw new Error("Git author identity is required before changes");
+  for (const role of ["AUTHOR", "COMMITTER"] as const) {
+    const result = await new Deno.Command("git", {
+      args: ["var", `GIT_${role}_IDENT`],
+      cwd: repositoryRoot(root).path,
+    }).output();
+    if (!result.success) {
+      throw new Error(
+        `Git ${role.toLowerCase()} identity is required.\n` +
+          "Set the commit identity, then retry:\n" +
+          '  git config --global user.name "Your Name"\n' +
+          '  git config --global user.email "you@example.com"\n' +
+          "No changes were made.",
+      );
+    }
   }
 }
 
@@ -42,9 +50,11 @@ export function featureCommitPlan(paths: readonly string[]): ChangePlan {
     preconditions: [],
     changes: [{
       kind: "git-commit",
-      message: "chore: configure repository features",
+      message: paths.length
+        ? "chore: configure repository features"
+        : "chore: init repo",
       paths,
-      allowEmpty: false,
+      allowEmpty: paths.length === 0,
     }],
     validations: [],
   };

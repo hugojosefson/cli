@@ -79,11 +79,11 @@ Deno.test("feature rows style names and wrapped details according to state", () 
   );
 });
 
-Deno.test("operation notes distinguish success, warnings, and no changes", () => {
+Deno.test("operation notes distinguish success and no changes", () => {
   for (
     const [committed, initialized, github, code] of [
       [true, false, false, 32],
-      [false, true, false, 33],
+      [true, true, false, 32],
       [false, false, true, 32],
       [false, false, false, 2],
     ] as const

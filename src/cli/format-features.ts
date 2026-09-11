@@ -41,12 +41,12 @@ export function formatFeatureStatus(
 export function formatFeatureResult(
   status: string,
   committed: boolean,
-  initializedWithoutCommit: boolean,
+  initializedGit: boolean,
   githubChanged: boolean,
   color = false,
 ): string {
-  const note = initializedWithoutCommit
-    ? "Git was initialized; no commit was created because identity preflight is unavailable."
+  const note = initializedGit
+    ? "Initialized Git and created the first commit."
     : committed
     ? "Created one commit for planned paths."
     : githubChanged
@@ -55,11 +55,7 @@ export function formatFeatureResult(
   return `${status}\n\n${
     colorText(
       note,
-      initializedWithoutCommit
-        ? "yellow"
-        : committed || githubChanged
-        ? "green"
-        : "dim",
+      committed || githubChanged ? "green" : "dim",
       color,
     )
   }`;

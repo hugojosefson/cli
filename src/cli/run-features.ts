@@ -172,7 +172,7 @@ export async function runFeatureOperation(
     const initializedGit = plans.some((plan) =>
       plan.changes.some((change) => change.kind === "git-init")
     );
-    const commit = beforeGit && paths.length > 0
+    const commit = initializedGit || beforeGit && paths.length > 0
       ? featureCommitPlan(paths)
       : undefined;
     if (commit) {

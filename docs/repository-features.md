@@ -105,13 +105,18 @@ dependent features explicitly before removing their dependency.
 
 Repair can restore starter code and tests. It does not adopt ambiguous files.
 When Git is enabled, a successful local operation validates the plan and commits
-only its planned paths in one Conventional Commit.
+only its planned paths in one Conventional Commit. This also applies when the
+operation initializes Git. Git alone creates an empty `chore: init repo` commit.
+Git with file changes creates one `chore: configure repository features` commit
+that contains those files. Before any changes, `hj` checks that Git can identify
+the author and committer. If either identity is unavailable, the command stops
+and explains how to set it.
 
 ## Deno and Git features
 
 | Feature               | Managed configuration                                                      | Requirement                                    |
 | --------------------- | -------------------------------------------------------------------------- | ---------------------------------------------- |
-| `git`                 | Initialize Git and create an empty `chore: init repo` commit.              | Cannot be removed after commit history exists. |
+| `git`                 | Initialize Git and create the first commit.                                | Cannot be removed after commit history exists. |
 | `deno-fmt`            | Formatting tasks and minimal configuration; create `deno.jsonc` if needed. | None.                                          |
 | `deno-lint`           | A `lint` task that fixes locally and checks without fixes in CI.           | `deno-fmt`.                                    |
 | `deno-typecheck`      | A `typecheck` task.                                                        | `deno-fmt`.                                    |
