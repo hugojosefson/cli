@@ -38,7 +38,6 @@ const gitOid = /^[0-9a-f]{40}(?:[0-9a-f]{24})?$/;
 /** Uses `gh` without exposing its credentials to arguments or environment. */
 export class LocalGithubClient implements GithubWriter {
   readonly #runner: GithubCommandRunner;
-  #authenticated?: Promise<boolean>;
   #repository?: Promise<GithubRepository | undefined>;
 
   constructor(root: URL, runner?: GithubCommandRunner) {
@@ -261,9 +260,6 @@ export class LocalGithubClient implements GithubWriter {
   }
 
   async #loadRepository(): Promise<GithubRepository | undefined> {
-    if (!await this.#isAuthenticated()) {
-      return undefined;
-    }
     const output = await this.#run([
       "repo",
       "view",
@@ -449,18 +445,6 @@ export class LocalGithubClient implements GithubWriter {
         `repos/${repository.owner}/${repository.name}/rulesets/${id}`,
       ]);
     }
-  }
-
-  #isAuthenticated(): Promise<boolean> {
-    this.#authenticated ??= this.#loadAuthentication();
-    return this.#authenticated;
-  }
-
-  async #loadAuthentication(): Promise<boolean> {
-    const output = await this.#run(["api", "user"]);
-    const value = output && json(output) as { login?: unknown };
-    return typeof value?.login === "string" &&
-      value.login.length > 0;
   }
 
   async #repositorySettings(

@@ -48,6 +48,12 @@ export function githubCommandFailure(
     try {
       const body = JSON.parse(new TextDecoder().decode(result.stdout));
       if (
+        typeof body.message === "string" &&
+        body.message.startsWith("API rate limit exceeded")
+      ) {
+        return "GitHub API rate limit reached. Wait for the limit to reset, then retry.";
+      }
+      if (
         body.message ===
           "Upgrade to GitHub Pro or make this repository public to enable this feature."
       ) {
