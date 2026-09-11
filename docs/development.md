@@ -121,11 +121,15 @@ The source follows the flow from a request to a guarded change:
 | `src/readme/`       | README includes and document assembly.                                    |
 | `src/release/`      | Release preparation, application, recovery, and publishers.               |
 
-`validate-feature-registry.ts` checks feature declarations.
-`resolve-feature-changes.ts` provides the pure resolver.
-`resolve-registry-changes.ts` selects dependencies and capability providers.
-`order-feature-changes.ts` orders operations. The resolver does not write files,
-keep feature history, or remove unused dependencies.
+| Module                         | Responsibility                                |
+| ------------------------------ | --------------------------------------------- |
+| `validate-feature-registry.ts` | Check feature declarations.                   |
+| `resolve-feature-changes.ts`   | Resolve a request without external effects.   |
+| `resolve-registry-changes.ts`  | Select dependencies and capability providers. |
+| `order-feature-changes.ts`     | Order operations.                             |
+
+The resolver does not write files, keep feature history, or remove unused
+dependencies.
 
 GitHub transport, response parsing, and canonical ruleset comparison have
 separate modules. A canonical representation puts equivalent data in the same
@@ -140,6 +144,41 @@ synthetic checks, which are check runs that `hj` creates. `apply-observation.ts`
 handles bounded polling and uncertain requests. `apply-cleanup.ts` owns cleanup
 after failure or collision. The [release guide](releases.md#design-constraints)
 owns the release invariants.
+
+## Self-check and README choice
+
+The CLI was tested against this repository on 2026-09-11. Its status table
+reports managed features, not a general inventory of programming languages. The
+Details column explains custom configuration that cannot be adopted.
+
+| Feature                  | Result on this repository | Explanation                                                                                   |
+| ------------------------ | ------------------------- | --------------------------------------------------------------------------------------------- |
+| Git                      | Enabled                   | This is a Git repository.                                                                     |
+| Static README            | Enabled                   | The root README is writable.                                                                  |
+| Built README             | Disabled                  | There are no include sources or build tasks.                                                  |
+| MIT license              | Enabled                   | LICENSE uses the pinned template and a recognized README link.                                |
+| Version provider         | Enabled                   | `deno.json` contains an exact SemVer version.                                                 |
+| Formatting, lint, tests  | Drifted                   | Local tasks include project-specific paths, frozen dependencies, and the test runner.         |
+| Typecheck feature        | Disabled                  | Type checking runs through the local `check` task; there is no generated `typecheck` task.    |
+| Library                  | Drifted                   | The default export is the CLI, not the generated library entry point.                         |
+| Generated CLI and server | Disabled                  | The managed `./cli` and `./server` exports are absent.                                        |
+| JSR package feature      | Ambiguous                 | Package metadata exists, but there is no linked GitHub repository or managed publishing task. |
+| GitHub features          | Disabled                  | This repository is not published or linked to GitHub.                                         |
+
+LICENSE was aligned with the pinned template by changing whitespace only. Its
+file mode was set to `0644`. The README uses the managed license link, while
+copyright attribution remains in LICENSE. The Deno export uses object syntax
+with the same default entry point.
+
+Keep the static README. It has one source, links to separate guides, and no
+repeated fragments that need includes. Building it would add a generated file, a
+source directory, and a versioned task without removing duplicated content.
+Reconsider `readme-build` if the README needs shared fragments or generated
+reference material.
+
+Do not run broad repair just to make this table say enabled. Starter repair can
+replace custom tasks and code. Missing GitHub features remain disabled until
+publication is authorized.
 
 ## First public release
 

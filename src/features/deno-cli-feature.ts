@@ -21,18 +21,18 @@ import { isObject } from "./deno-tasks.ts";
 async function detectDenoCli(context: DetectionContext) {
   const config = await inspectDenoConfig(context);
   if (config.kind === "absent") {
-    return simple("disabled", "The CLI export is absent.");
+    return simple("disabled", "The managed ./cli export is absent.");
   }
   if (config.kind === "ambiguous") {
     return issue("ambiguous", config.observation);
   }
   if (!isObject(config.value.exports)) {
     return config.value.exports === undefined
-      ? simple("disabled", "The CLI export is absent.")
+      ? simple("disabled", "The managed ./cli export is absent.")
       : issue("ambiguous", "The Deno exports entry is not an object.");
   }
   if (config.value.exports["./cli"] === undefined) {
-    return simple("disabled", "The CLI export is absent.");
+    return simple("disabled", "The managed ./cli export is absent.");
   }
   if (config.value.exports["./cli"] !== denoCliExport) {
     return issue("drifted", "The CLI export differs.");

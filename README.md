@@ -82,4 +82,4 @@ operations. `hj` uses installed tools and does not install them for you.
 
 ## License
 
-[MIT](LICENSE), copyright 2026 Hugo Josefson.
+[MIT](./LICENSE)

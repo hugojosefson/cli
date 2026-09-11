@@ -61,8 +61,8 @@ Deno.test("readme-build composes existing config and simultaneous removal", asyn
       "--yes",
     ]);
     const status = (await runCli(root, ["repo", "features"])).output;
-    assertStringIncludes(status, "deno-fmt: disabled");
-    assertStringIncludes(status, "readme-build: disabled");
+    assertStringIncludes(status.replace(/ +/g, " "), "deno-fmt disabled");
+    assertStringIncludes(status.replace(/ +/g, " "), "readme-build disabled");
     assertEquals(await read(root, "README.md"), "# Existing config\n");
   });
 });
@@ -125,7 +125,7 @@ Deno.test("readme-build rejects ambiguous source paths without traversing them",
     await Deno.mkdir(target);
     await symlink(target, new URL("readme", root));
     const status = (await runCli(root, ["repo", "features"])).output;
-    assertStringIncludes(status, "readme-build: ambiguous");
+    assertStringIncludes(status.replace(/ +/g, " "), "readme-build ambiguous");
     await assertRejects(
       () => runCli(root, ["repo", "features", "--readme-build"]),
       Error,

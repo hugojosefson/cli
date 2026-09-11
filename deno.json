@@ -2,7 +2,9 @@
   "name": "@hugojosefson/cli",
   "version": "0.0.0",
   "license": "MIT",
-  "exports": "./src/cli/cli.ts",
+  "exports": {
+    ".": "./src/cli/cli.ts"
+  },
   "publish": {
     "include": [
       "src",

@@ -23,18 +23,18 @@ import {
 async function detectDenoServer(context: DetectionContext) {
   const config = await inspectDenoConfig(context);
   if (config.kind === "absent") {
-    return simple("disabled", "The server export is absent.");
+    return simple("disabled", "The managed ./server export is absent.");
   }
   if (config.kind === "ambiguous") {
     return issue("ambiguous", config.observation);
   }
   if (!isObject(config.value.exports)) {
     return config.value.exports === undefined
-      ? simple("disabled", "The server export is absent.")
+      ? simple("disabled", "The managed ./server export is absent.")
       : issue("ambiguous", "The Deno exports entry is not an object.");
   }
   if (config.value.exports["./server"] === undefined) {
-    return simple("disabled", "The server export is absent.");
+    return simple("disabled", "The managed ./server export is absent.");
   }
   if (config.value.exports["./server"] !== denoServerExport) {
     return issue("drifted", "The server export differs.");

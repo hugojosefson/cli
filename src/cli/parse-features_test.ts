@@ -110,7 +110,9 @@ Deno.test("formats statuses by stable feature ID", () => {
           evidence: [],
         }]),
       ),
-    ),
+    ).split("\n").slice(2).map((line) =>
+      line.trim().split(/ +/).slice(0, 2).join(": ")
+    ).join("\n"),
     builtInFeatureRegistry.features.map((feature) => feature.metadata.id).sort()
       .map((id) => `${id}: ${id === "git" ? "enabled" : "disabled"}`).join(
         "\n",

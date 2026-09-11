@@ -1,237 +1,248 @@
 # Releases
 
 This guide describes release setup, operation, and recovery. Generated workflows
-use the exact `hj` package version that generated them. That version must be
-available on [JSR](https://jsr.io/@hugojosefson/cli). The
-[live validation record](live-validation.md) describes completed checks and
-limits.
+use the exact `hj` version that generated them. That version must be available
+on [JSR](https://jsr.io/@hugojosefson/cli).
 
 ## Setup and workflow roles
 
-A source PR contains developer commits and targets `main`. A release PR contains
-the generated version and changelog changes. The release features use separate
-workflows:
+A source PR contains developer commits. A release PR contains generated version
+and changelog changes. Both target `main`.
 
-| Feature                         | Workflow file under `.github/workflows/` | Role                                       |
-| ------------------------------- | ---------------------------------------- | ------------------------------------------ |
-| `github-ci`                     | `hj-ci.yaml`                             | Run source checks and commit validation.   |
-| `github-release-publish-tag`    | `hj-release-publish-tag.yaml`            | Prepare, apply, and recover a release tag. |
-| `github-release-publish-jsr`    | `hj-release-publish-jsr.yaml`            | Publish the tagged package to JSR.         |
-| `github-release-publish-github` | `hj-release-publish-github.yaml`         | Create the GitHub Release object.          |
+| Feature                         | Workflow under `.github/workflows/` | Role                                       |
+| ------------------------------- | ----------------------------------- | ------------------------------------------ |
+| `github-ci`                     | `hj-ci.yaml`                        | Run source checks and commit validation.   |
+| `github-release-publish-tag`    | `hj-release-publish-tag.yaml`       | Prepare, apply, and recover a release tag. |
+| `github-release-publish-jsr`    | `hj-release-publish-jsr.yaml`       | Publish the tagged package to JSR.         |
+| `github-release-publish-github` | `hj-release-publish-github.yaml`    | Create the GitHub Release.                 |
 
-The [feature guide](repository-features.md) describes selection and direct
-dependencies. Tag publication requires a version provider, CI, compatible main
-protection, and protected tags. The current version provider reads one Deno
-configuration with an exact SemVer version. SemVer is a version format such as
-`1.2.3`. The JSR publisher also requires a JSR package.
+The [feature guide](repository-features.md) owns feature dependencies. SemVer is
+a version format such as `1.2.3`.
 
-Tag publication requires rebase-only PR merges and zero mandatory approvals
-across effective protection rules. It cannot coexist with `github-main-review`.
-The repository must enable auto-merge and allow GitHub Actions to create pull
-requests. That Actions setting also permits review approval, but these workflows
-do not create review approvals. If the repository uses `CODEOWNERS`, include the
-generated workflow files.
+| Setup requirement                       | Reason                                                                    |
+| --------------------------------------- | ------------------------------------------------------------------------- |
+| One Deno version configuration          | Supply the exact SemVer release version.                                  |
+| Generated CI                            | Validate source commits and project checks.                               |
+| Compatible main protection              | Require the two release checks and rebase-only PR merges.                 |
+| Protected tags                          | Allow tag creation while blocking later changes.                          |
+| Zero required approvals                 | Allow the generated release PR to merge unattended.                       |
+| Auto-merge enabled                      | Let GitHub merge after the checks pass.                                   |
+| Actions allowed to create PRs           | Permit the release workflow to create its PR.                             |
+| No `github-main-review`                 | This review feature conflicts with unattended releases.                   |
+| Workflow files in `CODEOWNERS`, if used | Cover the generated workflow files in the repository's ownership policy.  |
+| JSR package linked to GitHub            | Required for the JSR publisher. Disable its actor-membership requirement. |
 
-For JSR publication, connect the package to the GitHub repository and disable
-its actor-membership requirement. The publisher uses OIDC, which gives the
-workflow temporary identity credentials. The workflows use `GITHUB_TOKEN`
-through environment variables and do not store checkout credentials. The prepare
-job has read access, the apply job can write checks and PRs, and only the JSR
-job requests OIDC. The GitHub Release job has repository write access.
+The Actions PR setting also permits review approval, but these workflows do not
+create review approvals. OIDC gives the JSR workflow temporary identity
+credentials. Credentials are not stored by checkout.
+
+| Job                      | Access                               |
+| ------------------------ | ------------------------------------ |
+| Prepare                  | Read repository data.                |
+| Apply                    | Write release refs, checks, and PRs. |
+| JSR publisher            | Request OIDC credentials.            |
+| GitHub Release publisher | Write repository release data.       |
 
 ## Normal release
 
-A source merge starts the tag workflow on `main`. Preparation selects the
-current `main`, validates source commits, and builds the candidate release tree.
-A tree is the complete set of tracked file contents and modes. Preparation runs
-the project's checks before it returns the release bundle. A bundle is validated
-data that describes the exact release changes.
+A tree is the complete set of tracked file contents and modes. A release bundle
+is validated data describing the exact proposed changes.
 
-Application uses a fresh checkout and compares `main` with the selected commit.
-It recreates the candidate tree and reserves `release-<version>` and its release
-PR. It creates two in-progress synthetic checks on the release commit. These
-checks use contexts `check` and `hj-release-commit-validation`.
+| Phase             | Work                                                                                              |
+| ----------------- | ------------------------------------------------------------------------------------------------- |
+| Source merge      | Start the tag workflow on `main`.                                                                 |
+| Prepare           | Select current `main`, validate source commits, build the candidate tree, and run project checks. |
+| Reserve           | Recreate the tree in a fresh checkout and reserve `release-<version>` with its PR.                |
+| Block             | Create in-progress `check` and `hj-release-commit-validation` checks on the exact PR head.        |
+| Request merge     | Wait for the blocked state, then enable rebase auto-merge for that head.                          |
+| Complete checks   | Mark both synthetic checks successful and wait for GitHub to merge.                               |
+| Validate merge    | Confirm the rebased commit's parent, tree, and release files.                                     |
+| Publish tag       | Create the lightweight tag and remove the owned release branch.                                   |
+| Notify publishers | Send `hj-release-publish-tag-success`; each publisher runs independently.                         |
 
-After GitHub reports the release PR blocked by those checks, `hj` requests
-rebase auto-merge for the exact PR head. It then completes the checks and waits
-for the merge. It validates the rebased release commit, creates the tag, removes
-the owned release branch, and sends `hj-release-publish-tag-success`. That event
-starts the two publishers independently.
+The release commit subject is `chore(release): <version>`. Publishers compare
+remote state with the checkout before writing. Matching existing objects can be
+reused. Conflicting objects stop the operation.
 
-The tag is lightweight and has no prefix, for example `1.2.3`. GitHub permits
-creation of tags matching `[0-9]*.[0-9]*.[0-9]*` and blocks updates and deletion
-by the workflow token. Administrators retain a bypass. Other tag names require
-the administrator bypass to create, update, or delete. The wildcard is broader
-than SemVer: a direct GitHub API request can create `01.2.3`, but `hj` rejects
-it. Exact SemVer validation belongs to the CLI; the managed rules do not require
-Enterprise-only tag-name restrictions. The release commit subject is
-`chore(release): <version>`. Each publisher compares the remote tag, checkout,
-version, and existing published data before changes. Correct existing objects
-can be reused. Conflicting objects stop the operation.
+## Tag policy
+
+| Property                | Rule                                                               |
+| ----------------------- | ------------------------------------------------------------------ |
+| Tag format              | Lightweight, unprefixed SemVer, such as `1.2.3`.                   |
+| GitHub creation pattern | `[0-9]*.[0-9]*.[0-9]*`                                             |
+| Workflow token          | Can create matching tags; cannot update or delete them.            |
+| Other tag names         | Require an administrator bypass for creation, update, or deletion. |
+| Administrator           | Retains a tag-rule bypass.                                         |
+| Exact SemVer validation | Enforced by `hj`, not by the GitHub wildcard.                      |
+
+The wildcard is broader than SemVer. A direct GitHub API request can create
+`01.2.3`, but `hj` rejects it. The managed rules need no Enterprise-only
+tag-name restrictions.
 
 ## Retry and recovery
 
-The following commands apply to a configured remote repository after
-publication. If a release PR merged without a correct tag or success event,
-rerun the tag workflow with its version:
+Use [GitHub CLI](https://cli.github.com/) with a configured remote repository.
+Rerun only the route that needs recovery:
 
-```bash
-gh workflow run hj-release-publish-tag.yaml -f tag=1.2.3
-```
+| Problem                                                    | Command                                                       |
+| ---------------------------------------------------------- | ------------------------------------------------------------- |
+| Release PR merged, but its tag or success event is missing | `gh workflow run hj-release-publish-tag.yaml -f tag=1.2.3`    |
+| JSR publisher failed                                       | `gh workflow run hj-release-publish-jsr.yaml -f tag=1.2.3`    |
+| GitHub Release publisher failed                            | `gh workflow run hj-release-publish-github.yaml -f tag=1.2.3` |
 
-If one publisher fails, rerun only that publisher:
+Recovery requires exactly one matching release commit on `main`. It verifies the
+tree and any existing tag. Branch removal requires matching head and PR
+ownership. Lost write responses are resolved by reading the remote state again.
+The success event can repeat, so publishers must accept matching existing data.
 
-```bash
-gh workflow run hj-release-publish-jsr.yaml -f tag=1.2.3
-gh workflow run hj-release-publish-github.yaml -f tag=1.2.3
-```
+| Merge order          | Recovery behavior                                                                                                                                     |
+| -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Source merges first  | Disable the exact auto-merge request, remove the owned branch with an expected-head guard, and close the PR. Prepare again from the new source state. |
+| Release merges first | Update the source PR against the new `main` and rerun its checks.                                                                                     |
 
-Recovery requires exactly one matching release commit on `main`. It confirms the
-release tree and the target of any existing tag. It removes a release branch
-only when the branch head and PR ownership agree. It can repeat the success
-event, so publishers must accept correct existing data. An interrupted write is
-confirmed with a new read before another change.
-
-If a source merge wins a race with the release PR, application disables its
-exact auto-merge request. It removes the owned branch with an expected-head
-guard and closes the owned PR. The next tag workflow prepares the new source
-state. If the release merges first, update the source PR against the new `main`
-and rerun its checks. Do not replace a conflicting tag or delete an unknown
-release branch to force recovery.
+Do not overwrite a conflicting tag or delete an unknown release branch to force
+recovery.
 
 ## Remove release features
 
-Disable the active publishers and tag publication in one feature operation. The
-resolver orders publisher workflow removal before tag workflow removal. It
-blocks removal while workflow runs, owned PRs, release branches, or untagged
-releases remain active. Unavailable or ambiguous remote data also blocks
-removal.
+| Step | Action                                                                                                         |
+| ---- | -------------------------------------------------------------------------------------------------------------- |
+| 1    | Disable active publishers and tag publication in one feature operation. Publisher workflows are removed first. |
+| 2    | Merge the workflow removal into `main`.                                                                        |
+| 3    | Disable `github-protected-tags` in a separate operation.                                                       |
 
-Merge the workflow removal into `main` before disabling `github-protected-tags`
-in a separate operation. The second operation requires the remote tag workflow
-to be absent and repeats the inactive-state checks. It removes only exact
-generated tag rulesets. Removal keeps changelogs, version files, tags, releases,
-and published packages.
+Removal is blocked by active workflow runs, owned PRs, release branches, or
+untagged releases. Unavailable or ambiguous remote data also blocks removal. The
+final step requires the remote tag workflow to be absent and repeats the
+inactive-state checks.
+
+Removal deletes only exact generated rulesets and workflow files. It preserves
+published packages, releases, tags, changelogs, and version files.
 
 ## Migration and repair
 
 `github-release-publish-jsr` replaces the legacy `jsr-release` feature. Enable
-or repair migrates an exact `.github/workflows/hj-release.yaml` file. Custom
-data blocks migration. Legacy template bytes remain fixed for recognition.
-Current workflow templates use the version policy in the
-[development guide](development.md#ci-and-toolchain-changes).
+or repair can migrate the exact `.github/workflows/hj-release.yaml` template.
+Custom content blocks migration. Legacy template bytes stay fixed for
+recognition.
 
-CI and protection repairs must preserve runnable required checks throughout
-their operation order. Generated-file ownership alone does not permit replacing
-unknown custom content. The feature checks and tests define supported partial
-states and safe retry behavior. The protection preset retains an enabled
-main-review feature but does not select it automatically.
+| Constraint               | Required behavior                                                                 |
+| ------------------------ | --------------------------------------------------------------------------------- |
+| CI and protection repair | Keep required checks runnable throughout the operation order.                     |
+| Unknown custom content   | Preserve it rather than claim ownership.                                          |
+| Partial state            | Use the states and retries supported by feature checks and tests.                 |
+| Protection preset        | Retain an enabled review feature without selecting it automatically.              |
+| New template versions    | Follow the [development version policy](development.md#ci-and-toolchain-changes). |
 
 ## Design constraints
 
-The following constraints guide implementation and review. Detailed response
-schemas live beside their parsers and tests, rather than in a duplicate prose
-schema. Local tests cover these decisions with real Git refs and injected GitHub
-operations. The [live validation list](planned.md#remaining-live-validation)
-covers behavior that needs the remote services.
+Response schemas live beside their parsers and tests. The tables below record
+behavior rather than duplicate those schemas. Local tests use real Git refs and
+injected GitHub responses. The [live validation record](live-validation.md)
+describes the remote checks and their limits.
 
 ### Versions and candidate files
 
-Every source commit in the selected range must use an accepted Conventional
-Commit message. A breaking change selects major, `feat` selects minor, and other
-accepted types select patch. Breaking changes below `1.0.0` also select major.
-An empty commit range needs no release. The highest applicable release tag
-supplies the previous version, with conflicts rejected. The first release uses
-the version-file baseline when no applicable release tag exists.
+| Input                                    | Selected release                               |
+| ---------------------------------------- | ---------------------------------------------- |
+| Breaking change                          | Major, including below `1.0.0`.                |
+| `feat`                                   | Minor, unless a breaking change selects major. |
+| Other accepted Conventional Commit types | Patch.                                         |
+| Empty commit range                       | No release.                                    |
+| Invalid source commit message            | Stop preparation.                              |
 
-The `fork-version` adapter uses the version locked in `deno.json`. It receives
-the selected release type and does not make commits or tags. Only usual
-preparation loads that dependency. The apply route and publishers do not import
-it. The adapter's contract tests cover stable, prerelease, and build-metadata
-versions.
+The highest applicable release tag supplies the previous version. Conflicting
+tags are rejected. Without a previous tag, use the version-file baseline. Only
+usual preparation loads `fork-version`; it receives the selected release type
+and makes no commits or tags.
 
-Only the selected Deno version file and `CHANGELOG.md` can change in a candidate
-release. Formatting must preserve previous changelog bytes. The new section is
-inserted after the heading and preamble. The bundle carries old and new digests,
-exact changed paths, insertion data, and the candidate tree digest. It does not
-contain the final rebased commit SHA.
-
-The wire format uses canonical minified JSON, base64url encoding, and a SHA-256
-digest. Preparation limits all GitHub outputs together to the one-megabyte
-UTF-16 size limit. There is no artifact fallback for an oversized bundle.
-Application receives the bundle through environment variables, not interpolated
-shell source. Before remote writes, application compares previous release
-selection, local files, and the staged tree against the bundle.
+| Candidate constraint | Required behavior                                                                   |
+| -------------------- | ----------------------------------------------------------------------------------- |
+| Changed files        | Only the selected Deno version file and `CHANGELOG.md`.                             |
+| Changelog            | Preserve prior bytes; insert the new section after the heading and preamble.        |
+| Bundle               | Carry digests, changed paths, insertion data, and candidate tree digest.            |
+| Final commit SHA     | Excluded from the bundle because rebase has not occurred.                           |
+| Encoding             | Canonical minified JSON, encoded as base64url with a SHA-256 digest.                |
+| Output size          | Keep all GitHub outputs within the one-megabyte UTF-16 limit; no artifact fallback. |
+| Application input    | Pass the bundle through environment variables, never interpolated shell source.     |
+| Before writes        | Compare prior release selection, local files, and staged tree with the bundle.      |
 
 ### Ownership, checks, and time limits
 
-A release PR body carries schema, selected SHA, version, branch head, and tree
-digest. Reserved names are not proof of ownership. Application compares the
-marker, head, parent, subject, and tree before it reuses or removes release
-data. A final release commit must have the selected source commit as its only
-parent. Its tree and release files must match the bundle.
+Reserved names do not prove ownership. The PR marker and observed Git data must
+agree before release data is reused or removed.
 
-The exact required contexts belong to GitHub Actions App `15368`. The main rules
-require strict status checks, rebase-only PR merges, resolved review threads,
-and zero approvals. They prevent main deletion and force-pushes. Effective
-protection includes inherited rulesets and legacy branch protection. Unknown
-conditions or rules block publication instead of being ignored.
+| Ownership data           | Check                                                                                                           |
+| ------------------------ | --------------------------------------------------------------------------------------------------------------- |
+| PR marker                | Schema, selected SHA, version, branch head, and tree digest.                                                    |
+| Candidate commit         | Head, parent, subject, and tree match the prepared data.                                                        |
+| Rebased commit           | Selected source commit is its only parent; tree and release files match the bundle.                             |
+| Required checks          | Only the two managed contexts, from GitHub Actions App `15368`.                                                 |
+| Main rules               | Strict checks, rebase-only PRs, resolved review threads, zero approvals, and no deletion or force-push.         |
+| Effective protection     | Include inherited rulesets and legacy branch protection; unknown rules block publication.                       |
+| Synthetic check identity | Schema, run, attempt, context, bundle digest, and release SHA.                                                  |
+| Check replacement        | Start new checks before neutralizing old owned checks.                                                          |
+| Auto-merge owner         | GraphQL `Bot` named `github-actions`, using `REBASE` and the expected head.                                     |
+| Cleanup                  | Recheck ownership before disabling auto-merge or canceling checks; delete branches with an expected-head guard. |
 
-Synthetic check IDs identify the schema, workflow run, attempt, context, bundle
-digest, and release SHA. New checks start in progress before older owned checks
-are neutralized. An auto-merge request must use `REBASE`, the expected head, and
-the GraphQL `Bot` actor named `github-actions`. The code never performs a direct
-PR merge or merges after a timeout.
+| Wait                 | Interval       | Limit                                  |
+| -------------------- | -------------- | -------------------------------------- |
+| Request confirmation | 5 seconds      | 1 minute                               |
+| Merge                | 10 seconds     | 29-minute overall application deadline |
+| Workflow job         | Not applicable | 30 minutes                             |
 
-Request confirmation polls every five seconds for up to one minute. The merge
-wait polls every ten seconds within a 29-minute overall application deadline.
-Workflow jobs have a 30-minute limit. Cleanup rereads ownership before disabling
-auto-merge or canceling checks. A branch deletion uses an exact expected-head
-guard. Cleanup errors remain errors, so uncertain cleanup does not look
-successful.
+The code never directly merges a PR or merges after timeout. Uncertain cleanup
+remains an error.
 
 ### Events and publisher consistency
 
-The success event contains schema `1`, version, tag, and release SHA. A
-publisher validates every event field before process or API effects. Manual
-publisher runs require an existing unprefixed SemVer tag. Both routes require
-agreement between the remote tag, checkout, and version file.
+| Publisher input | Validation                                                                  |
+| --------------- | --------------------------------------------------------------------------- |
+| Success event   | Validate schema `1`, version, tag, and release SHA before external effects. |
+| Manual run      | Require an existing unprefixed SemVer tag.                                  |
+| Either route    | Remote tag, checkout, and version file must agree.                          |
 
-JSR publication runs a dry run before publication. An existing version must
-match local module digests and the expected GitHub provenance. Provenance is
-evidence of the workflow that built the package. The comparison includes
-repository, workflow, event route, and release commit. The publisher stops if
-published data differs.
+| Publisher      | Existing data must match                                                             |
+| -------------- | ------------------------------------------------------------------------------------ |
+| JSR            | Local module digests and expected GitHub provenance.                                 |
+| GitHub Release | Version title, matching changelog section, draft=false, and correct prerelease flag. |
 
-A GitHub Release uses the version title and the matching changelog section. It
-is not a draft. Only prerelease identifiers set the prerelease flag. Build
-metadata does not. The command accepts an existing release only when all
-expected fields agree.
+Provenance identifies the workflow that built the package. JSR comparison checks
+the repository, workflow, event route, and release commit. Publication runs a
+dry run first. Any difference in published data stops the operation. Only
+prerelease identifiers set the GitHub prerelease flag; build metadata does not.
 
 Tag preparation and application share one concurrency group for `main`. Each
-publisher has a separate group for its tag, with active runs kept alive. The
-implementation assumes token-triggered event behavior described by the generated
-workflows. The [live validation record](live-validation.md) describes the tested
-GitHub behavior and the remaining limits.
+publisher has a separate group per tag, with active runs kept alive.
 
 ## Command environment
 
-Release commands are workflow adapters, not ordinary local release shortcuts.
-Their generated workflows supply the required variables and narrowly scoped
-permissions. The following table gives the route inputs. `GITHUB_OUTPUT` and
-`GITHUB_STEP_SUMMARY` are optional output paths.
+These commands are workflow adapters. Generated workflows supply their inputs
+and permissions. `GITHUB_OUTPUT` and `GITHUB_STEP_SUMMARY` are optional paths.
 
-| Command or route                                | Inputs                                                                                                                                                     |
-| ----------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Source validation through `publish-tag-prepare` | `HJ_RELEASE_ROUTE=source-validation`, `HJ_SOURCE_BASE_SHA`, `HJ_SOURCE_HEAD_SHA`                                                                           |
-| Usual preparation                               | `HJ_RELEASE_ROUTE=usual`                                                                                                                                   |
-| Recovery preparation                            | `HJ_RELEASE_ROUTE=recovery`, `HJ_RELEASE_TAG`                                                                                                              |
-| Usual application                               | `HJ_RELEASE_ROUTE=usual`, `HJ_RELEASE_BUNDLE`, `HJ_RELEASE_BUNDLE_DIGEST`, `GITHUB_REPOSITORY`, `GITHUB_SERVER_URL`, `GITHUB_RUN_ID`, `GITHUB_RUN_ATTEMPT` |
-| Recovery application                            | `HJ_RELEASE_ROUTE=recovery`, `HJ_RELEASE_BUNDLE`, `HJ_RELEASE_BUNDLE_DIGEST`, `GITHUB_REPOSITORY`                                                          |
-| Publisher event                                 | `HJ_RELEASE_ROUTE=event`, `HJ_RELEASE_SCHEMA`, `HJ_RELEASE_VERSION`, `HJ_RELEASE_TAG`, `HJ_RELEASE_SHA`, `GITHUB_REPOSITORY`                               |
-| Publisher manual run                            | `HJ_RELEASE_ROUTE=user`, `HJ_RELEASE_TAG`, `GITHUB_REPOSITORY`                                                                                             |
+| Route                                           | `HJ_RELEASE_ROUTE`  |
+| ----------------------------------------------- | ------------------- |
+| Source validation through `publish-tag-prepare` | `source-validation` |
+| Normal preparation or application               | `usual`             |
+| Recovery preparation or application             | `recovery`          |
+| Publisher success event                         | `event`             |
+| Manual publisher                                | `user`              |
 
-The template source is
-[github-release-publish-artifacts.ts](../src/features/github-release-publish-artifacts.ts).
-Command names and usage live in CLI help. Environment validation belongs in the
-adapters and publisher input tests.
+| Variable                   | Used by                                           |
+| -------------------------- | ------------------------------------------------- |
+| `HJ_SOURCE_BASE_SHA`       | Source validation                                 |
+| `HJ_SOURCE_HEAD_SHA`       | Source validation                                 |
+| `HJ_RELEASE_TAG`           | Recovery preparation and both publisher routes    |
+| `HJ_RELEASE_BUNDLE`        | Both application routes                           |
+| `HJ_RELEASE_BUNDLE_DIGEST` | Both application routes                           |
+| `GITHUB_REPOSITORY`        | Both application routes and both publisher routes |
+| `GITHUB_SERVER_URL`        | Usual application                                 |
+| `GITHUB_RUN_ID`            | Usual application                                 |
+| `GITHUB_RUN_ATTEMPT`       | Usual application                                 |
+| `HJ_RELEASE_SCHEMA`        | Publisher event                                   |
+| `HJ_RELEASE_VERSION`       | Publisher event                                   |
+| `HJ_RELEASE_SHA`           | Publisher event                                   |
+
+The [template source](../src/features/github-release-publish-artifacts.ts)
+provides the exact commands. CLI help owns command usage. Input validation and
+its tests belong to the workflow adapters.

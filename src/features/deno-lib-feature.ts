@@ -35,7 +35,10 @@ async function detectDenoLib(context: DetectionContext) {
     return issue("ambiguous", "The Deno exports entry is not an object.");
   }
   if (exports["."] !== denoLibExport) {
-    return issue("drifted", "The library export differs.");
+    return issue(
+      "drifted",
+      "The default export differs from the generated library entry point.",
+    );
   }
   const artifacts = await inspectDenoLibArtifacts(context);
   const invalid = artifacts.find((item) => item.result !== "matches");

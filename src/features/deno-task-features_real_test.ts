@@ -17,7 +17,7 @@ Deno.test("repairs task and aggregate drift without dropping contributions", asy
 
     const repaired = await run(root, "--repair");
     for (const id of ["deno-fmt", ...taskIds]) {
-      assert(repaired.includes(`${id}: enabled`), repaired);
+      assert(repaired.replace(/ +/g, " ").includes(`${id} enabled`), repaired);
     }
     config = await readConfig(root);
     assertEquals(config.tasks.fmt, denoTaskDefinitions().fmt);
@@ -59,7 +59,7 @@ Deno.test("preserves JSONC comments and custom tasks", async () => {
 
     const result = await Deno.readTextFile(new URL("deno.jsonc", root));
     const config = parse(result) as { tasks: Record<string, unknown> };
-    assert(result.includes("// keep this comment"));
+    assert(result.replace(/ +/g, " ").includes("// keep this comment"));
     assertEquals(config.tasks.custom, { command: "deno eval 'custom'" });
     assertEquals(
       config.tasks.check,
@@ -106,24 +106,24 @@ Deno.test("classifies task conflicts", async (t) => {
   const cases = [{
     name: "missing tasks are disabled and enable is allowed",
     config: {},
-    expected: "deno-lint: disabled",
+    expected: "deno-lint disabled",
     enabled: true,
   }, {
     name: "non-object tasks are ambiguous and blocked",
     config: { tasks: [] },
-    expected: "deno-lint: ambiguous",
+    expected: "deno-lint ambiguous",
     enabled: false,
   }, {
     name: "non-object leaf is ambiguous and blocked",
     config: { tasks: { ...denoTaskDefinitions(), lint: "deno lint" } },
-    expected: "deno-lint: ambiguous",
+    expected: "deno-lint ambiguous",
     enabled: false,
   }, {
     name: "differing object leaf is drifted and blocked without repair",
     config: {
       tasks: { ...denoTaskDefinitions(), lint: { command: "eslint" } },
     },
-    expected: "deno-lint: drifted",
+    expected: "deno-lint drifted",
     enabled: false,
   }];
   for (const item of cases) {
@@ -131,10 +131,13 @@ Deno.test("classifies task conflicts", async (t) => {
       await withRepository(async (root) => {
         await writeConfig(root, item.config);
         const status = await run(root);
-        assert(status.includes(item.expected), status);
+        assert(status.replace(/ +/g, " ").includes(item.expected), status);
         if (item.enabled) {
           const result = await run(root, "--deno-lint");
-          assert(result.includes("deno-lint: enabled"), result);
+          assert(
+            result.replace(/ +/g, " ").includes("deno-lint enabled"),
+            result,
+          );
         } else {
           await assertRejects(() => run(root, "--deno-lint"), Error);
         }

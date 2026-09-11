@@ -28,7 +28,12 @@ Deno.test("reports status and commits only planned README changes", async () => 
       root,
       parseFeatures(["repo", "features"], builtInFeatureRegistry),
     );
-    assertEquals(status, featureStatus("enabled"));
+    assertEquals(
+      status.split("\n").slice(2).map((line) =>
+        line.trim().split(/ +/).slice(0, 2).join(": ")
+      ).join("\n"),
+      featureStatus("enabled"),
+    );
     const enabled = await runFeatures(
       root,
       parseFeatures(["repo", "features", "--readme"], builtInFeatureRegistry),
@@ -205,7 +210,12 @@ Deno.test("interactive empty selection returns status without changes", async ()
       ),
       () => [],
     );
-    assertEquals(result, featureStatus("disabled"));
+    assertEquals(
+      result.split("\n").slice(2).map((line) =>
+        line.trim().split(/ +/).slice(0, 2).join(": ")
+      ).join("\n"),
+      featureStatus("disabled"),
+    );
   });
 });
 

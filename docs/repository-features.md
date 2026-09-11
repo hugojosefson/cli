@@ -1,147 +1,205 @@
 # Repository features
 
-A feature is one part of repository configuration. Feature flags select changes
-independently. Examples use `hj` as shorthand for the
-[local CLI](../README.md#run-locally):
+A feature is one part of repository configuration. Use the
+[installed CLI](../README.md#install) in the directory you want to manage.
+Feature flags select changes independently:
 
 ```bash
 hj repo features --deno-lib --deno-cli --no-deno-server
 ```
 
-Each feature can:
+## Read the status table
 
-- Detect whether it is disabled, enabled, drifted, or ambiguous.
-- Check whether enabling or disabling it is safe before making changes.
-- Produce a reviewable plan for enabling or disabling it.
-- Declare direct feature dependencies and provided or required capabilities.
+`hj repo features` reports status without changes. The Details column explains
+the observation behind each result. Detection checks the files that `hj` can
+manage. It does not inventory every tool used by a custom project.
 
-Features do not store revisions. Detection examines the current repository
-behavior and structure. A feature can replace an exact legacy generated file.
+| State       | Meaning                                                                                 |
+| ----------- | --------------------------------------------------------------------------------------- |
+| `enabled`   | The feature recognizes its managed configuration.                                       |
+| `disabled`  | The managed configuration is absent, or another recognized provider is active.          |
+| `drifted`   | Recognized configuration differs from the managed form. Read the details before repair. |
+| `ambiguous` | Data is custom, conflicting, unreadable, or unsupported. Automatic changes are blocked. |
+| `unknown`   | No detection result is available.                                                       |
 
-Calling `hj repo features` without feature flags reports status without changing
-anything. `--interactive` or `-i` opens a feature checklist. Defaults apply only
-when the caller passes `--defaults`. The built-in default selection is
-`["git", "readme"]`, where `git` is a feature and `readme` is a capability. A
-capability is a function that a feature provides. Global configuration of this
-selection is [planned](planned.md). Selecting a capability selects its enabled
-provider or its default provider. The resolver can also select a capability's
-default provider when an explicitly enabled feature requires a capability that
-no enabled feature provides.
+A working custom Deno task can be drifted. A custom CLI does not need to match
+an `hj` starter project. For this repository's results, read the
+[self-check record](development.md#self-check-and-readme-choice).
 
-A command changes only explicitly named features, `--defaults` selections,
-direct dependencies, and capability providers needed to enable them. Disabling a
-feature fails while enabled features depend on it. Dependent features must be
-disabled explicitly. The CLI stores no installation reason and has no
-`--auto-remove` mode.
+## Select changes
 
-Drift repair is explicit. `--repair` alone repairs every drifted feature.
-Combined with positive feature flags, it repairs only those features. Repair may
-restore exact-schema artifacts, including starter code and tests, but never
-adopts an ambiguous implementation.
+| Input                   | Effect                                                    |
+| ----------------------- | --------------------------------------------------------- |
+| No feature flags        | Report the current state.                                 |
+| `--<feature>`           | Enable one feature and its required dependencies.         |
+| `--no-<feature>`        | Disable one feature, if no enabled feature depends on it. |
+| `--interactive` or `-i` | Select actions in a terminal checklist.                   |
+| `--defaults`            | Select Git and the README capability.                     |
+| `--repair`              | Repair every drifted feature.                             |
+| `--repair --<feature>`  | Repair only the selected positive features.               |
+| `--yes`                 | Accept plan warnings that require confirmation.           |
 
-When Git is enabled, a successful local feature operation validates its plan,
-stages only planned paths, and creates one Conventional Commit.
+A capability is a function provided by a feature. The `readme` capability uses
+its enabled provider, or `readme-static` by default. Required capabilities can
+also select a default provider. Global default configuration is
+[planned](planned.md#global-configuration).
 
-## Available features
+The command changes only selected features and their required dependencies. It
+stores no installation reason and has no automatic dependency removal. Disable
+dependent features explicitly before removing their dependency.
 
-The first feature set includes:
+Repair can restore starter code and tests. It does not adopt ambiguous files.
+When Git is enabled, a successful local operation validates the plan and commits
+only its planned paths in one Conventional Commit.
 
-- `git`: runs `git init` and creates an empty `chore: init repo` commit. It is
-  part of the built-in `--defaults` selection and cannot be removed once commit
-  history exists.
-- `deno-fmt`: adds the minimal Deno configuration and tasks needed for
-  `deno fmt`. It creates `deno.jsonc` when no Deno configuration exists.
-- `deno-lint`: adds `lint`, which fixes lint locally and runs non-fixing lint in
-  CI.
-- `deno-typecheck`: adds `typecheck`.
-- `deno-test`: adds `test`.
-- `deno-lib`: adds a Deno library. It requires `deno-fmt`.
-- `deno-cli`: adds a Deno CLI. It requires `deno-fmt`.
-- `deno-server`: adds a minimal `Deno.serve` server. It requires `deno-fmt` and
-  integrates with `deno-cli` when both are enabled.
-- `readme-static`: provides the `readme` capability with a writable root
-  `README.md`.
-- `readme-build`: provides the `readme` capability with generated README
-  support. It requires `deno-fmt`.
-- `license-*`: MIT, Apache-2.0, GPL, AGPL, ISC, BSD, MPL, Unlicense, and CC
-  license providers. Exactly one provider can be enabled.
-- `jsr-package`: adds JSR package identity and publishing checks. It requires
-  `deno-fmt`, `github-repo`, at least one Deno export, `readme`, and `license`.
-- `github-repo`: detects authenticated access to the checked-out GitHub
-  repository. It does not create or delete repositories.
-- `github-*` repository-setting features independently manage auto-merge,
-  merged-branch deletion, merge strategies, wiki, issues, projects, discussions,
-  branch updates, and web commit signoff.
-- `github-ci`: adds pull-request checks plus nightly and manual dependency
-  updates. It requires `github-repo`, `deno-fmt`, and the repository setting
-  “Allow GitHub Actions to create and approve pull requests.” Pull-request runs
-  created by its dependency workflow require approval from a user with write
-  access.
-- `github-main-protection`: requires `github-ci` and protects the default branch
-  with pull requests, generated CI, resolved review threads, deletion blocking,
-  and force-push blocking.
-- `github-main-review`: layers one stale-dismissed, last-push approval on main.
-  Repository admins can bypass this review layer only through a pull request.
-- `github-protected-tags`: requires `github-repo` and manages layered tag
-  protection. The [release guide](releases.md#normal-release) defines the tag
-  patterns, administrator bypass, and CLI SemVer validation. Repository admins
-  can bypass tag mutation.
-- `github-protection`: weak preset that enables main protection and protected
-  tags. It keeps an active main-review feature but does not select that feature.
-- `deno-config-version`: provides a release version from one Deno configuration
-  that contains an exact SemVer version.
-- `github-release-publish-tag`: adds unattended release pull requests and
-  lightweight SemVer tags. It cannot operate with `github-main-review`.
-- `github-release-publish-jsr`: publishes the JSR package with OIDC after tag
-  publication. It requires `jsr-package`.
-- `github-release-publish-github`: makes a GitHub Release after tag publication.
+## Deno and Git features
 
-For release workflow migration, configuration, retries, and removal, read the
-[release guide](releases.md).
+| Feature               | Managed configuration                                                      | Requirement                                    |
+| --------------------- | -------------------------------------------------------------------------- | ---------------------------------------------- |
+| `git`                 | Initialize Git and create an empty `chore: init repo` commit.              | Cannot be removed after commit history exists. |
+| `deno-fmt`            | Formatting tasks and minimal configuration; create `deno.jsonc` if needed. | None.                                          |
+| `deno-lint`           | A `lint` task that fixes locally and checks without fixes in CI.           | `deno-fmt`.                                    |
+| `deno-typecheck`      | A `typecheck` task.                                                        | `deno-fmt`.                                    |
+| `deno-test`           | A `test` task.                                                             | `deno-fmt`.                                    |
+| `deno-lib`            | Library source and export.                                                 | `deno-fmt`.                                    |
+| `deno-cli`            | Executable source and command registry.                                    | `deno-fmt`.                                    |
+| `deno-server`         | A minimal `Deno.serve` server.                                             | `deno-fmt`; integrates with an enabled CLI.    |
+| `deno-config-version` | A release version from one Deno configuration.                             | An exact SemVer version, such as `1.2.3`.      |
 
-`--github` is a fixed preset of repository settings. Its values reflect the
-author's preferences. It does not inspect the user's recent repositories. It
-enables auto-merge, merged-branch deletion, squash merging, rebasing, issues,
-projects, branch updates, and private visibility. It disables merge commits,
-wiki, discussions, and web commit signoff. Explicit setting flags override the
-preset regardless of argument order. Remote changes require `--yes` and use one
-guarded GitHub API update. `--no-github` is invalid. `--no-github-repo` safely
-blocks because repository deletion is unsupported. The `--github-public` overlay
-makes the repository public when combined with `--github`, while an explicit
-`--github-private` or `--no-github-private` flag still wins. More-specific
-preset IDs override a selected prefix preset. Unrelated contradictory presets
-fail as ambiguous. Merge-message enum settings remain unchanged.
+Git is not required by the Deno project or formatting features. The Deno
+features can coexist. With no enabled features, `hj` creates nothing.
 
-The `readme` capability has exclusive providers. Its default provider is
-`readme-static`. Enabling `readme-build` while `readme-static` is enabled plans
-an atomic replacement after showing the plan. It copies the writable root
-`README.md` to the build source under `readme/`, then replaces the root file
-with generated output. Switching back keeps the generated root content as a
-writable static README and plans removal of `readme/`. If Git is enabled and
-`readme/` is clean, removal needs no extra confirmation. Without Git, or when
-`readme/` is dirty, the plan warns and requires confirmation. `--yes` accepts
-the warning.
+| Feature       | Source                 | Export     |
+| ------------- | ---------------------- | ---------- |
+| `deno-lib`    | `src/lib/mod.ts`       | `.`        |
+| `deno-cli`    | `src/cli/cli.ts`       | `./cli`    |
+| `deno-server` | `src/server/server.ts` | `./server` |
 
-The Deno features can coexist. Git is not a dependency of Deno formatting,
-library, CLI, server, or JSR package features. Features that need Git declare it
-as a direct dependency. With no enabled features, `hj` creates nothing.
+Generated tests live under `test/`. When the CLI and server coexist, the server
+contributes a `serve` command to the CLI registry. Neither feature patches the
+other's custom source.
 
-Generated source paths and exports remain stable across combinations:
+## README and license features
 
-- `deno-lib`: `src/lib/mod.ts`, exported as `.`.
-- `deno-cli`: `src/cli/cli.ts`, exported as `./cli`.
-- `deno-server`: `src/server/server.ts`, exported as `./server`.
-- Tests live under `test/`.
+| Feature         | Behavior                                                           |
+| --------------- | ------------------------------------------------------------------ |
+| `readme-static` | Use a writable root `README.md`; the default README provider.      |
+| `readme-build`  | Build the root README from Markdown includes; requires `deno-fmt`. |
+| `license-*`     | Manage one recognized license and its README link.                 |
 
-When CLI and server coexist, the CLI owns a generated command registry and the
-server contributes its `serve` command. Neither feature patches the other's
-free-form source.
+Only one README provider and one license provider can be enabled at a time. The
+license catalog covers these families:
 
-`jsr-package` derives its lowercase `@owner/repository` name from the linked
-GitHub repository, starts at version `0.0.0`, and adds the command
-`deno publish --dry-run --check=all` to `check`. A JSR package and GitHub
-repository link remain external prerequisites for later OIDC publishing. It
-requires a complete license. Interactive selection defaults to MIT and does not
-offer an unlicensed choice. Attribution resolves from GitHub identity, then Git
-configuration, then a prompt. Setup fails if required attribution remains
-unresolved.
+| Family                   | Providers       |
+| ------------------------ | --------------- |
+| Permissive               | MIT             |
+| Permissive               | Apache-2.0      |
+| Permissive               | ISC             |
+| Permissive               | BSD-2-Clause    |
+| Permissive               | BSD-3-Clause    |
+| Copyleft                 | GPL-2.0-only    |
+| Copyleft                 | GPL-3.0-only    |
+| Copyleft                 | AGPL-3.0-only   |
+| Copyleft                 | MPL-2.0         |
+| Public-domain dedication | Unlicense       |
+| Creative Commons         | CC0-1.0         |
+| Creative Commons         | CC-BY-4.0       |
+| Creative Commons         | CC-BY-SA-4.0    |
+| Creative Commons         | CC-BY-ND-4.0    |
+| Creative Commons         | CC-BY-NC-4.0    |
+| Creative Commons         | CC-BY-NC-SA-4.0 |
+| Creative Commons         | CC-BY-NC-ND-4.0 |
+
+License detection requires the pinned template and its recognized README link. A
+different line wrap or a custom license section can prevent adoption.
+Recognition is a file-management check, not a legal assessment.
+
+| README transition                                   | Result                                                                                |
+| --------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| Static to built                                     | Copy the writable README into `readme/`, then replace the root with generated output. |
+| Built to static                                     | Keep the generated content as a writable root README and remove the source directory. |
+| Remove a clean source directory tracked by Git      | No extra confirmation is needed.                                                      |
+| Remove a dirty source directory, or one outside Git | Show a warning and require confirmation; `--yes` accepts it.                          |
+
+## GitHub features
+
+GitHub operations require [GitHub CLI](https://cli.github.com/) authentication
+and an existing repository link. These features do not create repositories.
+
+| Feature                         | Behavior                                                                                                    |
+| ------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `github-repo`                   | Detect authenticated access to the linked GitHub repository.                                                |
+| `github-*` settings             | Manage individual repository settings. See the preset table below.                                          |
+| `github-ci`                     | Add PR checks and nightly or manual dependency updates; requires `github-repo` and `deno-fmt`.              |
+| `github-main-protection`        | Require PRs and generated checks on the default branch; block deletion and force-pushes.                    |
+| `github-main-review`            | Require one approval after the last push; dismiss stale approvals. Admin bypass applies only through a PR.  |
+| `github-protected-tags`         | Apply the layered tag rules described in the [release guide](releases.md#tag-policy).                       |
+| `github-protection`             | Select main protection and protected tags. Keep an enabled review layer without selecting it automatically. |
+| `github-release-publish-tag`    | Prepare release PRs and lightweight tags; conflicts with `github-main-review`.                              |
+| `github-release-publish-jsr`    | Publish through temporary GitHub identity credentials; requires `jsr-package`.                              |
+| `github-release-publish-github` | Create the GitHub Release after tag publication.                                                            |
+
+`github-ci` also requires the Actions setting that allows PR creation and
+approval. PR workflow runs created by its dependency updater need approval from
+a user with write access. `github-main-protection` requires `github-ci` and
+resolved review threads.
+
+## GitHub preset
+
+`--github` uses fixed defaults. It does not inspect recent repositories.
+
+| Setting                | Preset value |
+| ---------------------- | ------------ |
+| Auto-merge             | Enabled      |
+| Delete merged branches | Enabled      |
+| Squash merges          | Enabled      |
+| Rebase merges          | Enabled      |
+| Issues                 | Enabled      |
+| Projects               | Enabled      |
+| Branch updates         | Enabled      |
+| Visibility             | Private      |
+| Merge commits          | Disabled     |
+| Wiki                   | Disabled     |
+| Discussions            | Disabled     |
+| Web commit signoff     | Disabled     |
+
+| Override or constraint          | Rule                                                                          |
+| ------------------------------- | ----------------------------------------------------------------------------- |
+| Explicit setting flags          | Override the preset regardless of argument order.                             |
+| `--github-public`               | Makes the preset public unless an explicit private-setting flag overrides it. |
+| More-specific preset IDs        | Override a selected prefix preset.                                            |
+| Unrelated contradictory presets | Fail as ambiguous.                                                            |
+| Merge-message enum settings     | Remain unchanged.                                                             |
+| Remote changes                  | Require `--yes` and use a guarded API update.                                 |
+| `--no-github`                   | Invalid.                                                                      |
+| `--no-github-repo`              | Blocked; repository deletion is unsupported.                                  |
+
+## JSR package feature
+
+`jsr-package` derives `@owner/repository` from the linked GitHub repository and
+starts at version `0.0.0`. It owns a `publish-check` task and the generated
+check aggregate. Existing custom package metadata alone does not mean this
+feature is adopted.
+
+| Requirement   | Purpose                        |
+| ------------- | ------------------------------ |
+| `deno-fmt`    | Manage Deno tasks.             |
+| `github-repo` | Derive package identity.       |
+| A Deno export | Provide a package entry point. |
+| `readme`      | Provide package documentation. |
+| `license`     | Provide a complete license.    |
+
+The managed check command is `deno publish --dry-run --check=all`. Connecting
+the package to GitHub remains an external publishing prerequisite. Interactive
+license selection defaults to MIT and offers no unlicensed choice.
+
+Attribution is resolved in this order:
+
+| Priority | Source             |
+| -------- | ------------------ |
+| 1        | GitHub identity    |
+| 2        | Git configuration  |
+| 3        | Interactive prompt |
+
+Setup stops if required attribution remains unresolved. For release setup and
+removal, read the [release guide](releases.md).

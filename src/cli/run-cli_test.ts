@@ -126,7 +126,10 @@ Deno.test("keeps repo features dispatch", async () => {
   const root = new URL(`file://${path}/`);
   try {
     assertEquals(
-      formatCliOutput(await runCli(root, ["repo", "features"])),
+      formatCliOutput(await runCli(root, ["repo", "features"])).trimEnd().split(
+        "\n",
+      ).slice(2).map((line) => line.trim().split(/ +/).slice(0, 2).join(": "))
+        .join("\n") + "\n",
       builtInFeatureRegistry.features.map((feature) => feature.metadata.id)
         .sort().map((id) => `${id}: disabled`).join("\n") + "\n",
     );

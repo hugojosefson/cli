@@ -9,15 +9,18 @@ local CLI is tested against the same remote repository separately.
 
 [The checks run](https://github.com/hugojosefson/scratchpad/actions/runs/34634456766)
 created [PR 35](https://github.com/hugojosefson/scratchpad/pull/35) with the
-workflow token. Two in-progress checks from GitHub Actions App `15368` blocked
-the PR. The bot enabled `REBASE` auto-merge for the exact head. Completing both
-checks allowed a merge without a person approving the PR or its workflow. The
-merged commit had the candidate tree and the original main commit as its only
-parent. The token-triggered main update did not start the push probe.
+workflow token.
 
-The PR workflow initially had conclusion `action_required`. It did not run its
-jobs, and the PR still merged after the synthetic checks succeeded. This matches
-GitHub's
+| Check                | Observed result                                                                         |
+| -------------------- | --------------------------------------------------------------------------------------- |
+| In-progress checks   | Both GitHub Actions App `15368` checks blocked the PR.                                  |
+| Auto-merge           | The bot enabled `REBASE` for the exact head.                                            |
+| Completed checks     | Both succeeded; GitHub merged without a person approving the PR or workflow.            |
+| Rebased commit       | Candidate tree preserved; original main commit was its only parent.                     |
+| Token-triggered push | The main update did not start the push probe.                                           |
+| PR workflow          | Initially `action_required`; no jobs ran, but the synthetic checks still allowed merge. |
+
+The PR workflow state matches GitHub's
 [bot-created workflow approval policy](https://github.blog/changelog/2026-06-11-bot-created-pull-requests-can-run-workflows-if-approved/).
 Do not treat every temporary `UNSTABLE` merge state as a terminal failure.
 
@@ -29,7 +32,7 @@ tests cover another bot, a user with the same login, and missing actor data.
 Local tag setup exposed two other issues. Tag-name metadata restrictions are
 [Enterprise-only](https://github.com/github/docs/blob/main/data/features/repo-rules-enterprise.yml),
 so the managed rules now use the version-shaped wildcard described in the
-[release guide](releases.md#normal-release). Also, rulesets can set a branch's
+[release guide](releases.md#tag-policy). Also, rulesets can set a branch's
 `protected` field even when legacy branch protection is absent. The adapter now
 accepts the exact `404` response `Branch not protected` for that legacy layer;
 it still rejects generic not-found and permission errors.

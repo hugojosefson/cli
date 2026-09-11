@@ -1,10 +1,20 @@
 /** Available commands and their usage, shared by dispatch errors and help. */
+import { formatTable } from "./format-table.ts";
 export const commandDefinitions = {
   "repo features": {
     usage: "hj repo features",
     description: "Inspect or change repository features.",
-    details:
-      "With no flags, report status without changes.\nUse --<feature> or --no-<feature> to select changes.\nUse --defaults for the built-in selection, --repair for drift,\n--interactive for a checklist, and --yes to accept the plan.",
+    details: "With no flags, report status without changes.\n\n" + formatTable(
+      ["Flag", "Effect"],
+      [
+        ["--<feature>", "Enable a feature."],
+        ["--no-<feature>", "Disable a feature."],
+        ["--defaults", "Select the built-in defaults."],
+        ["--repair", "Repair drifted managed configuration."],
+        ["--interactive, -i", "Select actions in a terminal checklist."],
+        ["--yes", "Accept plan warnings that need confirmation."],
+      ],
+    ),
   },
   "readme build": {
     usage: "hj readme build [input]",
@@ -52,8 +62,11 @@ export function commandHelp(command?: CommandName): string {
   return [
     "hj: repository setup and release automation",
     "",
-    ...Object.values(commandDefinitions).map((entry) =>
-      `${entry.usage}\n  ${entry.description}`
+    formatTable(
+      ["Command", "Description"],
+      Object.values(commandDefinitions).map((
+        entry,
+      ) => [entry.usage, entry.description]),
     ),
     "",
     "Use <command> --help for details.",

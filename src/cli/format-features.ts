@@ -1,5 +1,6 @@
 /** @module Stable terminal formatting for repository feature results. */
 
+import { formatTable } from "./format-table.ts";
 import type { FeatureDetection } from "../api/feature-detection.ts";
 import type { FeatureRegistry } from "../features/feature-registry.ts";
 
@@ -8,11 +9,24 @@ export function formatFeatureStatus(
   registry: FeatureRegistry,
   detections: ReadonlyMap<string, FeatureDetection>,
 ): string {
-  return registry.features
-    .map((feature) => feature.metadata.id)
-    .sort()
-    .map((id) => `${id}: ${detections.get(id)?.state ?? "unknown"}`)
-    .join("\n");
+  const rows = registry.features.map((feature) => feature.metadata.id).sort()
+    .map((id) => {
+      const detection = detections.get(id);
+      const details =
+        detection && "issues" in detection && detection.issues.length
+          ? detection.issues.map((issue) => issue.observation)
+          : detection?.evidence.map((item) => item.observation) ?? [];
+      return [
+        id,
+        detection?.state ?? "unknown",
+        [...new Set(details)].join("\n"),
+      ];
+    });
+  return formatTable(["Feature", "Managed state", "Details"], rows, [
+    48,
+    12,
+    64,
+  ]);
 }
 
 /** Formats a concise operation result. */
@@ -29,5 +43,5 @@ export function formatFeatureResult(
     : githubChanged
     ? "Applied GitHub changes."
     : "No changes.";
-  return `${status}\n${note}`;
+  return `${status}\n\n${note}`;
 }

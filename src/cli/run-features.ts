@@ -1,4 +1,5 @@
 /** @module Repository detection, resolution, planning, and local application. */
+import { formatTable } from "./format-table.ts";
 
 import type { ChangePlan, PlannedValidation } from "../api/change-plan.ts";
 import type { OperationContext } from "../api/repository-context.ts";
@@ -103,7 +104,18 @@ export async function runFeatureOperation(
       request,
     );
     if (resolution.issues.length) {
-      throw new Error(`resolution failed: ${resolution.issues[0].code}`);
+      throw new Error(
+        "resolution failed:\n" + formatTable(
+          ["Issue", "Feature or capability", "Related"],
+          resolution.issues.map((
+            issue,
+          ) => [
+            issue.code,
+            issue.featureId ?? issue.capabilityId ?? "",
+            issue.relatedId ?? "",
+          ]),
+        ),
+      );
     }
     const changes = [
       ...resolution.changes,
@@ -165,9 +177,12 @@ export async function runFeatureOperation(
     } catch (error) {
       if (remoteChanges.length) {
         throw new Error(
-          `Local changes failed after GitHub changed ${
-            remoteChanges.join(", ")
-          }. Start the same operation again.`,
+          `Local changes failed after GitHub changes.\n${
+            formatTable(
+              ["Changed GitHub resource"],
+              remoteChanges.map((name) => [name]),
+            )
+          }\nStart the same operation again.`,
           { cause: error },
         );
       }
@@ -244,7 +259,15 @@ async function plansFor(
         context,
       );
     if (check.result === "blocked") {
-      throw new Error(`blocked: ${check.blockers[0].message}`);
+      throw new Error(
+        "blocked:\n" + formatTable(
+          ["Feature", "Problem", "Next step"],
+          check.blockers.map((
+            blocker,
+          ) => [change.featureId, blocker.message, blocker.resolution]),
+          [32, 48, 48],
+        ),
+      );
     }
     if (check.result === "allowed") {
       plans.push(

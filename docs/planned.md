@@ -9,18 +9,25 @@ project remains unpublished.
 The planned configuration interface stores non-secret defaults under the XDG
 configuration directory:
 
-```text
-hj config get <key>
-hj config set <key> <value>
-hj config list
-hj config unset <key>
-```
+| Planned command               | Purpose             |
+| ----------------------------- | ------------------- |
+| `hj config get <key>`         | Read one default.   |
+| `hj config set <key> <value>` | Set one default.    |
+| `hj config list`              | List defaults.      |
+| `hj config unset <key>`       | Remove one default. |
 
-The CLI does not implement these commands yet. The planned precedence is command
-flags, configured defaults, then an interactive prompt. Secrets will not be
-configuration values. The planned configuration includes default features and
-the Deno version for generated workflows. Current feature defaults are built in,
-and generated workflows use the checked-in toolchain version.
+The CLI does not implement these commands yet. Secrets will not be configuration
+values.
+
+| Planned priority | Source              |
+| ---------------- | ------------------- |
+| 1                | Command flags       |
+| 2                | Configured defaults |
+| 3                | Interactive prompt  |
+
+The planned configuration includes default features and the Deno version for
+generated workflows. Current feature defaults are built in, and generated
+workflows use the checked-in toolchain version.
 
 Prompting for unresolved repository visibility and creating GitHub repositories
 are also planned. Current features manage an existing linked GitHub repository.
@@ -52,17 +59,21 @@ checks completed without publishing this project. Full generated workflows and
 publisher checks still need a published package. Run the remaining checks in a
 disposable remote repository after package publication is authorized:
 
-- Complete a source PR and confirm that its merge starts tag preparation.
-- Confirm the release commit tree, lightweight tag, branch cleanup, and success
-  event.
-- Confirm JSR module digests, provenance, and a repeated publication of the same
-  version.
-- Confirm GitHub Release fields and a repeated publication of the same version.
-- Exercise competing source merges, interrupted tag publication, and publisher
-  retries.
-- Remove publisher workflows, merge the removal, and then remove exact tag
-  protection.
-- Remove every temporary workflow and fixture after the test.
+| Scenario                    | Required check                                               |
+| --------------------------- | ------------------------------------------------------------ |
+| Source PR merge             | Starts tag preparation.                                      |
+| Release commit              | Has the expected tree.                                       |
+| Tag creation                | Creates the lightweight tag and removes the owned branch.    |
+| Success event               | Starts the independent publishers.                           |
+| JSR publication             | Module digests and provenance match.                         |
+| Repeated JSR publication    | Accepts the same version without conflicting changes.        |
+| GitHub Release              | Fields match the prepared release data.                      |
+| Repeated GitHub Release     | Reuses the matching release.                                 |
+| Competing source merges     | Resolves the collision without overwriting unrelated work.   |
+| Interrupted tag publication | Recovers the exact release.                                  |
+| Publisher failure           | Retries safely.                                              |
+| Feature removal             | Merge workflow removal before removing exact tag protection. |
+| Cleanup                     | Remove temporary workflows and fixtures.                     |
 
 A live test fixture must identify its owned resources and restrict its input
 operations. The fixture must confirm the remote state after an expected
