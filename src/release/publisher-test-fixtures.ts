@@ -29,6 +29,7 @@ export function environment(
     HJ_RELEASE_VERSION: "1.2.3",
     HJ_RELEASE_SHA: sha,
     GITHUB_REPOSITORY: "owner/repo",
+    GITHUB_SHA: sha,
     ...overrides,
   };
   return { get: (name) => values[name as keyof typeof values] };
@@ -44,7 +45,9 @@ export function process(
       return Promise.resolve(
         ok(
           output[key] ??
-            (args[0] === "ls-remote"
+            (args[0] === "status"
+              ? ""
+              : args[0] === "ls-remote"
               ? `${sha}\trefs/tags/1.2.3\n`
               : `${sha}\n`),
         ),
@@ -66,6 +69,7 @@ export function files(
 }
 export function remote(): JsrVersion {
   return {
+    manifestDigest: "b".repeat(64),
     manifest: { "/mod.ts": { size: 1, checksum } },
     moduleGraph2: { "/mod.ts": {} },
     exports: { ".": "./mod.ts" },

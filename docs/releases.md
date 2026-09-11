@@ -165,11 +165,11 @@ tag-name restrictions.
 Use [GitHub CLI](https://cli.github.com/) with a configured remote repository.
 Rerun only the route that needs recovery:
 
-| Problem                                                    | Command                                                               |
-| ---------------------------------------------------------- | --------------------------------------------------------------------- |
-| Release PR merged, but its tag or success event is missing | `gh workflow run hj-release-publish-tag.yaml -f tag=1.2.3`            |
-| JSR publisher failed                                       | `gh workflow run hj-release-publish-jsr.yaml --ref main -f tag=1.2.3` |
-| GitHub Release publisher failed                            | `gh workflow run hj-release-publish-github.yaml -f tag=1.2.3`         |
+| Problem                                                    | Command                                                                |
+| ---------------------------------------------------------- | ---------------------------------------------------------------------- |
+| Release PR merged, but its tag or success event is missing | `gh workflow run hj-release-publish-tag.yaml -f tag=1.2.3`             |
+| JSR publisher failed                                       | `gh workflow run hj-release-publish-jsr.yaml --ref 1.2.3 -f tag=1.2.3` |
+| GitHub Release publisher failed                            | `gh workflow run hj-release-publish-github.yaml -f tag=1.2.3`          |
 
 Recovery requires exactly one matching release commit on `main`. It verifies the
 tree and any existing tag. Branch removal requires matching head and PR
@@ -192,6 +192,15 @@ Multiple releases with the same tag also block publication.
 
 Do not overwrite a conflicting tag or delete an unknown release branch to force
 recovery.
+
+JSR retries select the release tag with `--ref`, so Deno records the correct
+source commit in the publication provenance. A workflow on another commit can
+verify an existing package, but it cannot create a new package version.
+
+Deno rewrites import paths before uploading modules. The publisher binds the
+registry manifest digest to its provenance and requires a clean tagged checkout.
+It also compares unchanged file types with their local bytes. Publication from
+an unexpected workflow, repository, or source commit fails verification.
 
 ## Remove release features
 

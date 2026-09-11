@@ -176,7 +176,7 @@ jobs:
           HJ_RELEASE_VERSION: \${{ github.event.client_payload.version }}
         run: >-
           deno run --no-lock
-          --allow-env=GITHUB_REPOSITORY,HJ_RELEASE_ROUTE,HJ_RELEASE_SCHEMA,HJ_RELEASE_SHA,HJ_RELEASE_TAG,HJ_RELEASE_VERSION
+          --allow-env=GITHUB_REPOSITORY,GITHUB_SHA,HJ_RELEASE_ROUTE,HJ_RELEASE_SCHEMA,HJ_RELEASE_SHA,HJ_RELEASE_TAG,HJ_RELEASE_VERSION
           --allow-read=.
 ${allowNet ? `${allowNet}\n` : ""}          --allow-run=${allowRun}
           ${hj}
