@@ -48,9 +48,9 @@ the required checks to exist in the remote workflow. On GitHub Free, use a
 public repository for rulesets and auto-merge. Private repositories can need a
 paid plan. The CLI reports this restriction when GitHub rejects setup.
 
-For this package's first publication, use the
-[first-release procedure](first-release.md). It avoids depending on an `hj`
-version that is not yet on JSR.
+For this package's first publication, follow the
+[first-release plan](first-release.md). It uses these features and tracks the
+missing bootstrap support needed before a JSR copy of `hj` exists.
 
 ## Normal release
 
