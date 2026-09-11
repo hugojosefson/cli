@@ -1,6 +1,7 @@
 import type { PlannedChange } from "../api/planned-change.ts";
 import {
   denoCliArtifactsForServer,
+  denoCliServerPaths,
   type inspectDenoCliArtifacts,
 } from "./deno-cli-artifacts.ts";
 import {
@@ -58,9 +59,7 @@ export function addServerCliArtifacts(
   const wanted = denoCliArtifactsForServer(serverEnabled);
   for (
     const item of inspections.filter((entry) =>
-      ["src/cli/commands.ts", "src/cli/serve-command.ts"].includes(
-        entry.schema.path,
-      )
+      denoCliServerPaths.includes(entry.schema.path)
     )
   ) {
     const artifact = wanted.find((entry) => entry.path === item.schema.path)!;

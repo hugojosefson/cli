@@ -63,6 +63,15 @@ Deno.test("generated CLI has help", () => {
 });
 `;
 
+const serverListenAddress = "0.0.0.0:8000";
+
+/** Files that change when the generated CLI gains or loses its server command. */
+export const denoCliServerPaths: readonly string[] = [
+  "src/cli/cli.ts",
+  "src/cli/commands.ts",
+  "src/cli/serve-command.ts",
+];
+
 export const denoCliArtifacts = [{
   path: "src/cli/cli.ts",
   content: `#!/bin/sh
@@ -110,7 +119,7 @@ export const serveCommand = {
   run: async () => {
     const permission = await Deno.permissions.request({
       name: "net",
-      host: "0.0.0.0:8000",
+      host: "${serverListenAddress}",
     });
     if (permission.state !== "granted") {
       return "Network permission denied.";
@@ -125,11 +134,22 @@ export const serveCommand = {
 
 /** Exact registry variants selected by the current or resolved server export. */
 export function denoCliArtifactsForServer(serverEnabled: boolean) {
-  const artifacts = denoCliArtifacts.map((artifact) =>
-    artifact.path === "src/cli/commands.ts" && serverEnabled
-      ? { ...artifact, content: serverCommandsContent }
-      : artifact
-  );
+  const artifacts = denoCliArtifacts.map((artifact) => {
+    if (!serverEnabled) return artifact;
+    if (artifact.path === "src/cli/commands.ts") {
+      return { ...artifact, content: serverCommandsContent };
+    }
+    if (artifact.path === "src/cli/cli.ts") {
+      return {
+        ...artifact,
+        content: artifact.content.replace(
+          'DENO_RUN_ARGS=""',
+          `DENO_RUN_ARGS="--allow-net=${serverListenAddress}"`,
+        ),
+      };
+    }
+    return artifact;
+  });
   return serverEnabled ? [...artifacts, denoCliServeArtifact] : artifacts;
 }
 

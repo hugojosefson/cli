@@ -1,6 +1,11 @@
 /** @module Built-in Deno server feature declaration and detection. */
 
 import { inspectDenoServerTasks } from "./deno-server-tasks.ts";
+import {
+  denoCliExport,
+  denoCliServerPaths,
+  inspectDenoCliArtifacts,
+} from "./deno-cli-artifacts.ts";
 import type { DetectionIssue } from "../api/feature-detection.ts";
 import type { DetectionContext } from "../api/repository-context.ts";
 import type { Feature } from "../api/feature.ts";
@@ -52,9 +57,15 @@ async function detectDenoServer(context: DetectionContext) {
       } is missing or differs.`,
     );
   }
-  const invalid = (await inspectDenoServerArtifacts(context)).find((item) =>
-    item.result !== "matches"
-  );
+  const artifacts = [...await inspectDenoServerArtifacts(context)];
+  if (config.value.exports["./cli"] === denoCliExport) {
+    artifacts.push(
+      ...(await inspectDenoCliArtifacts(context, true)).filter((item) =>
+        denoCliServerPaths.includes(item.schema.path)
+      ),
+    );
+  }
+  const invalid = artifacts.find((item) => item.result !== "matches");
   if (!invalid) {
     return simple(
       "enabled",

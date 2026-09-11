@@ -66,6 +66,10 @@ Deno.test("deno-server composes the exact CLI registry", async () => {
       ),
     );
     assertEquals((await denoCliFeature.detect(context(root))).state, "enabled");
+    assert(
+      (await Deno.readTextFile(new URL("src/cli/cli.ts", root)))
+        .includes('DENO_RUN_ARGS="--allow-net=0.0.0.0:8000"'),
+    );
     const disable = await denoServerFeature.checkDisable(
       context(root, changes),
     );
@@ -77,6 +81,10 @@ Deno.test("deno-server composes the exact CLI registry", async () => {
       await denoServerFeature.planDisable(context(root, changes), disable),
     );
     assertEquals((await denoCliFeature.detect(context(root))).state, "enabled");
+    assert(
+      (await Deno.readTextFile(new URL("src/cli/cli.ts", root)))
+        .includes('DENO_RUN_ARGS=""'),
+    );
   });
 });
 
@@ -304,6 +312,45 @@ Deno.test("server repair migrates the exact old adapter and CLI registry", async
     assertEquals(await current.files.exists(legacyServerAdapter.path), false);
     assertEquals(await Deno.readTextFile(registryPath), registry);
     assertEquals(await current.files.exists("src/cli/serve-command.ts"), true);
+  });
+});
+
+Deno.test("server setup preserves custom CLI launchers and repairs its old launcher", async () => {
+  await withRepository(async (root) => {
+    await enable(root, denoCliFeature);
+    const path = new URL("src/cli/cli.ts", root);
+    const base = await Deno.readTextFile(path);
+    await Deno.writeTextFile(path, base + "// custom launcher\n");
+    assertEquals(
+      (await denoServerFeature.checkEnable(context(root))).result,
+      "blocked",
+    );
+    await Deno.writeTextFile(path, base);
+    await enable(root, denoServerFeature);
+    const integrated = await Deno.readTextFile(path);
+    await Deno.writeTextFile(path, base);
+    assertEquals(
+      (await denoServerFeature.detect(context(root))).state,
+      "drifted",
+    );
+    const output = await runFeatures(
+      root,
+      parseFeatures(
+        ["repo", "features", "--repair", "--deno-server"],
+        builtInFeatureRegistry,
+      ),
+    );
+    assert(output.replace(/ +/g, " ").includes("deno-server enabled"));
+    assertEquals(await Deno.readTextFile(path), integrated);
+    await Deno.writeTextFile(path, integrated + "// custom launcher\n");
+    assertEquals(
+      (await denoServerFeature.checkDisable(context(root))).result,
+      "blocked",
+    );
+    assertEquals(
+      await Deno.readTextFile(path),
+      integrated + "// custom launcher\n",
+    );
   });
 });
 

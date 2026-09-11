@@ -158,6 +158,7 @@ listener.
 | `deno task dev`                                 | Start on port 8000 and restart when source files change. |
 | `deno serve ./src/server/server.ts`             | Start the same module directly.                          |
 | `deno serve --port=3000 ./src/server/server.ts` | Use another port.                                        |
+| `./src/cli/cli.ts serve`                        | Start on port 8000 when the CLI feature is enabled.      |
 | `deno test test/server_test.ts`                 | Test the response without starting a listener.           |
 
 Open `http://localhost:8000/` to see the response. Stop the server with Ctrl+C.
@@ -172,14 +173,22 @@ file path. Deno does not accept `deno serve .` as a directory entry point.
 
 The tasks call `deno serve` directly. The development task adds `--watch`. The
 optional CLI adapter uses the same fetch handler and stays active until the
-server stops. Disabling the feature removes its exact tasks and export, and
-preserves source files. Custom tasks block removal.
+server stops. With both features enabled, the executable CLI includes
+`--allow-net=0.0.0.0:8000`. This
+[Deno permission](https://docs.deno.com/runtime/fundamentals/security/) lets it
+start without a permission prompt. When you use `deno run` directly, pass that
+flag before the CLI file path.
+
+Disabling the server removes its exact tasks, export, and network flag from the
+generated CLI launcher. It preserves source files. Custom tasks or launchers
+block automatic changes.
 
 To update an older generated starter, run
 `hj repo features --repair --deno-server`. This replaces generated server files
 and the `serve` and `dev` tasks, so preserve custom changes before repair.
 Repair also migrates the old generated CLI adapter to `src/cli/` when needed. It
-removes the old adapter only when its content and mode are unchanged.
+removes the old adapter only when its content and mode are unchanged. It also
+adds the network flag to an unchanged generated CLI launcher.
 
 ## README and license features
 

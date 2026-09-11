@@ -90,7 +90,19 @@ export async function checkEnableDenoServer(
     const baseRegistry = base.find((item) =>
       item.schema.path === "src/cli/commands.ts"
     )!;
-    cliReady = registry.result === "matches" && adapter.result === "matches";
+    const launcher = integrated.find((item) =>
+      item.schema.path === "src/cli/cli.ts"
+    )!;
+    const baseLauncher = base.find((item) =>
+      item.schema.path === "src/cli/cli.ts"
+    )!;
+    if (launcher.result !== "matches" && baseLauncher.result !== "matches") {
+      return blocked(
+        "The CLI launcher differs and cannot be replaced by server setup.",
+      );
+    }
+    cliReady = registry.result === "matches" && adapter.result === "matches" &&
+      launcher.result === "matches";
     if (
       registry.result !== "matches" && baseRegistry.result !== "matches" &&
       !legacyServerRegistry(registry)
@@ -136,7 +148,20 @@ export async function checkDisableDenoServer(
     config.value.exports["./cli"] === "./src/cli/cli.ts",
   );
   if (cliEnabled && !ownsCliChange(context)) {
-    const registry = (await inspectDenoCliArtifacts(context, true)).find((
+    const integrated = await inspectDenoCliArtifacts(context, true);
+    const base = await inspectDenoCliArtifacts(context, false);
+    const launcher = integrated.find((item) =>
+      item.schema.path === "src/cli/cli.ts"
+    )!;
+    const baseLauncher = base.find((item) =>
+      item.schema.path === "src/cli/cli.ts"
+    )!;
+    if (launcher.result !== "matches" && baseLauncher.result !== "matches") {
+      return blocked(
+        "The CLI launcher differs and cannot be replaced by server setup.",
+      );
+    }
+    const registry = integrated.find((
       item,
     ) => item.schema.path === "src/cli/commands.ts")!;
     if (registry.result !== "matches") {

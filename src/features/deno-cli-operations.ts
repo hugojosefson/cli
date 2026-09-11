@@ -70,16 +70,17 @@ export async function checkEnableDenoCli(
       `Starter path ${conflict.schema.path} is not a regular file.`,
     );
   }
-  const transition = alternateArtifacts.find((item) =>
-    item.schema.path === "src/cli/commands.ts" && item.result === "matches"
+  const onlyServerTransition = artifacts.filter((item) =>
+    item.result === "differs"
+  ).every((item) =>
+    alternateArtifacts.some((alternate) =>
+      alternate.schema.path === item.schema.path &&
+      alternate.result === "matches"
+    )
   );
-  const onlyRegistryTransition = !!transition &&
-    artifacts.filter((item) => item.result === "differs").every((item) =>
-      item.schema.path === "src/cli/commands.ts"
-    );
   if (
     artifacts.some((item) => item.result === "differs") && !repair(context) &&
-    !onlyRegistryTransition
+    !onlyServerTransition
   ) {
     return blocked(
       "Executable seed differs. Re-run with --repair to replace it.",

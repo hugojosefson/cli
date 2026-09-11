@@ -1,9 +1,9 @@
-import { assert, assertEquals } from "@std/assert";
+import { assert, assertEquals, assertStringIncludes } from "@std/assert";
 import { parseFeatures } from "../cli/parse-features.ts";
 import { runFeatures } from "../cli/run-features.ts";
 import { builtInFeatureRegistry } from "./built-in-feature-registry.ts";
 
-Deno.test("empty server project serves through native Deno and both tasks, with live reload", async () => {
+Deno.test("generated server serves through Deno, tasks, and the executable CLI without prompts", async () => {
   const path = await Deno.makeTempDir({
     dir: "/tmp/opencode",
     prefix: "hj-server-http-",
@@ -13,7 +13,7 @@ Deno.test("empty server project serves through native Deno and both tasks, with 
     await runFeatures(
       root,
       parseFeatures(
-        ["repo", "features", "--deno-server"],
+        ["repo", "features", "--deno-server", "--deno-cli"],
         builtInFeatureRegistry,
       ),
     );
@@ -27,20 +27,35 @@ Deno.test("empty server project serves through native Deno and both tasks, with 
       );
     }
     await Deno.writeTextFile(configUrl, JSON.stringify(config));
+    const cliUrl = new URL("src/cli/cli.ts", root);
+    const cli = await Deno.readTextFile(cliUrl);
+    assertStringIncludes(cli, 'DENO_RUN_ARGS="--allow-net=0.0.0.0:8000"');
+    await Deno.writeTextFile(cliUrl, cli.replace("0.0.0.0:8000", "0.0.0.0:0"));
+    const adapterUrl = new URL("src/cli/serve-command.ts", root);
+    const adapter = await Deno.readTextFile(adapterUrl);
+    await Deno.writeTextFile(
+      adapterUrl,
+      adapter.replace("0.0.0.0:8000", "0.0.0.0:0").replace(
+        "Deno.serve(server.fetch)",
+        "Deno.serve({ port: 0 }, server.fetch)",
+      ),
+    );
     for (
-      const [args, watch] of [
+      const [command, args, watch] of [
         [
+          "deno",
           ["serve", "--host=127.0.0.1", "--port=0", "src/server/server.ts"],
           false,
         ],
-        [["task", "serve"], false],
-        [["task", "dev"], true],
+        ["deno", ["task", "serve"], false],
+        ["sh", ["-c", "exec ./src/cli/cli.ts serve"], false],
+        ["deno", ["task", "dev"], true],
       ] as const
     ) {
-      const child = new Deno.Command("deno", {
+      const child = new Deno.Command(command, {
         args: [...args],
         cwd: path,
-        env: { NO_COLOR: "1" },
+        env: { NO_COLOR: "1", DENO_NO_PROMPT: "1" },
         stdin: "null",
         stdout: "null",
         stderr: "piped",
