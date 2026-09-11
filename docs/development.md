@@ -156,31 +156,31 @@ The CLI was tested against this repository on 2026-09-11. Its status table
 reports managed features, not a general inventory of programming languages. The
 Details column explains custom configuration that cannot be adopted.
 
-| Feature or group        | Expected state | Reason                                                                                                                        |
-| ----------------------- | -------------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| `git`                   | Enabled        | This is a Git repository.                                                                                                     |
-| `readme-static`         | Enabled        | The root README is writable.                                                                                                  |
-| `license-mit`           | Enabled        | LICENSE matches the MIT template and the README links to it.                                                                  |
-| `deno-config-version`   | Enabled        | `deno.json` contains an exact SemVer version.                                                                                 |
-| `deno-fmt`              | Enabled        | The `fmt` and `format` tasks provide formatting and its check.                                                                |
-| `deno-lint`             | Enabled        | The `lint` task runs Deno lint on source and scripts.                                                                         |
-| `deno-test`             | Enabled        | The `test` task uses the local test runner.                                                                                   |
-| `deno-typecheck`        | Enabled        | The `typecheck` task checks source and scripts.                                                                               |
-| `deno-cli`              | Enabled        | The explicit `./cli` export points to the CLI entry point.                                                                    |
-| `jsr-package`           | Enabled        | Local package metadata, exports, and `publish-check` are configured. This does not mean the package is published.             |
-| `deno-lib`              | Disabled       | The default export is the CLI. There is no library entry point.                                                               |
-| `deno-server`           | Disabled       | This package does not provide a server.                                                                                       |
-| `readme-build`          | Disabled       | The README does not need includes or generated sections.                                                                      |
-| Other license providers | Disabled       | MIT is the chosen license.                                                                                                    |
-| `github-ci`             | Disabled       | Local `ci.yaml` exists. The managed CI feature also adds dependency-update workflows and requires GitHub Actions permissions. |
-| GitHub release features | Disabled       | Release workflows remain absent until publication is authorized.                                                              |
-| Other GitHub features   | Disabled       | This repository has no linked GitHub repository. Remote settings cannot be treated as enabled.                                |
+| Feature or group        | Expected state | Reason                                                                                                            |
+| ----------------------- | -------------- | ----------------------------------------------------------------------------------------------------------------- |
+| `git`                   | Enabled        | This is a Git repository.                                                                                         |
+| `readme-static`         | Enabled        | The root README is writable.                                                                                      |
+| `license-mit`           | Enabled        | LICENSE matches the MIT template and the README links to it.                                                      |
+| `deno-config-version`   | Enabled        | `deno.json` contains an exact SemVer version.                                                                     |
+| `deno-fmt`              | Enabled        | The `fmt` and `format` tasks provide formatting and its check.                                                    |
+| `deno-lint`             | Enabled        | The `lint` task runs Deno lint on source and scripts.                                                             |
+| `deno-test`             | Enabled        | The `test` task uses the local test runner.                                                                       |
+| `deno-typecheck`        | Enabled        | The `typecheck` task checks source and scripts.                                                                   |
+| `deno-cli`              | Enabled        | The explicit `./cli` export points to the CLI entry point.                                                        |
+| `jsr-package`           | Enabled        | Local package metadata, exports, and `publish-check` are configured. This does not mean the package is published. |
+| `deno-lib`              | Disabled       | The default export is the CLI. There is no library entry point.                                                   |
+| `deno-server`           | Disabled       | This package does not provide a server.                                                                           |
+| `readme-build`          | Disabled       | The README does not need includes or generated sections.                                                          |
+| Other license providers | Disabled       | MIT is the chosen license.                                                                                        |
+| `github-ci`             | Enabled        | Managed CI runs the project coverage checks and provides dependency updates.                                      |
+| GitHub release features | Prepared       | The publication branch contains generated tag, JSR, and GitHub Release workflows.                                 |
+| GitHub configuration    | Enabled        | The public repository uses rebase merging, auto-merge, and main and tag protection.                               |
 
 The local task names now match the feature conventions. `check` runs all
-non-mutating checks, and `all` is its alias. CI runs coverage in place of the
-standalone test task, so it collects tests once. The package keeps its default
-CLI export for the documented installation command and adds an explicit `./cli`
-export for detection.
+non-mutating checks. `all` depends on `ci`, which enforces coverage limits. CI
+runs coverage in place of the standalone test task, so it collects tests once.
+The package keeps its default CLI export for the documented installation command
+and adds an explicit `./cli` export for detection.
 
 Task detection accepts custom descriptions, file selections, and local runner
 scripts. CLI detection reads the declared entry point. License detection ignores
@@ -194,14 +194,14 @@ Reconsider `readme-build` if the README needs shared fragments or generated
 reference material.
 
 Enabling a configured feature preserves its custom files. Removal and repairs
-still check ownership before changing generated content. Missing GitHub features
-remain disabled until publication is authorized.
+still check ownership before changing generated content. Read current remote
+feature states with `hj repo features` because GitHub configuration can change.
 
 ## First public release
 
 The README describes installation after the first JSR release. Registry
-installation is not yet available. Publication remains a separate, authorized
-step. Complete these checks before announcing the release:
+installation is not yet available. The owner authorized publication on
+2026-09-12. Complete these checks before announcing the release:
 
 | Preparation                  | State or next action                                                                                                     |
 | ---------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
@@ -211,8 +211,8 @@ step. Complete these checks before announcing the release:
 | Local validation             | CI includes coverage and a package dry run. Linux installation is tested.                                                |
 | GitHub validation            | Disposable repositories exercise configuration and real release workflows. See the [record](live-validation.md).         |
 | Bootstrap                    | Use [pinned first-release loading](releases.md#bootstrap-before-the-first-registry-version) until the CLI exists on JSR. |
-| Publication                  | Follow the [first-release procedure](first-release.md) after separate authorization.                                     |
-| JSR validation               | Account access, registry publication, registry installation, and provenance remain untested.                             |
+| Publication                  | Follow the [first-release procedure](first-release.md) under the recorded owner authorization.                           |
+| JSR validation               | The owner confirmed package access and scope configuration. Registry publication and installation remain untested.       |
 
 ## Git history
 
