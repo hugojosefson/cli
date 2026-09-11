@@ -126,6 +126,13 @@ handles bounded polling and uncertain requests. `apply-cleanup.ts` owns cleanup
 after failure or collision. The [release guide](releases.md#design-constraints)
 owns the release invariants.
 
+## Git history
+
+Keep history linear. Rebase a working branch onto `main`, run the relevant
+checks, and advance `main` with `git merge --ff-only`. Move tested improvements
+onto `main` as soon as they are ready. Do not create merge commits or publish
+this repository without authorization.
+
 ## Add a feature
 
 A capability is a function that one or more features provide. An artifact is a

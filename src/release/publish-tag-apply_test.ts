@@ -1,4 +1,7 @@
 import { assertEquals, assertRejects, assertThrows } from "@std/assert";
+import { cleanStatusRecovery } from "./apply-cleanup.ts";
+import { expectedChecks } from "./apply-checks.ts";
+import { ReleasePullRequestNotFoundError } from "./apply-types.ts";
 import { applyPublishTag } from "./publish-tag-apply.ts";
 import {
   type ApplyGithub,
@@ -621,4 +624,70 @@ Deno.test("orchestration validates usual route metadata before process effects",
     )
   );
   assertEquals(called, false);
+});
+
+Deno.test("cleanup retries a temporary read and confirms an uncertain cancellation", async () => {
+  const github = new Github();
+  const clock = new Clock();
+  for (const check of expectedChecks(input)) await github.createCheckRun(check);
+  const foreign = { ...github.runs[0], id: 99, externalId: "another-workflow" };
+  github.runs.push(foreign);
+  let reads = 0;
+  github.readPullRequest = () =>
+    ++reads === 1
+      ? Promise.reject(new Error("temporary network failure"))
+      : Promise.resolve(github.pr);
+  const complete = github.completeCheckRun.bind(github);
+  github.completeCheckRun = async (id, conclusion) => {
+    await complete(id, conclusion);
+    throw new Error("response lost after cancellation");
+  };
+  await cleanStatusRecovery(github, clock, 120_000, input);
+  assertEquals(clock.time, 5_000);
+  assertEquals(github.runs.slice(0, 2).map((run) => run.conclusion), [
+    "cancelled",
+    "cancelled",
+  ]);
+  assertEquals(github.runs[2], foreign);
+  assertEquals(github.calls.filter((call) => call.startsWith("complete:")), [
+    "complete:cancelled",
+    "complete:cancelled",
+  ]);
+});
+
+Deno.test("cleanup stops on missing or malformed PRs and bounds unavailable reads", async () => {
+  for (
+    const error of [
+      new ReleasePullRequestNotFoundError(),
+      new TypeError("invalid response"),
+      new Error("offline"),
+    ]
+  ) {
+    const github = new Github();
+    const clock = new Clock();
+    github.readPullRequest = () => Promise.reject(error);
+    await assertRejects(
+      () => cleanStatusRecovery(github, clock, 10_000, input),
+      error.constructor === Error
+        ? ReleaseApplyTimeoutError
+        : ReleaseApplyConflictError,
+    );
+    assertEquals(clock.time, error.constructor === Error ? 10_000 : 0);
+    assertEquals(github.calls, []);
+  }
+});
+
+Deno.test("cleanup preserves ambiguous synthetic checks", async () => {
+  const github = new Github();
+  const check = expectedChecks(input)[0];
+  await github.createCheckRun(check);
+  await github.createCheckRun(check);
+  github.calls = [];
+  await assertRejects(
+    () => cleanStatusRecovery(github, new Clock(), 60_000, input),
+    ReleaseApplyConflictError,
+    "ambiguous",
+  );
+  assertEquals(github.calls, []);
+  assertEquals(github.runs.every((run) => run.status === "in_progress"), true);
 });
