@@ -1,8 +1,26 @@
 # Repository features
 
 A feature is one part of repository configuration. Use the
-[installed CLI](../README.md#install) in the directory you want to manage.
-Feature flags select changes independently:
+[installed CLI](../README.md#install) in the directory you want to manage. A
+preset selects a group of features with one flag. Use `--defaults` for Git and
+README:
+
+```bash
+hj repo features --defaults
+```
+
+For an existing linked GitHub repository, authenticate with `gh auth login`
+before applying GitHub presets:
+
+```bash
+# Apply common GitHub settings with public visibility.
+hj repo features --github --github-public --yes
+# Protect the default branch and tags.
+hj repo features --github-protection --yes
+```
+
+Explicit feature flags override presets regardless of argument order. Feature
+flags also select changes independently:
 
 ```bash
 hj repo features --deno-lib --deno-cli --no-deno-server
@@ -83,16 +101,19 @@ removal. For this repository's results, read the
 
 ## Select changes
 
-| Input                   | Effect                                                    |
-| ----------------------- | --------------------------------------------------------- |
-| No feature flags        | Report the current state.                                 |
-| `--<feature>`           | Enable one feature and its required dependencies.         |
-| `--no-<feature>`        | Disable one feature, if no enabled feature depends on it. |
-| `--interactive` or `-i` | Select actions in a terminal checklist.                   |
-| `--defaults`            | Select Git and the README capability.                     |
-| `--repair`              | Repair every drifted feature.                             |
-| `--repair --<feature>`  | Repair only the selected positive features.               |
-| `--yes`                 | Accept plan warnings that require confirmation.           |
+| Input                   | Effect                                                      |
+| ----------------------- | ----------------------------------------------------------- |
+| No feature flags        | Report the current state.                                   |
+| `--<feature>`           | Enable one feature and its required dependencies.           |
+| `--no-<feature>`        | Disable one feature, if no enabled feature depends on it.   |
+| `--interactive` or `-i` | Select actions in a terminal checklist.                     |
+| `--defaults`            | Select Git and the README capability.                       |
+| `--github`              | Apply common GitHub settings, including private visibility. |
+| `--github-protection`   | Select default-branch protection and protected tags.        |
+| `--github-public`       | Select public visibility; overrides `--github` visibility.  |
+| `--repair`              | Repair every drifted feature.                               |
+| `--repair --<feature>`  | Repair only the selected positive features.                 |
+| `--yes`                 | Accept plan warnings that require confirmation.             |
 
 A capability is a function provided by a feature. The `readme` capability uses
 its enabled provider, or `readme-static` by default. Required capabilities can

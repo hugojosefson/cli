@@ -45,10 +45,42 @@ Choose changes interactively:
 hj repo features --interactive
 ```
 
+Use built-in presets to select a group of features with one flag:
+
+| Option                | What it selects                                                  |
+| --------------------- | ---------------------------------------------------------------- |
+| `--defaults`          | Git and README.                                                  |
+| `--github`            | Common GitHub repository settings, including private visibility. |
+| `--github-protection` | Default-branch protection and protected tags.                    |
+| `--github-public`     | Public visibility, including when combined with `--github`.      |
+
+Set up Git and README:
+
+```bash
+hj repo features --defaults
+```
+
+For an existing linked GitHub repository, authenticate with `gh auth login`
+before applying GitHub presets. Apply common GitHub settings with public
+visibility, or add branch and tag protection:
+
+```bash
+hj repo features --github --github-public --yes
+hj repo features --github-protection --yes
+```
+
+Explicit feature flags override presets regardless of argument order. For
+example, apply the GitHub preset but disable its issues feature:
+
+```bash
+hj repo features --github --no-github-issues --yes
+```
+
 For command help, run:
 
 ```bash
 hj --help
+hj repo features --help
 ```
 
 Feature operations apply to the current directory. The

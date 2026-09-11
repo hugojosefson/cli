@@ -5,11 +5,18 @@ export const commandDefinitions = {
   "repo features": {
     usage: "hj repo features",
     description: "Inspect or change repository features.",
-    details: "With no flags, report status without changes.",
+    details:
+      "With no flags, report status without changes.\nPresets select a group of features with one flag. Explicit feature flags override presets.\nGitHub changes require an authenticated gh CLI, an existing repository link, and --yes.",
     flags: [
+      ["--defaults", "Select Git and README."],
+      ["--github", "Apply common GitHub repository settings (private)."],
+      ["--github-protection", "Protect the default branch and tags."],
+      [
+        "--github-public",
+        "Select public visibility; overrides --github visibility.",
+      ],
       ["--<feature>", "Enable a feature."],
       ["--no-<feature>", "Disable a feature."],
-      ["--defaults", "Select the built-in defaults."],
       ["--repair", "Repair drifted managed configuration."],
       ["--interactive, -i", "Select actions in a terminal checklist."],
       ["--yes", "Accept plan warnings that need confirmation."],
@@ -53,7 +60,28 @@ export const commandDefinitions = {
 
 export type CommandName = keyof typeof commandDefinitions;
 
+const featureExamples = [
+  ["hj repo features --defaults", "Set up Git and README."],
+  [
+    "hj repo features --github --github-public --yes",
+    "Apply GitHub settings with public visibility.",
+  ],
+  [
+    "hj repo features --github-protection --yes",
+    "Protect the default branch and tags.",
+  ],
+] as const;
+
 export function commandHelp(command?: CommandName, color = false): string {
+  const examples = formatTable(
+    ["Example", "Effect"],
+    featureExamples,
+    undefined,
+    {
+      color,
+      columns: ["cyan"],
+    },
+  );
   if (command) {
     const entry = commandDefinitions[command];
     const flags = "flags" in entry
@@ -65,7 +93,9 @@ export function commandHelp(command?: CommandName, color = false): string {
       : "";
     return `${
       colorText(entry.usage, "cyan", color)
-    }\n\n${entry.description}\n\n${entry.details}${flags}`;
+    }\n\n${entry.description}\n\n${entry.details}${flags}${
+      command === "repo features" ? `\n\n${examples}` : ""
+    }`;
   }
   return [
     colorText("hj: repository setup and release automation", "bold", color),
@@ -79,6 +109,9 @@ export function commandHelp(command?: CommandName, color = false): string {
       { color, columns: ["cyan"] },
     ),
     "",
+    examples,
+    "",
+    "GitHub changes require an authenticated gh CLI and an existing repository link.",
     "Use <command> --help for details.",
     "Global configuration and npm publication are planned, not implemented.",
   ].join("\n");
