@@ -35,6 +35,25 @@ Deno.test("MIT provider detects exact, drifted, and ambiguous LICENSE files", as
   );
 });
 
+Deno.test("MIT detection tolerates checkout permissions but rejects executable or read-only files", async () => {
+  const feature = createLicenseMitFeature(
+    source(template),
+    source(apacheTemplate),
+  );
+  for (const mode of [0o600, 0o640, 0o644, 0o660, 0o664, 0o666]) {
+    const current = context(file("Copyright 2026 Ada\nterms\n", mode));
+    assertEquals((await feature.detect(current)).state, "enabled");
+    assertEquals((await feature.checkEnable(current)).result, "no-op");
+  }
+  for (const mode of [0o444, 0o755, 0o645, 0o200]) {
+    assertEquals(
+      (await feature.detect(context(file("Copyright 2026 Ada\nterms\n", mode))))
+        .state,
+      "drifted",
+    );
+  }
+});
+
 Deno.test("MIT provider writes resolved attribution and repairs only mode drift", async () => {
   const feature = createLicenseMitFeature(
     source(template),

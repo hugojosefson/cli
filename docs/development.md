@@ -16,6 +16,9 @@ Tasks provide the supported development interface:
 | `deno task hj --help`                                          | Show the local CLI commands.                                  |
 | `deno task fmt`                                                | Format source, tooling, workflows, and documentation.         |
 | `deno task all`                                                | Run all checks without coverage collection.                   |
+| `deno task typecheck`                                          | Type-check source and scripts with frozen dependencies.       |
+| `deno task publish-check`                                      | Validate the package without uploading it.                    |
+| `deno task check`                                              | Run all checks without coverage collection.                   |
 | `deno task ci`                                                 | Run the checks and enforce coverage limits.                   |
 | `deno task test src/release/publish-tag-orchestration_test.ts` | Run one test file.                                            |
 | `deno task test --filter "recovery"`                           | Run tests with matching names.                                |
@@ -68,11 +71,11 @@ rules.
 
 ## Package checks
 
-`deno task package-check` runs `deno publish --dry-run` with full type checks
+`deno task publish-check` runs `deno publish --dry-run` with full type checks
 and the frozen lockfile. It never uploads the package. CI includes this check.
-The package exports only the CLI executable, not a supported library API. Its
-file list includes runtime source, the toolchain version, license, and docs.
-Tests and test fixtures stay outside the package.
+The package exports the CLI executable through both `.` and `./cli`. It has no
+supported library API. Its file list includes runtime source, the toolchain
+version, license, and docs. Tests and test fixtures stay outside the package.
 
 `deno task install-local` installs a command that loads this checkout. Its test
 uses a temporary installation and a caller directory with spaces. It runs help
@@ -151,24 +154,36 @@ The CLI was tested against this repository on 2026-09-11. Its status table
 reports managed features, not a general inventory of programming languages. The
 Details column explains custom configuration that cannot be adopted.
 
-| Feature                  | Result on this repository | Explanation                                                                                   |
-| ------------------------ | ------------------------- | --------------------------------------------------------------------------------------------- |
-| Git                      | Enabled                   | This is a Git repository.                                                                     |
-| Static README            | Enabled                   | The root README is writable.                                                                  |
-| Built README             | Disabled                  | There are no include sources or build tasks.                                                  |
-| MIT license              | Enabled                   | LICENSE uses the pinned template and a recognized README link.                                |
-| Version provider         | Enabled                   | `deno.json` contains an exact SemVer version.                                                 |
-| Formatting, lint, tests  | Drifted                   | Local tasks include project-specific paths, frozen dependencies, and the test runner.         |
-| Typecheck feature        | Disabled                  | Type checking runs through the local `check` task; there is no generated `typecheck` task.    |
-| Library                  | Drifted                   | The default export is the CLI, not the generated library entry point.                         |
-| Generated CLI and server | Disabled                  | The managed `./cli` and `./server` exports are absent.                                        |
-| JSR package feature      | Ambiguous                 | Package metadata exists, but there is no linked GitHub repository or managed publishing task. |
-| GitHub features          | Disabled                  | This repository is not published or linked to GitHub.                                         |
+| Feature or group        | Expected state | Reason                                                                                                                        |
+| ----------------------- | -------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| `git`                   | Enabled        | This is a Git repository.                                                                                                     |
+| `readme-static`         | Enabled        | The root README is writable.                                                                                                  |
+| `license-mit`           | Enabled        | LICENSE matches the MIT template and the README links to it.                                                                  |
+| `deno-config-version`   | Enabled        | `deno.json` contains an exact SemVer version.                                                                                 |
+| `deno-fmt`              | Enabled        | The `fmt` and `format` tasks provide formatting and its check.                                                                |
+| `deno-lint`             | Enabled        | The `lint` task runs Deno lint on source and scripts.                                                                         |
+| `deno-test`             | Enabled        | The `test` task uses the local test runner.                                                                                   |
+| `deno-typecheck`        | Enabled        | The `typecheck` task checks source and scripts.                                                                               |
+| `deno-cli`              | Enabled        | The explicit `./cli` export points to the CLI entry point.                                                                    |
+| `jsr-package`           | Enabled        | Local package metadata, exports, and `publish-check` are configured. This does not mean the package is published.             |
+| `deno-lib`              | Disabled       | The default export is the CLI. There is no library entry point.                                                               |
+| `deno-server`           | Disabled       | This package does not provide a server.                                                                                       |
+| `readme-build`          | Disabled       | The README does not need includes or generated sections.                                                                      |
+| Other license providers | Disabled       | MIT is the chosen license.                                                                                                    |
+| `github-ci`             | Disabled       | Local `ci.yaml` exists. The managed CI feature also adds dependency-update workflows and requires GitHub Actions permissions. |
+| GitHub release features | Disabled       | Release workflows remain absent until publication is authorized.                                                              |
+| Other GitHub features   | Disabled       | This repository has no linked GitHub repository. Remote settings cannot be treated as enabled.                                |
 
-LICENSE was aligned with the pinned template by changing whitespace only. Its
-file mode was set to `0644`. The README uses the managed license link, while
-copyright attribution remains in LICENSE. The Deno export uses object syntax
-with the same default entry point.
+The local task names now match the feature conventions. `check` runs all
+non-mutating checks, and `all` is its alias. CI runs coverage in place of the
+standalone test task, so it collects tests once. The package keeps its default
+CLI export for the documented installation command and adds an explicit `./cli`
+export for detection.
+
+Task detection accepts custom descriptions, file selections, and local runner
+scripts. CLI detection reads the declared entry point. License detection ignores
+group-write differences that Git does not preserve. These checks describe
+configuration. `deno task ci` tests whether the configured operations succeed.
 
 Keep the static README. It has one source, links to separate guides, and no
 repeated fragments that need includes. Building it would add a generated file, a
@@ -176,9 +191,9 @@ source directory, and a versioned task without removing duplicated content.
 Reconsider `readme-build` if the README needs shared fragments or generated
 reference material.
 
-Do not run broad repair just to make this table say enabled. Starter repair can
-replace custom tasks and code. Missing GitHub features remain disabled until
-publication is authorized.
+Enabling a configured feature preserves its custom files. Removal and repairs
+still check ownership before changing generated content. Missing GitHub features
+remain disabled until publication is authorized.
 
 ## First public release
 

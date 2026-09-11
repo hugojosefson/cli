@@ -26,19 +26,21 @@ export function denoTaskFeature(id: TaskFeatureId, name: string): Feature {
       if (state.kind === "ambiguous") {
         return taskDetection("ambiguous", id, state.message);
       }
+      if (state.kind === "tasks" && state.configured) {
+        return taskDetection(
+          "enabled",
+          id,
+          `Deno task ${task} is configured.`,
+        );
+      }
       if (!state.exact && !state.present) {
         return taskDetection("disabled", id, `Deno task ${task} is absent.`);
       }
-      if (!state.exact) {
-        return taskDetection("drifted", id, `Deno task ${task} differs.`);
-      }
-      return state.aggregate
-        ? taskDetection("enabled", id, `Deno task ${task} is adopted.`)
-        : taskDetection(
-          "drifted",
-          id,
-          `Deno task ${task} or the check aggregate differs.`,
-        );
+      return taskDetection(
+        "drifted",
+        id,
+        `Deno task ${task} differs or references unavailable tasks or files.`,
+      );
     },
     checkEnable: (context) => checkDenoTask(context, id, true),
     planEnable: (context, allowed) => planDenoTask(context, allowed, id, true),

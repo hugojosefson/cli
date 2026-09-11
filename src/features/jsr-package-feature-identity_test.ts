@@ -7,10 +7,10 @@ import {
 } from "./jsr-package-feature-support.ts";
 import { publishCheckDefinition } from "./jsr-package-config.ts";
 
-Deno.test("jsr-package classifies conflicting identity, malformed version, and missing exports", async () => {
+Deno.test("jsr-package accepts a distinct local name but rejects malformed metadata", async () => {
   for (
     const [name, version, exports] of [
-      ["@other/repository", "1.0.0", { ".": "./mod.ts" }],
+      ["@Other/invalid", "1.0.0", { ".": "./mod.ts" }],
       ["@owner/repository", "version", { ".": "./mod.ts" }],
       ["@owner/repository", "1.0.0", undefined],
     ] as const
@@ -36,12 +36,12 @@ Deno.test("jsr-package classifies conflicting identity, malformed version, and m
   }
 });
 
-Deno.test("jsr-package rejects a wrong name even without a publish task", async () => {
+Deno.test("jsr-package allows a distinct package name without assuming a publishing task", async () => {
   await withRepository(async (root) => {
     await writeConfig(root, { name: "@other/repository", version: "1.0.0" });
     assertEquals(
       (await jsrPackageFeature.detect(context(root))).state,
-      "ambiguous",
+      "disabled",
     );
   });
 });

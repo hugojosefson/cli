@@ -1,5 +1,6 @@
 /** @module Safety checks for the Deno CLI feature. */
 
+import { configuredDenoCli } from "./configured-deno-export.ts";
 import type { OperationCheck } from "../api/feature-operation.ts";
 import type { OperationContext } from "../api/repository-context.ts";
 import {
@@ -27,6 +28,19 @@ export async function checkEnableDenoCli(
   const actual = config.kind === "config" && isObject(config.value.exports)
     ? config.value.exports["./cli"]
     : undefined;
+  if (
+    !repair(context) && config.kind === "config" &&
+    !context.resolvedChanges.some((change) =>
+      change.featureId === "deno-server"
+    ) &&
+    await configuredDenoCli(context, config.value.exports)
+  ) {
+    return {
+      result: "no-op",
+      reason: "The CLI entry point is already configured.",
+      warnings: [],
+    };
+  }
   if (actual !== undefined && actual !== denoCliExport && !repair(context)) {
     return blocked(
       "The CLI export differs. Re-run with --repair to replace it.",

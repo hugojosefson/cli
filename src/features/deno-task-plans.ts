@@ -26,6 +26,16 @@ export async function checkDenoTask(
 ): Promise<OperationCheck> {
   const state = await inspectDenoTask(context, id);
   if (state.kind === "ambiguous") return blocked(state.message);
+  if (
+    enable && state.kind === "tasks" && state.configured &&
+    !selected(context, id)
+  ) {
+    return {
+      result: "no-op",
+      reason: "The Deno task is already configured.",
+      warnings: [],
+    };
+  }
   if (state.kind === "tasks" && !state.aggregate && !selected(context, id)) {
     return blocked(
       "The check aggregate conflicts. Re-run with --repair to replace it.",

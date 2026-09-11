@@ -53,19 +53,32 @@ Help does not request extra permissions. The installed command and
 ## Read the status table
 
 `hj repo features` reports status without changes. The Details column explains
-the observation behind each result. Detection checks the files that `hj` can
-manage. It does not inventory every tool used by a custom project.
+the observation behind each result. Detection reads configuration and local
+files. It does not run project tasks or prove that tests pass or a package is
+published.
 
 | State       | Meaning                                                                                 |
 | ----------- | --------------------------------------------------------------------------------------- |
-| `enabled`   | The feature recognizes its managed configuration.                                       |
+| `enabled`   | The feature recognizes usable configuration or its generated files.                     |
 | `disabled`  | The managed configuration is absent, or another recognized provider is active.          |
-| `drifted`   | Recognized configuration differs from the managed form. Read the details before repair. |
+| `drifted`   | Required configuration is incomplete or unrecognized. Read the details before repair.   |
 | `ambiguous` | Data is custom, conflicting, unreadable, or unsupported. Automatic changes are blocked. |
 | `unknown`   | No detection result is available.                                                       |
 
-A working custom Deno task can be drifted. A custom CLI does not need to match
-an `hj` starter project. For this repository's results, read the
+Deno tasks can use strings or objects, custom descriptions, and file selections.
+Detection follows simple task aliases and dependencies. It also recognizes local
+Deno runner scripts. Missing scripts, missing tasks, cycles, and unsupported
+commands do not count as configured tasks. The formatter needs both `fmt` and
+`format`; the direct `format` command must include `--check`.
+
+A declared `./cli` export counts as configured when it points to a nonempty
+local file. The source does not need to match the generated starter. If the
+default export points to the same CLI, it does not also count as a library.
+
+Enabling an already configured feature preserves its custom tasks and code.
+Automatic removal and repair still use exact ownership checks. A feature can
+therefore be enabled while its custom files remain protected from automatic
+removal. For this repository's results, read the
 [self-check record](development.md#self-check-and-readme-choice).
 
 ## Select changes
@@ -218,21 +231,26 @@ resolved review threads.
 
 ## JSR package feature
 
-`jsr-package` derives `@owner/repository` from the linked GitHub repository and
-starts at version `0.0.0`. It owns a `publish-check` task and the generated
-check aggregate. Existing custom package metadata alone does not mean this
-feature is adopted.
+`jsr-package` detects local package configuration without GitHub access. It
+requires a valid scoped name, an exact SemVer version, local export paths, and a
+configured `publish-check` task. The task can use a local runner. A direct
+`deno publish` command must include `--dry-run`.
 
 | Requirement   | Purpose                        |
 | ------------- | ------------------------------ |
 | `deno-fmt`    | Manage Deno tasks.             |
-| `github-repo` | Derive package identity.       |
 | A Deno export | Provide a package entry point. |
 | `readme`      | Provide package documentation. |
 | `license`     | Provide a complete license.    |
 
-The managed check command is `deno publish --dry-run --check=all`. Connecting
-the package to GitHub remains an external publishing prerequisite. Interactive
+For new managed configuration, `hj` derives `@owner/repository` from a linked
+GitHub repository and starts at version `0.0.0`. That operation still requires
+GitHub access. It creates the exact `deno publish --dry-run --check=all` task
+and adds it to the generated check aggregate. Custom aggregates do not change
+the local package status. Removing managed configuration still requires an exact
+match.
+
+Connecting and publishing the package are separate operations. Interactive
 license selection defaults to MIT and offers no unlicensed choice.
 
 Attribution is resolved in this order:

@@ -2,12 +2,22 @@
 
 import type { DetectionIssue } from "../api/feature-detection.ts";
 import type { DetectionContext } from "../api/repository-context.ts";
-import { denoFmtSubject, inspectDenoFmt } from "./deno-fmt-inspection.ts";
+import {
+  configuredDenoFmt,
+  denoFmtSubject,
+  inspectDenoFmt,
+} from "./deno-fmt-inspection.ts";
 import { denoTaskNames } from "./deno-tasks.ts";
 
 /** Detects absent, adopted, drifted, and ambiguous Deno formatting tasks. */
 export async function detectDenoFmt(context: DetectionContext) {
   const state = await inspectDenoFmt(context);
+  if (await configuredDenoFmt(context, state)) {
+    return simple(
+      "enabled",
+      "Deno formatting tasks are configured.",
+    );
+  }
   if (state.config.kind === "absent") {
     return simple("disabled", "Deno configuration is absent.");
   }

@@ -1,5 +1,6 @@
 /** @module Inspection and detection for independent Deno tasks. */
 
+import { configuredDenoTask } from "./configured-deno-task.ts";
 import type { DetectionContext } from "../api/repository-context.ts";
 import { sameJson } from "../operations/local-plan-state.ts";
 import { inspectDenoConfig } from "./deno-config.ts";
@@ -41,7 +42,7 @@ export async function inspectDenoTask(
     };
   }
   const actual = tasks[leafTaskNames[id]];
-  if (actual !== undefined && !isObject(actual)) {
+  if (actual !== undefined && typeof actual !== "string" && !isObject(actual)) {
     return {
       kind: "ambiguous" as const,
       message: `Deno task ${leafTaskNames[id]} is not an object.`,
@@ -53,6 +54,13 @@ export async function inspectDenoTask(
     config,
     tasks,
     present: actual !== undefined,
+    configured: await configuredDenoTask(
+      context,
+      tasks,
+      leafTaskNames[id],
+      id === "deno-typecheck" ? "check" : id === "deno-lint" ? "lint" : "test",
+      leafTaskDefinitions[id].command as string,
+    ),
     exact,
     aggregate: sameJson(
       tasks.check,

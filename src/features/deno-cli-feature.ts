@@ -1,16 +1,14 @@
 /** @module Built-in Deno CLI feature declaration and detection. */
 
+import {
+  configuredDenoCli,
+  localModulePath,
+} from "./configured-deno-export.ts";
 import type { DetectionIssue } from "../api/feature-detection.ts";
 import type { DetectionContext } from "../api/repository-context.ts";
 import type { Feature } from "../api/feature.ts";
 import { inspectDenoConfig } from "./deno-config.ts";
-import { denoServerExport } from "./deno-server-artifacts.ts";
-import {
-  denoCliExport,
-  denoCliFeatureId,
-  denoCliSubject,
-  inspectDenoCliArtifacts,
-} from "./deno-cli-artifacts.ts";
+import { denoCliFeatureId, denoCliSubject } from "./deno-cli-artifacts.ts";
 import {
   checkDisableDenoCli,
   checkEnableDenoCli,
@@ -34,22 +32,20 @@ async function detectDenoCli(context: DetectionContext) {
   if (config.value.exports["./cli"] === undefined) {
     return simple("disabled", "The managed ./cli export is absent.");
   }
-  if (config.value.exports["./cli"] !== denoCliExport) {
-    return issue("drifted", "The CLI export differs.");
+  if (await configuredDenoCli(context, config.value.exports)) {
+    return simple(
+      "enabled",
+      "The ./cli export points to a local entry point.",
+    );
   }
-  const serverEnabled = isObject(config.value.exports) &&
-    config.value.exports["./server"] === denoServerExport;
-  const invalid = (await inspectDenoCliArtifacts(context, serverEnabled)).find((
-    item,
-  ) => item.result !== "matches");
-  if (!invalid) {
-    return simple("enabled", "CLI export and executable seed are adopted.");
+  const path = localModulePath(config.value.exports["./cli"]);
+  if (path === undefined) {
+    return issue("ambiguous", "The CLI export is not a local module path.");
   }
-  const ambiguous = invalid.result === "unreadable" ||
-    invalid.result === "differs" && invalid.observation.kind !== "file";
+  const file = await context.files.observe(path);
   return issue(
-    ambiguous ? "ambiguous" : "drifted",
-    `Executable seed ${invalid.schema.path} does not exactly match.`,
+    file.kind === "file" || file.kind === "absent" ? "drifted" : "ambiguous",
+    `CLI entry point ${path} is missing, empty, or unreadable.`,
   );
 }
 

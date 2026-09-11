@@ -23,9 +23,6 @@ export const jsrPackageFeature: Feature = {
     requires: [{
       featureId: "deno-fmt",
       reason: "JSR packages require Deno formatting.",
-    }, {
-      featureId: "github-repo",
-      reason: "JSR package identity comes from the linked GitHub repository.",
     }],
   },
   capabilities: {
@@ -42,7 +39,18 @@ export const jsrPackageFeature: Feature = {
   detect: async (context) => {
     const state = await inspectJsrPackage(context);
     if (state.state === "enabled" || state.state === "disabled") {
-      return { state: state.state, evidence: [] };
+      return {
+        state: state.state,
+        evidence: [{
+          code: `jsr-package-${state.state}`,
+          kind: "jsr-package",
+          subject: {
+            kind: "repository-path",
+            identifier: "deno.json|deno.jsonc",
+          },
+          observation: state.observation,
+        }],
+      };
     }
     return {
       state: state.state,

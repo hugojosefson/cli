@@ -7,7 +7,7 @@ import { denoTaskDefinitions, leafTaskDefinitions } from "./deno-tasks.ts";
 
 const taskIds = ["deno-lint", "deno-typecheck", "deno-test"] as const;
 
-Deno.test("repairs task and aggregate drift without dropping contributions", async () => {
+Deno.test("repairs formatting without replacing configured tasks or unrelated aggregates", async () => {
   await withRepository(async (root) => {
     await run(root, ...taskIds.map((id) => `--${id}`));
     let config = await readConfig(root);
@@ -22,21 +22,19 @@ Deno.test("repairs task and aggregate drift without dropping contributions", asy
     config = await readConfig(root);
     assertEquals(config.tasks.fmt, denoTaskDefinitions().fmt);
     assertEquals(config.tasks.format, denoTaskDefinitions().format);
-    assertEquals(config.tasks.lint, leafTaskDefinitions["deno-lint"]);
+    assertEquals(config.tasks.lint, {
+      command: "deno lint --rules-exclude=no-window",
+    });
     assertEquals(config.tasks.typecheck, leafTaskDefinitions["deno-typecheck"]);
     assertEquals(config.tasks.test, leafTaskDefinitions["deno-test"]);
     assertEquals(config.tasks.check, denoTaskDefinitions(taskIds).check);
 
     config.tasks.check = { dependencies: ["custom"] };
     await writeConfig(root, config);
-    await assertRejects(
-      () => run(root, "--deno-lint"),
-      Error,
-      "check aggregate conflicts",
-    );
+    await run(root, "--deno-lint");
     await run(root, "--repair", "--deno-lint");
     config = await readConfig(root);
-    assertEquals(config.tasks.check, denoTaskDefinitions(taskIds).check);
+    assertEquals(config.tasks.check, { dependencies: ["custom"] });
   });
 });
 
@@ -114,8 +112,8 @@ Deno.test("classifies task conflicts", async (t) => {
     expected: "deno-lint ambiguous",
     enabled: false,
   }, {
-    name: "non-object leaf is ambiguous and blocked",
-    config: { tasks: { ...denoTaskDefinitions(), lint: "deno lint" } },
+    name: "invalid leaf is ambiguous and blocked",
+    config: { tasks: { ...denoTaskDefinitions(), lint: 7 } },
     expected: "deno-lint ambiguous",
     enabled: false,
   }, {

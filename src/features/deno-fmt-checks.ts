@@ -6,6 +6,7 @@ import type {
 } from "../api/feature-operation.ts";
 import type { OperationContext } from "../api/repository-context.ts";
 import {
+  configuredDenoFmt,
   denoFmtFeatureId,
   denoFmtSubject,
   inspectDenoFmt,
@@ -17,6 +18,13 @@ export async function checkEnableDenoFmt(
   context: OperationContext,
 ): Promise<OperationCheck> {
   const state = await inspectDenoFmt(context);
+  if (!repairSelected(context) && await configuredDenoFmt(context, state)) {
+    return {
+      result: "no-op",
+      reason: "Deno formatting is already configured.",
+      warnings: [],
+    };
+  }
   if (state.config.kind === "absent") return allowed();
   if (state.config.kind === "ambiguous") {
     return blocked(state.config.observation);

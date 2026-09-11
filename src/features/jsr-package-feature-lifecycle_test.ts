@@ -183,7 +183,7 @@ for (const drift of ["publish-check", "check"] as const) {
       });
       assertEquals(
         (await jsrPackageFeature.checkEnable(context(root))).result,
-        "blocked",
+        drift === "check" ? "no-op" : "blocked",
       );
       assertEquals(
         (await jsrPackageFeature.checkEnable(

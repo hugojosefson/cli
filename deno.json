@@ -3,7 +3,8 @@
   "version": "0.0.0",
   "license": "MIT",
   "exports": {
-    ".": "./src/cli/cli.ts"
+    ".": "./src/cli/cli.ts",
+    "./cli": "./src/cli/cli.ts"
   },
   "publish": {
     "include": [
@@ -50,7 +51,7 @@
       "description": "Lint source files",
       "command": "deno lint src scripts"
     },
-    "check": {
+    "typecheck": {
       "description": "Type-check source files",
       "command": "deno check --frozen src/**/*.ts scripts/*.ts"
     },
@@ -62,14 +63,21 @@
       "description": "Check the working diff for whitespace errors",
       "command": "git diff --check"
     },
-    "all": {
+    "check": {
       "description": "Run all non-mutating checks",
       "dependencies": [
         "format",
         "lint",
-        "check",
+        "typecheck",
         "test",
-        "diff-check"
+        "diff-check",
+        "publish-check"
+      ]
+    },
+    "all": {
+      "description": "Run all non-mutating checks",
+      "dependencies": [
+        "check"
       ]
     },
     "coverage": {
@@ -85,10 +93,10 @@
       "dependencies": [
         "format",
         "lint",
-        "check",
+        "typecheck",
         "coverage",
         "diff-check",
-        "package-check"
+        "publish-check"
       ]
     },
     "hj": {
@@ -99,7 +107,7 @@
       "description": "Report collected source coverage and enforce baselines",
       "command": "deno run --allow-env --allow-run=deno --allow-read scripts/report-coverage.ts"
     },
-    "package-check": {
+    "publish-check": {
       "description": "Validate the package without uploading",
       "command": "deno run --allow-env --allow-run=deno --allow-read scripts/check-package.ts"
     },

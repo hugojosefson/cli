@@ -23,7 +23,7 @@ for (
   ] as const
 ) {
   for (const readme of [false, true]) {
-    Deno.test(`jsr-package requires exact aggregate for ${leafs.join(",") || "no"} leaf tasks and readme ${readme}`, async () => {
+    Deno.test(`jsr-package recognizes local configuration with custom aggregates for ${leafs.join(",") || "no"} leaf tasks and readme ${readme}`, async () => {
       await withRepository(async (root) => {
         const tasks = ownedTasks(leafs, readme);
         await writeConfig(root, {
@@ -45,7 +45,11 @@ for (
         });
         assertEquals(
           (await jsrPackageFeature.detect(context(root))).state,
-          "drifted",
+          "enabled",
+        );
+        assertEquals(
+          (await jsrPackageFeature.checkDisable(context(root))).result,
+          "blocked",
         );
       });
     });

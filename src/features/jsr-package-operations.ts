@@ -1,5 +1,6 @@
 /** @module JSR package operation safety checks. */
 
+import { jsrPackageIdentity } from "./jsr-package-identity.ts";
 import type { OperationCheck } from "../api/feature-operation.ts";
 import type { OperationContext } from "../api/repository-context.ts";
 import { jsrPackageFeatureId } from "./jsr-package-config.ts";
@@ -10,11 +11,17 @@ const exportProviders = new Set(["deno-cli", "deno-lib", "deno-server"]);
 export async function checkEnableJsrPackage(
   context: OperationContext,
 ): Promise<OperationCheck> {
-  const state = await inspectJsrPackage(context);
+  const configured = await inspectJsrPackage(context);
+  if (configured.state === "enabled" && !repairSelected(context)) {
+    return { result: "no-op", reason: configured.observation, warnings: [] };
+  }
+  const state = await inspectJsrPackage(context, true);
   if (state.state === "ambiguous") return blocked(state.observation);
   if (state.state === "enabled") {
     return { result: "no-op", reason: state.observation, warnings: [] };
   }
+  const identity = await jsrPackageIdentity(context);
+  if (identity.kind !== "available") return blocked(identity.observation);
   if (state.state === "drifted") {
     const repairable = state.repairs.filter((item) => item !== "Deno export");
     if (repairable.length > 0 && !repairSelected(context)) {
@@ -34,7 +41,7 @@ export async function checkEnableJsrPackage(
 export async function checkDisableJsrPackage(
   context: OperationContext,
 ): Promise<OperationCheck> {
-  const state = await inspectJsrPackage(context);
+  const state = await inspectJsrPackage(context, true);
   if (state.state === "ambiguous") return blocked(state.observation);
   if (state.state === "drifted") {
     return blocked("Owned JSR package values differ and cannot be removed.");

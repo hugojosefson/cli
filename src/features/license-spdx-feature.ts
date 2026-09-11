@@ -113,7 +113,7 @@ async function inspectLicense(
       ) return { kind: "ambiguous", digest: observed.digest };
       if (
         readme.section.kind === "exact" && readme.rootFresh &&
-        observed.mode === 0o644
+        (observed.mode & 0o711) === 0o600
       ) {
         return { kind: "exact", digest: observed.digest, readme };
       }

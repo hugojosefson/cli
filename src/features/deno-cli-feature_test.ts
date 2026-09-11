@@ -82,10 +82,10 @@ Deno.test("deno-cli adopts, repairs content and mode, then preserves seed on dis
     );
     await Deno.chmod(new URL("src/cli/cli.ts", root), 0o644);
     await Deno.chmod(new URL("src/cli/commands.ts", root), 0o755);
-    assertEquals((await denoCliFeature.detect(context(root))).state, "drifted");
+    assertEquals((await denoCliFeature.detect(context(root))).state, "enabled");
     assertEquals(
       (await denoCliFeature.checkEnable(context(root))).result,
-      "blocked",
+      "no-op",
     );
     await apply(root, { kind: "features", featureIds: ["deno-cli"] });
     for (const artifact of denoCliArtifacts) {

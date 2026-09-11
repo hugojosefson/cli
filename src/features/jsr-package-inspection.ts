@@ -1,5 +1,7 @@
 /** @module Read-only inspection of JSR package configuration. */
 
+import { localModulePath } from "./configured-deno-export.ts";
+import { configuredDenoTask } from "./configured-deno-task.ts";
 import type { DetectionContext } from "../api/repository-context.ts";
 import type { JsonObject, JsonValue } from "../api/json.ts";
 import { sameJson } from "../operations/local-plan-state.ts";
@@ -35,6 +37,7 @@ export type JsrPackageInspection =
 /** Inspects identity, exports, the publish task, and the exact check aggregate. */
 export async function inspectJsrPackage(
   context: DetectionContext,
+  ownedOnly = false,
 ): Promise<JsrPackageInspection> {
   const config = await inspectDenoConfig(context);
   if (config.kind === "absent") {
@@ -51,15 +54,26 @@ export async function inspectJsrPackage(
     (!tasks || tasks[publishCheckName] === undefined) &&
     config.value.name === undefined && config.value.version === undefined
   ) {
-    return simple("disabled", "The owned publish-check task is absent.");
+    return simple("disabled", "The publish-check task is absent.");
   }
-  const identity = await jsrPackageIdentity(context);
+  if (
+    config.value.name !== undefined &&
+    (typeof config.value.name !== "string" ||
+      !/^@[a-z0-9]+(?:-[a-z0-9]+)*\/[a-z0-9]+(?:-[a-z0-9]+)*$/.test(
+        config.value.name,
+      ))
+  ) {
+    return simple(
+      "ambiguous",
+      "The package name is not a valid scoped JSR name.",
+    );
+  }
+  const identity = !ownedOnly && typeof config.value.name === "string"
+    ? { kind: "available" as const, name: config.value.name }
+    : await jsrPackageIdentity(context);
   if (identity.kind === "unavailable") {
     return simple("ambiguous", identity.observation);
   }
-  if (
-    config.value.name !== undefined && typeof config.value.name !== "string"
-  ) return simple("ambiguous", "The package name is not a string.");
   if (
     typeof config.value.name === "string" && config.value.name !== identity.name
   ) {
@@ -74,13 +88,16 @@ export async function inspectJsrPackage(
       !semver.test(config.value.version))
   ) return simple("ambiguous", "The package version is not exact SemVer.");
   if (!tasks || tasks[publishCheckName] === undefined) {
-    return simple("disabled", "The owned publish-check task is absent.");
+    return simple("disabled", "The publish-check task is absent.");
   }
   const repairs: string[] = [];
-  if (!sameJson(tasks[publishCheckName], publishCheckDefinition)) {
+  const configuredTask = ownedOnly
+    ? sameJson(tasks[publishCheckName], publishCheckDefinition)
+    : await configuredDenoTask(context, tasks, publishCheckName, "publish");
+  if (!configuredTask) {
     repairs.push("publish-check task");
   }
-  if (!sameJson(tasks.check, currentCheckDefinition(tasks))) {
+  if (ownedOnly && !sameJson(tasks.check, currentCheckDefinition(tasks))) {
     repairs.push("check aggregate");
   }
   const missingExport = !validExport(config.value.exports);
@@ -94,7 +111,7 @@ export async function inspectJsrPackage(
       : repairs[0] === "check aggregate"
       ? "The check aggregate differs."
       : missingExport
-      ? "A Deno export is missing."
+      ? "A Deno export is missing or invalid."
       : config.value.name === undefined
       ? "The package name is missing."
       : "The package version is missing.";
@@ -109,7 +126,9 @@ export async function inspectJsrPackage(
   }
   return {
     state: "enabled",
-    observation: "JSR package metadata and publish check are adopted.",
+    observation: ownedOnly
+      ? "JSR package metadata and publish check are adopted."
+      : "Local JSR metadata and a publishing check are configured.",
     config: config.value,
     path: config.path,
   };
@@ -123,9 +142,11 @@ function simple(
 }
 
 function validExport(value: JsonValue | undefined): boolean {
-  return typeof value === "string" && value.startsWith("./") ||
-    value !== undefined && isObject(value) &&
-      Object.values(value).some((item) =>
-        typeof item === "string" && item.startsWith("./")
-      );
+  if (typeof value === "string") return localModulePath(value) !== undefined;
+  return value !== undefined && isObject(value) &&
+    Object.keys(value).length > 0 &&
+    Object.entries(value).every(([name, target]) =>
+      (name === "." || localModulePath(name) !== undefined) &&
+      localModulePath(target) !== undefined
+    );
 }

@@ -1,5 +1,6 @@
 /** @module Built-in Deno library feature declaration and detection. */
 
+import { denoCliExport } from "./deno-cli-artifacts.ts";
 import type { DetectionIssue } from "../api/feature-detection.ts";
 import type { DetectionContext } from "../api/repository-context.ts";
 import type { Feature } from "../api/feature.ts";
@@ -33,6 +34,15 @@ async function detectDenoLib(context: DetectionContext) {
   }
   if (!isObject(exports)) {
     return issue("ambiguous", "The Deno exports entry is not an object.");
+  }
+  if (
+    exports["."] === denoCliExport ||
+    exports["./cli"] !== undefined && exports["."] === exports["./cli"]
+  ) {
+    return simple(
+      "disabled",
+      "The default export is the CLI entry point, not a library.",
+    );
   }
   if (exports["."] !== denoLibExport) {
     return issue(
