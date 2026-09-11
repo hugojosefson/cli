@@ -3,9 +3,8 @@ import { assertEquals, assertRejects, assertStringIncludes } from "@std/assert";
 import { LocalGithubClient } from "./local-github-client.ts";
 import { mainProtectionDefinition } from "../features/github-protection-definitions.ts";
 
-Deno.test("LocalGithubClient authenticates, reads, and atomically patches settings", async () => {
+Deno.test("LocalGithubClient checks repository access, reads, and atomically patches settings", async () => {
   const runner = new FakeRunner([
-    json({ login: "octo" }),
     json({ nameWithOwner: "owner/repo", defaultBranchRef: { name: "main" } }),
     json({ has_issues: false, has_wiki: true }),
     json({ has_issues: false, has_wiki: true }),
@@ -33,7 +32,6 @@ Deno.test("LocalGithubClient authenticates, reads, and atomically patches settin
     },
   ]);
   assertEquals(runner.calls, [
-    { args: ["api", "user"] },
     { args: ["repo", "view", "--json", "nameWithOwner,defaultBranchRef"] },
     { args: ["api", "repos/owner/repo"] },
     { args: ["api", "repos/owner/repo"] },
@@ -45,7 +43,7 @@ Deno.test("LocalGithubClient authenticates, reads, and atomically patches settin
   ]);
 });
 
-Deno.test("LocalGithubClient fails closed for malformed authentication and stale settings", async () => {
+Deno.test("LocalGithubClient fails closed for malformed repository data and stale settings", async () => {
   const malformed = new LocalGithubClient(
     new URL("file:///tmp/opencode/"),
     new FakeRunner([
@@ -54,7 +52,6 @@ Deno.test("LocalGithubClient fails closed for malformed authentication and stale
   );
   assertEquals(await malformed.repository(), undefined);
   const runner = new FakeRunner([
-    json({ login: "octo" }),
     json({ nameWithOwner: "owner/repo" }),
     json({ has_issues: false }),
     json({ has_issues: true }),
@@ -72,14 +69,13 @@ Deno.test("LocalGithubClient fails closed for malformed authentication and stale
       expectedStateDigest: observed!.stateDigest,
     }])
   );
-  assertEquals(runner.calls.length, 4);
+  assertEquals(runner.calls.length, 3);
 });
 
 Deno.test("LocalGithubClient treats failing repository commands and missing fields as unavailable", async () => {
   const failing = new LocalGithubClient(
     new URL("file:///tmp/opencode/"),
     new FakeRunner([
-      json({ login: "octo" }),
       undefined,
     ]),
   );
@@ -87,7 +83,6 @@ Deno.test("LocalGithubClient treats failing repository commands and missing fiel
   const missing = new LocalGithubClient(
     new URL("file:///tmp/opencode/"),
     new FakeRunner([
-      json({ login: "octo" }),
       json({ nameWithOwner: "owner/repo" }),
       json({}),
     ]),
@@ -103,7 +98,6 @@ Deno.test("LocalGithubClient models tag-ruleset eligibility fail closed", async 
     const client = new LocalGithubClient(
       new URL("file:///tmp/opencode/"),
       new FakeRunner([
-        json({ login: "octo" }),
         json({ nameWithOwner: "owner/repo" }),
         json(repository),
         json(owner),
@@ -158,7 +152,6 @@ Deno.test("LocalGithubClient models tag-ruleset eligibility fail closed", async 
 
 Deno.test("LocalGithubClient reads Actions pull-request permission and fails closed", async () => {
   const runner = new FakeRunner([
-    json({ login: "octo" }),
     json({ nameWithOwner: "owner/repo" }),
     json({ can_approve_pull_request_reviews: true }),
   ]);
@@ -173,13 +166,12 @@ Deno.test("LocalGithubClient reads Actions pull-request permission and fails clo
     ))?.definition,
     { value: true },
   );
-  assertEquals(runner.calls[2], {
+  assertEquals(runner.calls[1], {
     args: ["api", "repos/owner/repo/actions/permissions/workflow"],
   });
   const malformed = new LocalGithubClient(
     new URL("file:///tmp/opencode/"),
     new FakeRunner([
-      json({ login: "octo" }),
       json({ nameWithOwner: "owner/repo" }),
       json({ can_approve_pull_request_reviews: "true" }),
     ]),
@@ -243,7 +235,7 @@ Deno.test("LocalGithubClient canonicalizes complete repository rulesets", async 
     ...mainProtectionDefinition,
     id: 41,
   });
-  assertEquals(runner.calls.slice(2), [{
+  assertEquals(runner.calls.slice(1), [{
     args: [
       "api",
       "repos/owner/repo/rulesets?includes_parents=true&per_page=100&page=1",
@@ -269,7 +261,7 @@ Deno.test("LocalGithubClient retains inherited rulesets and paginates their deta
   const rulesets = await githubClient(runner).rulesets();
   assertEquals(rulesets?.length, 100);
   assertEquals(rulesets?.[0].sourceType, "Organization");
-  assertEquals(runner.calls.slice(2, 5).map((call) => call.args.at(-1)), [
+  assertEquals(runner.calls.slice(1, 4).map((call) => call.args.at(-1)), [
     "repos/owner/repo/rulesets?includes_parents=true&per_page=100&page=1",
     "repos/owner/repo/rulesets?includes_parents=true&per_page=100&page=2",
     "repos/owner/repo/rulesets/1",
@@ -283,7 +275,7 @@ Deno.test("LocalGithubClient rejects repeated full ruleset pages before details"
   }));
   const runner = githubRunner([json(page), json(page)]);
   assertEquals(await githubClient(runner).rulesets(), undefined);
-  assertEquals(runner.calls.length, 4);
+  assertEquals(runner.calls.length, 3);
   assertEquals(runner.calls.at(-1), {
     args: [
       "api",
@@ -673,7 +665,7 @@ Deno.test("LocalGithubClient rejects stale, duplicate, and contradictory ruleset
       expectedStateDigest: observed!.stateDigest,
     }])
   );
-  assertEquals(staleRunner.calls.length, 6);
+  assertEquals(staleRunner.calls.length, 5);
 
   const duplicateRunner = githubRunner([
     json([
@@ -691,7 +683,7 @@ Deno.test("LocalGithubClient rejects stale, duplicate, and contradictory ruleset
       expectedStateDigest: undefined,
     }])
   );
-  assertEquals(duplicateRunner.calls.length, 5);
+  assertEquals(duplicateRunner.calls.length, 4);
 
   const noCalls = githubRunner([]);
   const client = githubClient(noCalls);
@@ -732,7 +724,7 @@ Deno.test("LocalGithubClient rejects stale, duplicate, and contradictory ruleset
       expectedStateDigest: undefined,
     }])
   );
-  assertEquals(mismatchRunner.calls.length, 3);
+  assertEquals(mismatchRunner.calls.length, 2);
 
   const inheritedRunner = githubRunner([
     json([{ id: 9, source_type: "Organization" }]),
@@ -746,7 +738,7 @@ Deno.test("LocalGithubClient rejects stale, duplicate, and contradictory ruleset
       expectedStateDigest: undefined,
     }])
   );
-  assertEquals(inheritedRunner.calls.length, 4);
+  assertEquals(inheritedRunner.calls.length, 3);
 });
 
 Deno.test("LocalGithubClient deletes only freshly matching rulesets", async () => {
@@ -794,7 +786,7 @@ Deno.test("LocalGithubClient deletes only freshly matching rulesets", async () =
       expectedStateDigest: stale!.stateDigest,
     }])
   );
-  assertEquals(staleRunner.calls.length, 5);
+  assertEquals(staleRunner.calls.length, 4);
 });
 
 class FakeRunner implements GithubCommandRunner {
@@ -819,7 +811,6 @@ function githubRunner(
   results: readonly (Uint8Array | undefined)[],
 ): FakeRunner {
   return new FakeRunner([
-    json({ login: "octo" }),
     json({ nameWithOwner: "owner/repo", defaultBranchRef: { name: "main" } }),
     ...results,
   ]);
@@ -847,7 +838,7 @@ Deno.test("repository lookup rejects malformed JSON shapes without throwing", as
     }, { nameWithOwner: "a/b", defaultBranchRef: { name: 123 } }]
   ) {
     const client = githubClient(
-      new FakeRunner([json({ login: "octo" }), json(value)]),
+      new FakeRunner([json(value)]),
     );
     assertEquals(await client.repository(), undefined);
   }
@@ -867,7 +858,7 @@ Deno.test("GitHub read diagnostics retain HTTP status without exposing response 
   });
   assertEquals(await client.repository(), undefined);
   assertEquals(client.diagnostics, [
-    "GitHub API request failed (HTTP 401, exit 1). Run `gh auth status` to check access.",
+    "GitHub repository lookup failed (HTTP 401, exit 1). Run `gh auth status` to check access.",
   ]);
 });
 
@@ -918,5 +909,23 @@ Deno.test("GitHub plan restrictions do not suggest that valid credentials are mi
   assertEquals(await client.repository(), undefined);
   assertEquals(client.diagnostics, [
     "GitHub rejected a feature because of the repository's plan or visibility. Use a public repository or a GitHub plan that supports this feature.",
+  ]);
+});
+
+Deno.test("GitHub rate-limit diagnostics do not suggest another login or expose response details", async () => {
+  const client = githubClient({
+    run: () =>
+      Promise.resolve({
+        success: false,
+        code: 1,
+        stdout: json({
+          message: "API rate limit exceeded for user ID private-value",
+        }),
+        stderr: new TextEncoder().encode("HTTP 403 private-token"),
+      }),
+  });
+  assertEquals(await client.repository(), undefined);
+  assertEquals(client.diagnostics, [
+    "GitHub API rate limit reached. Wait for the limit to reset, then retry.",
   ]);
 });
