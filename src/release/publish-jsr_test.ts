@@ -20,7 +20,16 @@ import {
   sha,
 } from "./publisher-test-fixtures.ts";
 
+import { digestBytes } from "../repository/digest-bytes.ts";
+
+const response = (value: unknown, status = 200) => ({
+  status,
+  json: () => Promise.resolve(value),
+  text: () => Promise.resolve(JSON.stringify(value)),
+});
+
 const input = {
+  manifestDigest: "b".repeat(64),
   packageName: "@owner/repo",
   version: "1.2.3",
   sha,
@@ -35,9 +44,9 @@ const nested = (value: unknown, ...keys: string[]) =>
 Deno.test("JSR retries accept provenance from either supported publishing trigger", async () => {
   const memberInput = { ...input, route: "user" as const };
   const verify = (value: unknown) =>
-    jsrHttpApi(() =>
-      Promise.resolve({ status: 200, json: () => Promise.resolve(value) })
-    ).verifyProvenance(memberInput);
+    jsrHttpApi(() => Promise.resolve(response(value))).verifyProvenance(
+      memberInput,
+    );
   await verify(
     await rekor((statement) => {
       nested(
@@ -64,9 +73,7 @@ Deno.test("JSR retries accept provenance from either supported publishing trigge
 });
 Deno.test("Rekor v1 fixture accepts exact data and rejects every release-bound group", async () => {
   const verify = (value: unknown) =>
-    jsrHttpApi(() =>
-      Promise.resolve({ status: 200, json: () => Promise.resolve(value) })
-    ).verifyProvenance(input);
+    jsrHttpApi(() => Promise.resolve(response(value))).verifyProvenance(input);
   await verify(await rekor());
   const mutations: Array<
     (
@@ -211,16 +218,18 @@ Deno.test("JSR HTTP status and metadata validation are fail-closed", async () =>
     rekorLogId: 7,
   };
   assertEquals(
-    await jsrHttpApi(() =>
-      Promise.resolve({ status: 404, json: () => Promise.resolve({}) })
-    ).version("@owner/repo", "1.2.3"),
+    await jsrHttpApi(() => Promise.resolve(response({}, 404))).version(
+      "@owner/repo",
+      "1.2.3",
+    ),
     undefined,
   );
   for (const status of [400, 500]) {
     await assertRejects(() =>
-      jsrHttpApi(() =>
-        Promise.resolve({ status, json: () => Promise.resolve({}) })
-      ).version("@owner/repo", "1.2.3")
+      jsrHttpApi(() => Promise.resolve(response({}, status))).version(
+        "@owner/repo",
+        "1.2.3",
+      )
     );
   }
   for (
@@ -232,9 +241,10 @@ Deno.test("JSR HTTP status and metadata validation are fail-closed", async () =>
     ]
   ) {
     await assertRejects(() =>
-      jsrHttpApi(() =>
-        Promise.resolve({ status: 200, json: () => Promise.resolve(value) })
-      ).version("@owner/repo", "1.2.3")
+      jsrHttpApi(() => Promise.resolve(response(value))).version(
+        "@owner/repo",
+        "1.2.3",
+      )
     );
   }
   for (
@@ -244,35 +254,36 @@ Deno.test("JSR HTTP status and metadata validation are fail-closed", async () =>
       exports: { ".": "./x" },
     }]
   ) {
-    await assertRejects(() =>
-      jsrHttpApi((url) =>
-        Promise.resolve({
-          status: 200,
-          json: () =>
-            Promise.resolve(url.includes("api.jsr") ? management : registry),
-        })
-      ).version("@owner/repo", "1.2.3"), TypeError);
+    await assertRejects(
+      () =>
+        jsrHttpApi((url) =>
+          Promise.resolve(
+            response(url.includes("api.jsr") ? management : registry),
+          )
+        ).version("@owner/repo", "1.2.3"),
+      TypeError,
+    );
   }
   let request = 0;
   await assertRejects(() =>
     jsrHttpApi(() => {
       request++;
-      return Promise.resolve({
-        status: request === 1 ? 200 : 404,
-        json: () => Promise.resolve(management),
-      });
+      return Promise.resolve(response(management, request === 1 ? 200 : 404));
     }).version("@owner/repo", "1.2.3"), Error);
   const urls: string[] = [];
   assertEquals(
     await jsrHttpApi((url) => {
       urls.push(url);
-      return Promise.resolve({
-        status: 200,
-        json: () =>
-          Promise.resolve(url.includes("api.jsr") ? management : remote()),
-      });
+      return Promise.resolve(
+        response(url.includes("api.jsr") ? management : remote()),
+      );
     }).version("@owner/repo", "1.2.3"),
-    remote(),
+    {
+      ...remote(),
+      manifestDigest: await digestBytes(
+        encoder.encode(JSON.stringify(remote())),
+      ),
+    },
   );
   assertEquals(urls, [
     "https://api.jsr.io/scopes/owner/packages/repo/versions/1.2.3",
@@ -295,6 +306,7 @@ Deno.test("JSR existing versions require exact exports, files, graph, and proven
   assertEquals(exactCalls, [
     "git ls-remote origin refs/tags/1.2.3 refs/tags/1.2.3^{}",
     "git rev-parse HEAD^{commit}",
+    "git status --porcelain=v1 --untracked-files=normal",
   ]);
   const conflicts: readonly JsrVersion[] = [
     { ...remote(), exports: { ".": "./other.ts" } },
@@ -455,4 +467,75 @@ Deno.test("local package reader rejects unsafe paths, directories, and symlinks"
   } finally {
     await Deno.remove(root, { recursive: true });
   }
+});
+
+Deno.test("JSR verification binds transformed modules to the clean release and manifest digest", async () => {
+  const changed = {
+    ...remote(),
+    manifest: { "/mod.ts": { size: 20, checksum } },
+  };
+  let verified: unknown;
+  const options = {
+    environment: environment(),
+    process: process([]),
+    files: files(),
+    packageFiles: {
+      read: () => Promise.resolve(encoder.encode("unfurlable source")),
+    },
+    api: {
+      version: () => Promise.resolve(changed),
+      verifyProvenance: (input: unknown) => {
+        verified = input;
+        return Promise.resolve();
+      },
+    },
+  };
+  await publishJsr(options);
+  assertEquals(verified, {
+    packageName: "@owner/repo",
+    version: "1.2.3",
+    sha,
+    manifestDigest: changed.manifestDigest,
+    rekorLogId: 7,
+    repository: "owner/repo",
+  });
+  await assertRejects(
+    () =>
+      publishJsr({
+        ...options,
+        process: process([], {
+          "git status --porcelain=v1 --untracked-files=normal": " M mod.ts\n",
+        }),
+      }),
+    TypeError,
+    "clean release",
+  );
+  await assertRejects(
+    () =>
+      jsrHttpApi(() => rekor().then((body) => response(body))).verifyProvenance(
+        { ...input, manifestDigest: "c".repeat(64) },
+      ),
+    TypeError,
+    "subject differs",
+  );
+});
+
+Deno.test("JSR blocks uploads whose workflow identity names another commit", async () => {
+  const calls: string[] = [];
+  await assertRejects(
+    () =>
+      publishJsr({
+        environment: environment({ GITHUB_SHA: "c".repeat(40) }),
+        process: process(calls),
+        files: files(),
+        packageFiles: { read: () => Promise.resolve(encoder.encode("x")) },
+        api: {
+          version: () => Promise.resolve(undefined),
+          verifyProvenance: () => Promise.resolve(),
+        },
+      }),
+    TypeError,
+    "Workflow commit differs",
+  );
+  assertEquals(calls.some((call) => call.startsWith("deno publish")), false);
 });

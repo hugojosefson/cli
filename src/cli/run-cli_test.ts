@@ -30,7 +30,9 @@ function publisherDependencies() {
   const releaseProcess = {
     run: (command: string, args: readonly string[]) => {
       processCalls.push(`${command} ${args.join(" ")}`);
-      const output = command === "git" && args[0] === "ls-remote"
+      const output = command === "git" && args[0] === "status"
+        ? ""
+        : command === "git" && args[0] === "ls-remote"
         ? `${releaseSha}\trefs/tags/1.2.3\n`
         : command === "git" && args[0] === "show"
         ? "## 1.2.3\nnotes\n"
@@ -67,6 +69,7 @@ function publisherDependencies() {
           jsrReads++;
           return Promise.resolve({
             manifest: { "/mod.ts": { size: 1, checksum: moduleChecksum } },
+            manifestDigest: "b".repeat(64),
             moduleGraph2: { "/mod.ts": {} },
             exports: { ".": "./mod.ts" },
             rekorLogId: 1,

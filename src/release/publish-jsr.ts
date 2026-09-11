@@ -1,6 +1,8 @@
 /** Idempotent JSR publication with registry and provenance verification. */
 import type { ReleaseEnvironment } from "./release-environment.ts";
 import type { ReleaseProcess } from "./release-process.ts";
+import { runOrThrow } from "./release-process.ts";
+import { digestBytes } from "../repository/digest-bytes.ts";
 import {
   confirmPublication,
   type ReleaseClock,
@@ -15,6 +17,7 @@ import {
 
 type ManifestFile = { readonly size: number; readonly checksum: string };
 export type JsrVersion = {
+  readonly manifestDigest: string;
   readonly manifest: Readonly<Record<string, ManifestFile>>;
   readonly moduleGraph2: Readonly<Record<string, unknown>>;
   readonly exports: Readonly<Record<string, string>>;
@@ -28,11 +31,13 @@ export type PackageFileReader = { read(path: string): Promise<Uint8Array> };
 export type ReleaseFetch = (url: string, init?: RequestInit) => Promise<{
   readonly status: number;
   json(): Promise<unknown>;
+  text(): Promise<string>;
 }>;
 export type ProvenanceInput = {
   readonly packageName: string;
   readonly version: string;
   readonly sha: string;
+  readonly manifestDigest: string;
   readonly rekorLogId: number;
   readonly repository: string;
 };
@@ -72,9 +77,13 @@ export function jsrHttpApi(fetch: ReleaseFetch): JsrApi {
       if (registry.status !== 200) {
         throw new Error("JSR registry metadata is unavailable.");
       }
-      const metadata = object(await registry.json());
+      const metadataText = await registry.text();
+      const metadata = object(JSON.parse(metadataText));
       if (!metadata) throw new TypeError("JSR registry metadata is invalid.");
       return {
+        manifestDigest: await digestBytes(
+          new TextEncoder().encode(metadataText),
+        ),
         manifest: manifest(metadata.manifest),
         moduleGraph2: graph(metadata.moduleGraph2),
         exports: exportMap(metadata.exports),
@@ -134,6 +143,15 @@ export async function publishJsr(input: {
   clock?: ReleaseClock;
 }): Promise<void> {
   const release = await publisherInput(input.environment, input.process);
+  if (
+    (await runOrThrow(input.process, "git", [
+      "status",
+      "--porcelain=v1",
+      "--untracked-files=normal",
+    ])).trim()
+  ) {
+    throw new TypeError("JSR publication requires a clean release checkout.");
+  }
   const config = await versionConfig(input.files, release.version);
   const packageName = jsrPackageName(release.repository);
   if (config.name !== packageName || config.version !== release.version) {
@@ -151,6 +169,11 @@ export async function publishJsr(input: {
     );
   const before = await input.api.version(packageName, release.version);
   if (before) return await verify(before);
+  if (input.environment.get("GITHUB_SHA") !== release.sha) {
+    throw new TypeError(
+      "Workflow commit differs from the release. Retry the JSR workflow with --ref set to the release tag.",
+    );
+  }
   await run(input.process, ["publish", "--dry-run"]);
   let publishFailed = false;
   try {
@@ -230,29 +253,25 @@ async function verifyVersion(
     } catch {
       throw new TypeError("Local JSR module cannot be read.");
     }
+    // Deno rewrites module imports before upload. The signed manifest digest
+    // binds those transformed bytes to the exact release commit instead.
     if (
-      bytes.length !== expected.size ||
-      await checksum(bytes) !== expected.checksum
+      !remote.moduleGraph2[path] && (bytes.length !== expected.size ||
+        await checksum(bytes) !== expected.checksum)
     ) throw new TypeError("JSR module content differs.");
   }
   await api.verifyProvenance({
     packageName: name,
     version: release.version,
     sha: release.sha,
+    manifestDigest: remote.manifestDigest,
     rekorLogId: remote.rekorLogId,
     repository: release.repository,
   });
 }
 
 async function checksum(bytes: Uint8Array): Promise<string> {
-  const source = bytes.buffer.slice(
-    bytes.byteOffset,
-    bytes.byteOffset + bytes.byteLength,
-  ) as ArrayBuffer;
-  const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", source));
-  return `sha256-${
-    [...digest].map((byte) => byte.toString(16).padStart(2, "0")).join("")
-  }`;
+  return `sha256-${await digestBytes(bytes)}`;
 }
 function parsePackageName(name: string): [string, string] {
   const match = /^@([a-z0-9][a-z0-9._-]*)\/([a-z0-9][a-z0-9._-]*)$/.exec(name);
@@ -366,7 +385,8 @@ function verifyStatement(
   if (
     subject.name !== `pkg:jsr/${input.packageName}@${input.version}` ||
     !digest || Object.keys(digest).length !== 1 ||
-    !/^[0-9a-f]{64}$/.test(String(digest.sha256))
+    !/^[0-9a-f]{64}$/.test(String(digest.sha256)) ||
+    digest.sha256 !== input.manifestDigest
   ) throw new TypeError("Rekor subject differs from release.");
   const dependencies = array(build?.resolvedDependencies);
   if (
