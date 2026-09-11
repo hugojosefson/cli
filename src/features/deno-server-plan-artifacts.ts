@@ -1,11 +1,11 @@
 import type { PlannedChange } from "../api/planned-change.ts";
 import {
   denoCliArtifactsForServer,
-  inspectDenoCliArtifacts,
+  type inspectDenoCliArtifacts,
 } from "./deno-cli-artifacts.ts";
 import {
   denoServerArtifacts,
-  inspectDenoServerArtifacts,
+  type inspectDenoServerArtifacts,
 } from "./deno-server-artifacts.ts";
 
 export function addServerArtifacts(

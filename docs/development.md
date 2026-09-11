@@ -54,6 +54,18 @@ To change features, append feature flags from the
 needed by the CLI. Each command still applies its own checks and confirmation
 rules.
 
+## Package checks
+
+`deno task package-check` runs `deno publish --dry-run` with full type checks
+and the frozen lockfile. It never uploads the package. CI includes this check.
+The package exports only the CLI executable, not a supported library API. Its
+file list includes runtime source, the toolchain version, license, and docs.
+Tests and test fixtures stay outside the package.
+
+`deno task install-local` installs a command that loads this checkout. Its test
+uses a temporary installation and a caller directory with spaces. It runs help
+and applies a formatting feature to confirm the working directory behavior.
+
 ## CI and toolchain changes
 
 [ci.yaml](../.github/workflows/ci.yaml) runs `deno task ci` for pushes, pull

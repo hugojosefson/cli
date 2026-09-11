@@ -4,10 +4,10 @@
 uses TypeScript and Deno. Features manage Git, Deno projects, documentation,
 GitHub configuration, and releases.
 
-This project is unpublished. You can run the CLI from this checkout. The
-intended package name is `@hugojosefson/cli`. Generated workflows currently
-reference `jsr:@hugojosefson/cli@0.0.0`. They need a published package before
-they can run remotely.
+This project is unpublished. You can run the CLI from this checkout. The package
+name is `@hugojosefson/cli`. Generated workflows currently reference
+`jsr:@hugojosefson/cli@0.0.0`. They need a published package before they can run
+remotely.
 
 ## Run locally
 
@@ -28,6 +28,18 @@ The last command reports this repository's feature status without changes.
 Feature changes act on the command's working directory. For work in another
 directory, use the
 [development guide](docs/development.md#run-against-another-repository).
+
+## Install from this checkout
+
+Run `deno task install-local` to install the `hj` command. Add the printed
+binary directory to `PATH`. The command still loads source from this checkout,
+so keep the checkout at the same path. After moving it, reinstall with
+`deno task install-local --force`.
+
+For an isolated installation, run
+`deno task install-local --root /absolute/path/to/tools`. Remove that
+installation with `deno uninstall --global --root /absolute/path/to/tools hj`. A
+registry installation remains unavailable until the package is published.
 
 ## Documentation
 
@@ -55,3 +67,7 @@ deno task ci
 
 This command checks formatting, types, lint, tests, coverage, and whitespace.
 For formatting fixes, run `deno task fmt` first.
+
+## License
+
+[MIT](LICENSE), copyright 2026 Hugo Josefson.

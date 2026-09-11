@@ -29,11 +29,13 @@ choose defaults.
 
 ## Package distribution and npm
 
-The intended JSR package name is `@hugojosefson/cli`. Generated workflows
-reference version `0.0.0` as a development placeholder. Before those workflows
-run remotely, publish a usable package and update their exact package
-references. Package metadata and the installation procedure still need that
-publication work. Local development uses the runner documented in the README.
+The JSR package name is `@hugojosefson/cli`. Package metadata, the MIT license,
+the executable export, and a local installation task are present. CI validates
+the package with a dry run. Generated workflows reference version `0.0.0` as a
+development placeholder. Before those workflows run remotely, publish a usable
+package and update their exact package references. Registry installation still
+needs publication. The README describes local installation and the development
+runner.
 
 An npm publisher is planned. There is no npm feature, command, or workflow. Its
 proposed trigger is the same tag-success event that starts the current
