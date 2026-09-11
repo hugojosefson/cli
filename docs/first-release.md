@@ -59,8 +59,8 @@ For JSR, link the package in its package settings. Then follow the
 [scope security instructions](releases.md#jsr-scope-security) for automatic
 publication. The owner confirmed that this package is linked to
 `hugojosefson/cli`, with CI publication required and **Do not restrict
-publishing** selected. The public GitHub repository exists and remains empty.
-The owner also authorized completing publication.
+publishing** selected. The CLI source is public on GitHub. The owner also
+authorized completing publication.
 
 ## Configure GitHub through features
 

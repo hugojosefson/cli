@@ -1,10 +1,10 @@
 # Planned work
 
 Items in this guide are not available features or completed validation. The
-[feature guide](repository-features.md) describes the implemented behavior. This
-project remains unpublished. The [`git-hj-init` assessment](git-hj-init.md)
-assesses missing behavior that this plan does not already cover, with reasons
-and proposed README additions.
+[feature guide](repository-features.md) describes the implemented behavior. The
+source is public, and the first registry release is in progress. The
+[`git-hj-init` assessment](git-hj-init.md) assesses missing behavior that this
+plan does not already cover, with reasons and proposed README additions.
 
 ## Global configuration
 
