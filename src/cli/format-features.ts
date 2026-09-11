@@ -37,26 +37,35 @@ export function formatFeatureStatus(
   });
 }
 
-/** Formats a concise operation result. */
+export interface FeatureOperationResult {
+  readonly committed: boolean;
+  readonly initializedGit: boolean;
+  readonly localChanged: boolean;
+  readonly githubChanged: boolean;
+}
+
+/** Reports local and remote changes separately, including operations without Git. */
 export function formatFeatureResult(
   status: string,
-  committed: boolean,
-  initializedGit: boolean,
-  githubChanged: boolean,
+  result: FeatureOperationResult,
   color = false,
 ): string {
-  const note = initializedGit
-    ? "Initialized Git and created the first commit."
-    : committed
-    ? "Created one commit for planned paths."
-    : githubChanged
-    ? "Applied GitHub changes."
-    : "No changes.";
-  return `${status}\n\n${
-    colorText(
-      note,
-      committed || githubChanged ? "green" : "dim",
+  const rows: string[][] = [];
+  if (result.localChanged) rows.push(["Local files", "Applied local changes."]);
+  if (result.committed) {
+    rows.push([
+      "Git",
+      result.initializedGit
+        ? "Initialized Git and created the first commit."
+        : "Created one commit for planned paths.",
+    ]);
+  }
+  if (result.githubChanged) rows.push(["GitHub", "Applied GitHub changes."]);
+  const summary = rows.length
+    ? formatTable(["Area", "Result"], rows, undefined, {
       color,
-    )
-  }`;
+      columns: ["cyan", "green"],
+    })
+    : colorText("No changes.", "dim", color);
+  return `${status}\n\n${summary}`;
 }

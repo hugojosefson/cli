@@ -65,6 +65,18 @@ Deno.test("reports status and commits only planned README changes", async () => 
   });
 });
 
+Deno.test("reports local changes without Git and reports a repeat as unchanged", async () => {
+  await withRepository(async (root) => {
+    const first = await run(root, "--deno-fmt");
+    assertStringIncludes(first, "Applied local changes.");
+    assert(!first.includes("No changes."));
+    assertEquals(await fileExists(root, "deno.jsonc"), true);
+    assertEquals(await fileExists(root, ".git"), false);
+    const repeated = await run(root, "--deno-fmt");
+    assertStringIncludes(repeated, "No changes.");
+  });
+});
+
 Deno.test("repair preserves writable static README content", async () => {
   await withRepository(async (root) => {
     await git(["init"], root);

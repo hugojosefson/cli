@@ -224,9 +224,12 @@ export async function runFeatureOperation(
         await detect(root, files, git, github, registry),
         services.colors?.stdout,
       ),
-      committed,
-      !beforeGit && initializedGit,
-      githubChanged,
+      {
+        committed,
+        initializedGit: !beforeGit && initializedGit,
+        localChanged: plans.some((plan) => localPlan(plan).changes.length > 0),
+        githubChanged,
+      },
       services.colors?.stdout,
     );
   } catch (error) {

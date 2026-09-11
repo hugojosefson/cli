@@ -79,25 +79,50 @@ Deno.test("feature rows style names and wrapped details according to state", () 
   );
 });
 
-Deno.test("operation notes distinguish success and no changes", () => {
+Deno.test("operation summaries report local and remote changes with optional color", () => {
   for (
-    const [committed, initialized, github, code] of [
-      [true, false, false, 32],
-      [true, true, false, 32],
-      [false, false, true, 32],
-      [false, false, false, 2],
-    ] as const
+    const result of [
+      {
+        committed: true,
+        initializedGit: false,
+        localChanged: true,
+        githubChanged: false,
+      },
+      {
+        committed: true,
+        initializedGit: true,
+        localChanged: true,
+        githubChanged: false,
+      },
+      {
+        committed: false,
+        initializedGit: false,
+        localChanged: false,
+        githubChanged: true,
+      },
+      {
+        committed: false,
+        initializedGit: false,
+        localChanged: true,
+        githubChanged: true,
+      },
+      {
+        committed: false,
+        initializedGit: false,
+        localChanged: false,
+        githubChanged: false,
+      },
+    ]
   ) {
-    const plain = formatFeatureResult("status", committed, initialized, github);
-    const colored = formatFeatureResult(
-      "status",
-      committed,
-      initialized,
-      github,
-      true,
-    );
-    assertStringIncludes(colored, `status\n\n\x1b[${code}m`);
+    const plain = formatFeatureResult("status", result);
+    const colored = formatFeatureResult("status", result, true);
+    assertStringIncludes(colored, "\x1b[");
     // deno-lint-ignore no-control-regex -- Compare visible text after ANSI removal.
     assertEquals(colored.replaceAll(/\u001b\[\d+m/g, ""), plain);
+    assertEquals(plain.includes("Applied local changes."), result.localChanged);
+    assertEquals(
+      plain.includes("Applied GitHub changes."),
+      result.githubChanged,
+    );
   }
 });
