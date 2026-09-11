@@ -1,8 +1,17 @@
-/** Plain text tables for terminals and redirected output. */
+/** Aligned tables with optional styles applied after measuring plain text. */
+import { type ColorStyle, colorText, stateColor } from "./terminal-colors.ts";
+
+export interface TableStyle {
+  readonly color?: boolean;
+  readonly columns?: readonly (ColorStyle | "state" | undefined)[];
+  readonly rows?: readonly (ColorStyle | undefined)[];
+}
+
 export function formatTable(
   headers: readonly string[],
   rows: readonly (readonly string[])[],
   limits: readonly number[] = headers.map(() => 64),
+  style: TableStyle = {},
 ): string {
   const clean = (value: string) =>
     value
@@ -32,18 +41,35 @@ export function formatTable(
       }
       return [...result, rest];
     });
-  const render = (row: readonly string[]) => {
+  const render = (
+    row: readonly string[],
+    heading = false,
+    rowStyle?: ColorStyle,
+  ) => {
     const cells = row.map((cell, i) => wrap(cell, widths[i]));
     return Array.from(
       { length: Math.max(...cells.map((cell) => cell.length)) },
       (_, line) =>
-        cells.map((cell, i) => (cell[line] ?? "").padEnd(widths[i])).join("  ")
-          .trimEnd(),
+        cells.map((cell, i) => {
+          const text = cell[line] ?? "";
+          const columnStyle = style.columns?.[i];
+          const color = heading
+            ? "bold"
+            : columnStyle === "state"
+            ? stateColor(row[i])
+            : rowStyle ?? columnStyle;
+          return colorText(text, color, style.color) +
+            " ".repeat(widths[i] - text.length);
+        }).join("  ").trimEnd(),
     );
   };
   return [
-    ...render(values[0]),
-    widths.map((width) => "-".repeat(width)).join("  "),
-    ...values.slice(1).flatMap(render),
+    ...render(values[0], true),
+    colorText(
+      widths.map((width) => "-".repeat(width)).join("  "),
+      "dim",
+      style.color,
+    ),
+    ...values.slice(1).flatMap((row, i) => render(row, false, style.rows?.[i])),
   ].join("\n");
 }

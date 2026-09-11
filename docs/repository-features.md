@@ -8,6 +8,48 @@ Feature flags select changes independently:
 hj repo features --deno-lib --deno-cli --no-deno-server
 ```
 
+## Output
+
+`hj` prints aligned tables for structured results. Status words remain visible
+with or without color. It measures columns before it adds color, so both forms
+have the same alignment.
+
+| Element or state             | Appearance                                          |
+| ---------------------------- | --------------------------------------------------- |
+| Table headings               | Bold                                                |
+| Commands and flags           | Cyan                                                |
+| Enabled features             | Normal details, cyan names, and green status words. |
+| Drifted features             | Yellow names, status words, and details.            |
+| Ambiguous features           | Red names, status words, and details.               |
+| Disabled or unknown features | Dim names, status words, and details.               |
+| Completed changes            | Green                                               |
+| Warnings                     | Yellow                                              |
+| Errors                       | Red                                                 |
+| Separators                   | Dim                                                 |
+
+Row styles also apply to wrapped details.
+
+The CLI checks stdout and stderr separately. Redirected output and pipes use
+plain text by default. Generated README content always keeps its exact bytes.
+Color affects human messages, not release data written to workflow files.
+
+Color controls follow
+[Deno's color policy](https://github.com/denoland/deno_terminal/blob/main/src/colors.rs):
+
+| Control             | Behavior                                                                                         |
+| ------------------- | ------------------------------------------------------------------------------------------------ |
+| `NO_COLOR=1`        | Disable color and text styles. Any nonempty value has this effect.                               |
+| `TERM=dumb`         | Disable color and text styles.                                                                   |
+| `FORCE_COLOR=1`     | Force color, including in pipes. Any nonempty value overrides `NO_COLOR` and `TERM`, as in Deno. |
+| Empty `FORCE_COLOR` | Use normal terminal detection and the other controls.                                            |
+
+To disable color, unset `FORCE_COLOR` before you set `NO_COLOR`. Unlike some
+Node tools, Deno treats `FORCE_COLOR=0` as a request for color. When running
+source with restricted permissions, allow `TERM` reads for automatic color
+detection. Without that permission, `hj` uses plain text unless color is forced.
+Help does not request extra permissions. The installed command and
+`deno task hj` already have the required permission.
+
 ## Read the status table
 
 `hj repo features` reports status without changes. The Details column explains

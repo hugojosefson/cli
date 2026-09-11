@@ -1,20 +1,19 @@
 /** Available commands and their usage, shared by dispatch errors and help. */
+import { colorText } from "./terminal-colors.ts";
 import { formatTable } from "./format-table.ts";
 export const commandDefinitions = {
   "repo features": {
     usage: "hj repo features",
     description: "Inspect or change repository features.",
-    details: "With no flags, report status without changes.\n\n" + formatTable(
-      ["Flag", "Effect"],
-      [
-        ["--<feature>", "Enable a feature."],
-        ["--no-<feature>", "Disable a feature."],
-        ["--defaults", "Select the built-in defaults."],
-        ["--repair", "Repair drifted managed configuration."],
-        ["--interactive, -i", "Select actions in a terminal checklist."],
-        ["--yes", "Accept plan warnings that need confirmation."],
-      ],
-    ),
+    details: "With no flags, report status without changes.",
+    flags: [
+      ["--<feature>", "Enable a feature."],
+      ["--no-<feature>", "Disable a feature."],
+      ["--defaults", "Select the built-in defaults."],
+      ["--repair", "Repair drifted managed configuration."],
+      ["--interactive, -i", "Select actions in a terminal checklist."],
+      ["--yes", "Accept plan warnings that need confirmation."],
+    ],
   },
   "readme build": {
     usage: "hj readme build [input]",
@@ -54,19 +53,30 @@ export const commandDefinitions = {
 
 export type CommandName = keyof typeof commandDefinitions;
 
-export function commandHelp(command?: CommandName): string {
+export function commandHelp(command?: CommandName, color = false): string {
   if (command) {
     const entry = commandDefinitions[command];
-    return `${entry.usage}\n\n${entry.description}\n\n${entry.details}`;
+    const flags = "flags" in entry
+      ? "\n\n" +
+        formatTable(["Flag", "Effect"], entry.flags, undefined, {
+          color,
+          columns: ["cyan"],
+        })
+      : "";
+    return `${
+      colorText(entry.usage, "cyan", color)
+    }\n\n${entry.description}\n\n${entry.details}${flags}`;
   }
   return [
-    "hj: repository setup and release automation",
+    colorText("hj: repository setup and release automation", "bold", color),
     "",
     formatTable(
       ["Command", "Description"],
       Object.values(commandDefinitions).map((
         entry,
       ) => [entry.usage, entry.description]),
+      undefined,
+      { color, columns: ["cyan"] },
     ),
     "",
     "Use <command> --help for details.",

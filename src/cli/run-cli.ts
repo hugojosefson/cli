@@ -1,4 +1,5 @@
 /** Parse commands before constructing services or starting effects. */
+import { colorText, type OutputColors } from "./terminal-colors.ts";
 import type { CliResult } from "./cli-result.ts";
 import type { ReleaseServices } from "./run-release.ts";
 import {
@@ -10,10 +11,13 @@ import {
 export async function runCli(
   root: URL,
   args: readonly string[],
-  services: ReleaseServices = {},
+  services: ReleaseServices & { readonly colors?: OutputColors } = {},
 ): Promise<CliResult> {
   if (!args.length || (args.length === 1 && isHelp(args[0]))) {
-    return { output: commandHelp(), terminalNewline: true };
+    return {
+      output: commandHelp(undefined, services.colors?.stdout),
+      terminalNewline: true,
+    };
   }
   if (root.protocol !== "file:") {
     throw new TypeError("Repository root must be a file URL.");
@@ -25,7 +29,10 @@ export async function runCli(
   }
   const command = name as CommandName;
   if (args.length === 3 && isHelp(args[2])) {
-    return { output: commandHelp(command), terminalNewline: true };
+    return {
+      output: commandHelp(command, services.colors?.stdout),
+      terminalNewline: true,
+    };
   }
   if (command === "repo features") {
     const { builtInFeatureRegistry } = await import(
@@ -37,6 +44,8 @@ export async function runCli(
       output: await runFeatures(
         root,
         parseFeatures(args, builtInFeatureRegistry),
+        undefined,
+        services.colors,
       ),
       terminalNewline: true,
     };
@@ -49,11 +58,19 @@ export async function runCli(
   }
   if (args.length !== 2) throw new Error(`expected \`${usage}\``);
   const { runReleaseCommand } = await import("./run-release.ts");
-  return await runReleaseCommand(
+  const result = await runReleaseCommand(
     commandDefinitions[command].release,
     root,
     services,
   );
+  return {
+    ...result,
+    output: colorText(
+      result.output,
+      "green",
+      services.colors?.stdout,
+    ),
+  };
 }
 
 function isHelp(value: string): boolean {

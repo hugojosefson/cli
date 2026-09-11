@@ -1,4 +1,5 @@
 /** @module Repository detection, resolution, planning, and local application. */
+import type { OutputColors } from "./terminal-colors.ts";
 import { formatTable } from "./format-table.ts";
 
 import type { ChangePlan, PlannedValidation } from "../api/change-plan.ts";
@@ -50,6 +51,7 @@ export type FeatureSelector = (
 ) => readonly string[];
 
 export interface FeatureOperationServices {
+  readonly colors?: OutputColors;
   readonly promptAttribution?: AttributionPrompt;
   readonly githubIdentity?: GithubIdentityReader;
   readonly github?: GithubWriter;
@@ -60,12 +62,14 @@ export async function runFeatures(
   root: URL,
   args: FeaturesArguments,
   selectActions: FeatureSelector = promptFeatureActions,
+  colors: OutputColors = {},
 ): Promise<string> {
   return await runFeatureOperation(
     root,
     args,
     builtInFeatureRegistry,
     selectActions,
+    { colors },
   );
 }
 
@@ -85,7 +89,7 @@ export async function runFeatureOperation(
   try {
     const detections = await detect(root, files, git, github, registry);
     if (args.kind === "status") {
-      return formatFeatureStatus(registry, detections);
+      return formatFeatureStatus(registry, detections, services.colors?.stdout);
     }
     const request = args.kind === "interactive"
       ? selectedFeatureActionsToRequest(
@@ -96,7 +100,7 @@ export async function runFeatureOperation(
       request.changes.length === 0 && request.presets.length === 0 &&
       !request.applyDefaults && !request.repair
     ) {
-      return formatFeatureStatus(registry, detections);
+      return formatFeatureStatus(registry, detections, services.colors?.stdout);
     }
     const resolution = resolveFeatureChanges(
       registry,
@@ -114,6 +118,8 @@ export async function runFeatureOperation(
             issue.featureId ?? issue.capabilityId ?? "",
             issue.relatedId ?? "",
           ]),
+          undefined,
+          { color: services.colors?.stderr, columns: ["red", "cyan"] },
         ),
       );
     }
@@ -147,7 +153,12 @@ export async function runFeatureOperation(
       ...baseContext,
       options: { confirmation: args.confirmation, ...licenseOptions },
     };
-    const plans = await plansFor(context, changes, registry);
+    const plans = await plansFor(
+      context,
+      changes,
+      registry,
+      services.colors?.stderr,
+    );
     requireConfirmation(plans, args.confirmation);
     rejectUnsupportedValidations(plans);
     await Promise.all(
@@ -181,6 +192,8 @@ export async function runFeatureOperation(
             formatTable(
               ["Changed GitHub resource"],
               remoteChanges.map((name) => [name]),
+              undefined,
+              { color: services.colors?.stderr, columns: ["yellow"] },
             )
           }\nStart the same operation again.`,
           { cause: error },
@@ -209,10 +222,12 @@ export async function runFeatureOperation(
       formatFeatureStatus(
         registry,
         await detect(root, files, git, github, registry),
+        services.colors?.stdout,
       ),
       committed,
       !beforeGit && initializedGit,
       githubChanged,
+      services.colors?.stdout,
     );
   } catch (error) {
     if (
@@ -248,6 +263,7 @@ async function plansFor(
   context: OperationContext,
   changes: OperationContext["resolvedChanges"],
   registry: FeatureRegistry,
+  color = false,
 ): Promise<readonly ChangePlan[]> {
   const plans: ChangePlan[] = [];
   for (const change of changes) {
@@ -266,6 +282,7 @@ async function plansFor(
             blocker,
           ) => [change.featureId, blocker.message, blocker.resolution]),
           [32, 48, 48],
+          { color, columns: ["cyan", "red"] },
         ),
       );
     }

@@ -35,8 +35,11 @@ Change to the directory you want to manage. Inspect its features:
 hj repo features
 ```
 
-This command reports the current state without changes. Choose changes
-interactively:
+This command reports the current state without changes. Tables use color in
+terminals. Set `NO_COLOR=1` for plain output. See the
+[output guide](docs/repository-features.md#output) for color controls.
+
+Choose changes interactively:
 
 ```bash
 hj repo features --interactive

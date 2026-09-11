@@ -1,4 +1,4 @@
-import { assertEquals, assertRejects } from "@std/assert";
+import { assertEquals, assertRejects, assertStringIncludes } from "@std/assert";
 import { builtInFeatureRegistry } from "../features/built-in-feature-registry.ts";
 import { formatCliOutput } from "./format-output.ts";
 import { runCli } from "./run-cli.ts";
@@ -108,6 +108,14 @@ Deno.test("dispatches README builds and rejects extra arguments", async () => {
       formatCliOutput(await runCli(root, ["readme", "build", "other.md"])),
       "# other",
     );
+    assertEquals(
+      formatCliOutput(
+        await runCli(root, ["readme", "build", "other.md"], {
+          colors: { stdout: true, stderr: true },
+        }),
+      ),
+      "# other",
+    );
     await assertRejects(
       () => runCli(root, ["readme", "build", "other.md", "extra"]),
       Error,
@@ -133,6 +141,23 @@ Deno.test("keeps repo features dispatch", async () => {
       builtInFeatureRegistry.features.map((feature) => feature.metadata.id)
         .sort().map((id) => `${id}: disabled`).join("\n") + "\n",
     );
+    const colored = await runCli(root, ["repo", "features"], {
+      colors: { stdout: true },
+    });
+    assertStringIncludes(colored.output, "\x1b[2mdisabled\x1b[0m");
+    await Deno.writeTextFile(
+      new URL("deno.json", root),
+      '{"tasks":{"fmt":"echo custom"}}',
+    );
+    const error = await assertRejects(
+      () =>
+        runCli(root, ["repo", "features", "--deno-fmt"], {
+          colors: { stdout: false, stderr: true },
+        }),
+      Error,
+    );
+    assertStringIncludes(error.message, "\x1b[1mIssue\x1b[0m");
+    assertStringIncludes(error.message, "\x1b[31m");
   } finally {
     await Deno.remove(path, { recursive: true });
   }

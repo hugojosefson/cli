@@ -1,5 +1,6 @@
 /** @module Stable terminal formatting for repository feature results. */
 
+import { colorText, stateColor } from "./terminal-colors.ts";
 import { formatTable } from "./format-table.ts";
 import type { FeatureDetection } from "../api/feature-detection.ts";
 import type { FeatureRegistry } from "../features/feature-registry.ts";
@@ -8,6 +9,7 @@ import type { FeatureRegistry } from "../features/feature-registry.ts";
 export function formatFeatureStatus(
   registry: FeatureRegistry,
   detections: ReadonlyMap<string, FeatureDetection>,
+  color = false,
 ): string {
   const rows = registry.features.map((feature) => feature.metadata.id).sort()
     .map((id) => {
@@ -26,7 +28,13 @@ export function formatFeatureStatus(
     48,
     12,
     64,
-  ]);
+  ], {
+    color,
+    columns: ["cyan", "state"],
+    rows: rows.map((row) =>
+      row[1] === "enabled" ? undefined : stateColor(row[1])
+    ),
+  });
 }
 
 /** Formats a concise operation result. */
@@ -35,6 +43,7 @@ export function formatFeatureResult(
   committed: boolean,
   initializedWithoutCommit: boolean,
   githubChanged: boolean,
+  color = false,
 ): string {
   const note = initializedWithoutCommit
     ? "Git was initialized; no commit was created because identity preflight is unavailable."
@@ -43,5 +52,15 @@ export function formatFeatureResult(
     : githubChanged
     ? "Applied GitHub changes."
     : "No changes.";
-  return `${status}\n\n${note}`;
+  return `${status}\n\n${
+    colorText(
+      note,
+      initializedWithoutCommit
+        ? "yellow"
+        : committed || githubChanged
+        ? "green"
+        : "dim",
+      color,
+    )
+  }`;
 }
