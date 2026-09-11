@@ -301,9 +301,17 @@ Deno.test("apply resumes at an already merged owned pull request", async () => {
 });
 
 Deno.test("apply uses source-first cleanup with a branch lease", async () => {
-  const github = new Github();
+  class SourceChangesAfterChecks extends Github {
+    override completeCheckRun(
+      id: number,
+      conclusion: "success" | "neutral" | "cancelled",
+    ) {
+      this.main = "e".repeat(40);
+      return super.completeCheckRun(id, conclusion);
+    }
+  }
+  const github = new SourceChangesAfterChecks();
   const clock = new Clock();
-  github.main = "e".repeat(40);
   assertEquals(
     await applyPublishTag(github, clock, input),
     "source-first-collision",
@@ -329,6 +337,54 @@ Deno.test("source-first cleanup revalidates ownership before mutation", async ()
     ),
     false,
   );
+});
+
+Deno.test("apply removes a stale release before creating checks or auto-merge", async () => {
+  const github = new Github();
+  github.main = "e".repeat(40);
+  github.pr = { ...github.pr, mergeStateStatus: "BEHIND" };
+  assertEquals(
+    await applyPublishTag(github, new Clock(), input),
+    "source-first-collision",
+  );
+  assertEquals(github.calls, ["delete-branch", "close"]);
+});
+
+Deno.test("apply cancels owned checks when source changes while waiting for blocked status", async () => {
+  const github = new Github();
+  const clock = new Clock();
+  github.pr = { ...github.pr, mergeStateStatus: "UNKNOWN" };
+  clock.onSleep = () => {
+    github.main = "e".repeat(40);
+    github.pr = { ...github.pr, mergeStateStatus: "BEHIND" };
+  };
+  assertEquals(
+    await applyPublishTag(github, clock, input),
+    "source-first-collision",
+  );
+  assertEquals(github.runs.map((run) => run.conclusion), [
+    "cancelled",
+    "cancelled",
+  ]);
+  assertEquals(github.calls.slice(-2), ["delete-branch", "close"]);
+  assertEquals(github.calls.some((call) => call.startsWith("enable:")), false);
+});
+
+Deno.test("early collision preserves a foreign auto-merge request", async () => {
+  const github = new Github();
+  github.main = "e".repeat(40);
+  github.pr = {
+    ...github.pr,
+    autoMerge: {
+      mergeMethod: "REBASE",
+      enabledBy: { type: "User", login: "owner" },
+    },
+  };
+  await assertRejects(
+    () => applyPublishTag(github, new Clock(), input),
+    ReleaseApplyConflictError,
+  );
+  assertEquals(github.calls, []);
 });
 
 Deno.test("apply timeout disables the exact request but does not merge", async () => {

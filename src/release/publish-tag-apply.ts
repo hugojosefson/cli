@@ -50,8 +50,27 @@ export async function applyPublishTag(
     return await runApplyPublishTag(github, clock, deadline, input);
   } catch (error) {
     await cleanStatusRecovery(github, clock, deadline, input);
+    const collision = await cleanupChangedSource(
+      github,
+      clock,
+      deadline,
+      input,
+    );
+    if (collision) return collision;
     throw error;
   }
+}
+
+async function cleanupChangedSource(
+  github: ApplyGithub,
+  clock: ApplyClock,
+  deadline: number,
+  input: PublishTagApplyInput,
+): Promise<ApplyOutcome | undefined> {
+  const pr = await ownedPullRequest(github, input);
+  if (pr.state !== "OPEN") return undefined;
+  if (await github.fetchMainSha() === input.selectedSha) return undefined;
+  return await sourceFirstCleanup(github, clock, deadline, input, pr);
 }
 
 async function runApplyPublishTag(
@@ -63,6 +82,8 @@ async function runApplyPublishTag(
   let pullRequest = await ownedPullRequest(github, input);
   if (pullRequest.state === "MERGED") return "merged";
   requireOpenPullRequest(pullRequest);
+  const collision = await cleanupChangedSource(github, clock, deadline, input);
+  if (collision) return collision;
   if (pullRequest.autoMerge) {
     requireExactAutoMerge(pullRequest);
     if (

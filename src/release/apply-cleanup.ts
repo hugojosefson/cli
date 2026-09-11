@@ -35,17 +35,19 @@ export async function sourceFirstCleanup(
   let pr = await ownedPullRequest(github, input);
   if (pr.state === "MERGED") return "merged";
   requireOpenPullRequest(pr);
-  requireExactAutoMerge(pr);
-  if (
-    await request(
-      github,
-      clock,
-      deadline,
-      input,
-      () => github.disablePullRequestAutoMerge(pr.id),
-      (current) => !current.autoMerge,
-    )
-  ) return "merged";
+  if (pr.autoMerge) {
+    requireExactAutoMerge(pr);
+    if (
+      await request(
+        github,
+        clock,
+        deadline,
+        input,
+        () => github.disablePullRequestAutoMerge(pr.id),
+        (current) => !current.autoMerge,
+      )
+    ) return "merged";
+  }
   pr = await ownedPullRequest(github, input);
   if (pr.state === "MERGED") return "merged";
   requireOpenPullRequest(pr);
