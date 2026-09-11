@@ -29,6 +29,7 @@ Deno.test("GitHub publisher handles exact, conflict, and absent uncertain reread
       ? assertRejects(
         () =>
           publishGithub({
+            clock: { sleep: () => Promise.resolve() },
             environment: environment(),
             process: base(),
             files: files(),
@@ -245,4 +246,30 @@ Deno.test("GitHub changelog sections reject missing and duplicate data", () => {
     ),
     "## 1.2.3\nnotes\n\n### Detail\nmore\n\n",
   );
+});
+
+Deno.test("GitHub publisher waits for a new release to appear without repeating creation", async () => {
+  const values = [undefined, undefined, undefined, expected];
+  let creates = 0;
+  const sleeps: number[] = [];
+  await publishGithub({
+    environment: environment(),
+    process: process([], { "git show HEAD:CHANGELOG.md": expected.body }),
+    files: files(),
+    api: {
+      read: () => Promise.resolve(values.shift()),
+      create: () => {
+        creates++;
+        return Promise.resolve();
+      },
+    },
+    clock: {
+      sleep: (ms) => {
+        sleeps.push(ms);
+        return Promise.resolve();
+      },
+    },
+  });
+  assertEquals(creates, 1);
+  assertEquals(sleeps, [5000, 5000]);
 });

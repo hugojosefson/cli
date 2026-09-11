@@ -32,7 +32,7 @@ const object = (value: unknown) => value as Record<string, unknown>;
 const nested = (value: unknown, ...keys: string[]) =>
   keys.reduce((x, key) => object(x[key]), object(value));
 
-Deno.test("member-dispatched JSR provenance requires the workflow_dispatch event", async () => {
+Deno.test("JSR retries accept provenance from either supported publishing trigger", async () => {
   const memberInput = { ...input, route: "user" as const };
   const verify = (value: unknown) =>
     jsrHttpApi(() =>
@@ -49,7 +49,18 @@ Deno.test("member-dispatched JSR provenance requires the workflow_dispatch event
       ).eventName = "workflow_dispatch";
     }),
   );
-  await assertRejects(() => rekor().then(verify));
+  await verify(await rekor());
+  await assertRejects(() =>
+    rekor((statement) => {
+      nested(
+        statement,
+        "predicate",
+        "buildDefinition",
+        "internalParameters",
+        "github",
+      ).eventName = "push";
+    }).then(verify)
+  );
 });
 Deno.test("Rekor v1 fixture accepts exact data and rejects every release-bound group", async () => {
   const verify = (value: unknown) =>
