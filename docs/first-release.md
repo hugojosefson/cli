@@ -15,10 +15,11 @@ that full commit SHA.
 Keep version preparation and both publishers in the implemented release
 pipeline. Do not replace them with a manual tag or direct package upload.
 
-The package metadata currently contains `0.1.0`, with draft release notes. This
-value is a baseline, not a reserved first tag. Tag preparation calculates the
-next version from that baseline and the source commits. Review that selection
-before publication. The implementation has no first-version override flag.
+The initial package metadata contains `0.1.0`, with notes about supported
+features. This value is a baseline, not a reserved first tag. Tag preparation
+calculates the next version from that baseline and the source commits. Review
+that selection before publication. The implementation has no first-version
+override flag.
 
 ## Prepare locally
 
@@ -127,11 +128,12 @@ deno task hj repo features \
   --workflow-cli="github:hugojosefson/cli@${CLI_COMMIT}"
 ```
 
-Complete the remaining JSR checks in an authorized scratchpad package before
-enabling unattended publication here. Then merge the generated workflows into
-`main` through the source review process. The main push starts tag preparation.
-The tag workflow starts both publishers after it creates the tag. Subsequent
-source merges require no separate JSR publishing command.
+Test GitHub publication and JSR workflow identity in disposable repositories.
+Then merge the generated workflows into `main` through the source review
+process. The authorized first upload here tests JSR acceptance and registry
+installation. The main push starts tag preparation. The tag workflow starts both
+publishers after it creates the tag. Subsequent source merges require no
+separate JSR publishing command.
 
 | Release work                               | Implemented owner                        |
 | ------------------------------------------ | ---------------------------------------- |

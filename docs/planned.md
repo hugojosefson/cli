@@ -41,10 +41,10 @@ choose defaults.
 The JSR package name is `@hugojosefson/cli`. Package metadata, the MIT license,
 the executable export, and a local installation task are present. CI validates
 the package with a dry run. Generated workflows read the package name and
-version from `deno.json`. Version `0.1.0` is prepared locally with draft release
-notes. The README is prepared for the first public JSR release; its registry
-command becomes available after publication. The
-[development guide](development.md) describes current local installation. The
+version from `deno.json`. Version `0.1.0` is the initial baseline. The README is
+prepared for the first public JSR release; its registry command becomes
+available after publication. The [development guide](development.md) describes
+current local installation. The
 [first-release checklist](development.md#first-public-release) tracks the
 remaining preparation.
 
@@ -62,15 +62,14 @@ that option until registry loading is available.
 
 Local tests use real temporary Git repositories with injected GitHub responses.
 The [live validation record](live-validation.md) covers real GitHub workflow
-runs in disposable repositories. These runs use a local copy of the unpublished
-CLI in isolated Linux runners. The CLI source stays on the local machine.
+runs in disposable repositories. Early runs used a local CLI copy on isolated
+Linux runners. Later runs load a pinned commit from the public CLI repository.
 
-The remaining checks need registry access and separate publication
-authorization:
+The owner authorized publication and confirmed the JSR package configuration.
+The first upload must complete these checks:
 
 | Scenario                  | Required check                                                                        |
 | ------------------------- | ------------------------------------------------------------------------------------- |
-| JSR account               | Confirm scope ownership and package access.                                           |
 | JSR publication           | Link an authorized package, publish it, and compare module digests and provenance.    |
 | Repeated JSR publication  | Accept identical content and reject a conflicting version.                            |
 | Registry installation     | Install the released CLI in clean Linux, then run help and a local feature operation. |

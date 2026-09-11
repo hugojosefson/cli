@@ -1,8 +1,8 @@
 # Live GitHub validation
 
-These checks use disposable GitHub repositories owned by `hugojosefson`. They do
-not publish the CLI repository or a JSR package. The records distinguish GitHub
-API probes from full workflow runs with the local CLI.
+These records cover disposable GitHub repositories owned by `hugojosefson`. Each
+section identifies its CLI source and whether it uploads a package. Early runs
+preceded source publication. Later runs use the public CLI repository.
 
 ## Results on 2026-09-11
 
@@ -193,7 +193,7 @@ A repeated operation reported no changes.
 | Package           | Version `0.1.0` passed the JSR dry run with full type checks. |
 | Documentation     | Formatting passed and local file links resolved.              |
 
-## Final cleanup
+## Cleanup after the local-copy tests
 
 | Resource              | Final state                                                                                             |
 | --------------------- | ------------------------------------------------------------------------------------------------------- |
@@ -261,3 +261,28 @@ The bot identity explains why automatic publication needs **Do not restrict
 publishing** in JSR. **Require Publishing from CI** remains compatible with this
 route. This test performed no JSR upload, so registry acceptance and provenance
 still need live publication validation.
+
+## Public bootstrap source, 2026-09-12
+
+The owner authorized publication before these tests. The
+[bootstrap fixture](https://github.com/hugojosefson/scratchpad-hj-bootstrap)
+loads the CLI from a full commit SHA in the public GitHub repository. All
+workflow files come from implemented feature operations. No JSR package is
+uploaded by this fixture.
+
+| Check                   | Evidence or observed result                                                                                                                                                   |
+| ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Source CI               | [Run 34657723358](https://github.com/hugojosefson/scratchpad-hj-bootstrap/actions/runs/34657723358) passed.                                                                   |
+| Tag workflow            | [Run 34657787991](https://github.com/hugojosefson/scratchpad-hj-bootstrap/actions/runs/34657787991) passed preparation and application.                                       |
+| Release PR              | [PR 2](https://github.com/hugojosefson/scratchpad-hj-bootstrap/pull/2) merged by rebase and created tag `0.0.1`.                                                              |
+| Delayed release listing | [Run 34657903360](https://github.com/hugojosefson/scratchpad-hj-bootstrap/actions/runs/34657903360) created the GitHub Release but did not immediately see it in the listing. |
+| Safe publisher retry    | [Run 34658094996](https://github.com/hugojosefson/scratchpad-hj-bootstrap/actions/runs/34658094996) accepted the existing release without creating a duplicate.               |
+
+The delayed listing exposed a missing confirmation wait. Both publishers now
+retry temporary read failures for up to 60 seconds. Content conflicts still stop
+immediately. Regression tests cover delayed visibility and safe retries.
+
+The registry reader also accepted the real metadata and Rekor record for
+`@std/assert@1.0.19`. Its manifest digest matched the signed subject. The reader
+correctly rejected that package's unrelated publishing workflow. This read-only
+check tests response formats, not publication of the CLI package.
