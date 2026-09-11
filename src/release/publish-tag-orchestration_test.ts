@@ -35,6 +35,18 @@ Deno.test("prepare and apply publish the exact rebased tree and remove only the 
     const github = await fixture.apply();
     await assertPublished(fixture, github);
     assertEquals(github.events.length, 1);
+    assertEquals(
+      (await runOrThrow(github.process, "git", [
+        "show",
+        "-s",
+        "--format=%an <%ae>%n%cn <%ce>",
+        github.pr!.headSha,
+      ])).trim(),
+      [
+        "github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>",
+        "github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>",
+      ].join("\n"),
+    );
     assert(github.mergedSha !== github.pr!.headSha);
     assertStringIncludes(
       await Deno.readTextFile(fixture.values.get("GITHUB_STEP_SUMMARY")!),
@@ -442,6 +454,10 @@ class Github implements PublishTagApplyGithub {
     const run: SyntheticCheckRun = {
       ...input,
       id: this.runs.length + 1,
+      detailsUrl: input.detailsUrl.replace(
+        /\/actions\/runs\/[0-9]+$/,
+        `/runs/${this.runs.length + 1}`,
+      ),
       integrationId: releaseCheckIntegrationId,
       status: "in_progress",
       conclusion: null,

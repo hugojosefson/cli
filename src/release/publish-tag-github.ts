@@ -8,7 +8,7 @@ import {
 } from "./apply-types.ts";
 import type { RecoveryGithub } from "./publish-tag-recovery.ts";
 import { parseReleaseOwnershipMarker } from "./release-pr.ts";
-import type { ReleaseProcess } from "./release-process.ts";
+import { type ReleaseProcess, runOrThrow } from "./release-process.ts";
 import type { SyntheticCheckRun } from "./synthetic-check.ts";
 import { publishTagSuccessEvent } from "./names.ts";
 import { parseSemver } from "./semver.ts";
@@ -420,9 +420,7 @@ class PublishTagGithub implements ApplyGithub, RecoveryGithub {
   }
 
   async #run(command: string, args: string[]): Promise<string> {
-    const result = await this.#process.run(command, args);
-    if (!result.success) throw new Error(`Release command failed: ${command}.`);
-    return text(result.stdout);
+    return await runOrThrow(this.#process, command, args);
   }
 
   #slug(): string {

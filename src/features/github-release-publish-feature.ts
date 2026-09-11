@@ -1,6 +1,7 @@
 /** @module Lifecycle declarations for generated release publication workflows. */
 
 import type { DetectionIssue } from "../api/feature-detection.ts";
+import { jsrPublishCheckArgs } from "./jsr-package-config.ts";
 import type { Feature } from "../api/feature.ts";
 import type {
   AllowedOperation,
@@ -131,7 +132,7 @@ export const githubReleasePublishJsrFeature = releaseFeature(
     legacy: true,
     releaseContributions: [{
       command: "deno",
-      args: ["publish", "--dry-run"],
+      args: jsrPublishCheckArgs,
     }],
   },
 );

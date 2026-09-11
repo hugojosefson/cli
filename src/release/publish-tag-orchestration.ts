@@ -265,7 +265,15 @@ async function reserveReleaseCommit(
     "commit",
     "-m",
     releaseCommitSubject(bundle.nextVersion),
-  ]);
+  ], {
+    env: {
+      GIT_AUTHOR_NAME: "github-actions[bot]",
+      GIT_AUTHOR_EMAIL: "41898282+github-actions[bot]@users.noreply.github.com",
+      GIT_COMMITTER_NAME: "github-actions[bot]",
+      GIT_COMMITTER_EMAIL:
+        "41898282+github-actions[bot]@users.noreply.github.com",
+    },
+  });
   const commit = line(await runOrThrow(process, "git", ["rev-parse", "HEAD"]));
   await validateReleaseCommit(process, bundle, commit, bundle.selectedSha);
   try {

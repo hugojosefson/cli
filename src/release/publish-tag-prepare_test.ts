@@ -106,7 +106,13 @@ Deno.test("usual preparation creates and outputs a validated candidate bundle", 
       run: (command, args, options) => {
         calls.push(`${command} ${args.join(" ")}`);
         return command === "deno" &&
-            JSON.stringify(args) === JSON.stringify(["publish", "--dry-run"])
+            JSON.stringify(args) ===
+              JSON.stringify([
+                "publish",
+                "--dry-run",
+                "--allow-dirty",
+                "--check=all",
+              ])
           ? Promise.resolve({
             success: true,
             code: 0,
@@ -142,7 +148,9 @@ Deno.test("usual preparation creates and outputs a validated candidate bundle", 
     const all = calls.flatMap((call, index) =>
       call === "deno task all" ? [index] : []
     );
-    const contribution = calls.indexOf("deno publish --dry-run");
+    const contribution = calls.indexOf(
+      "deno publish --dry-run --allow-dirty --check=all",
+    );
     assertEquals(all.length, 2);
     assert(contribution > all[1]);
     assert(contribution < calls.indexOf("git diff --name-only -z"));

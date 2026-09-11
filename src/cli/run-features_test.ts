@@ -470,6 +470,41 @@ Deno.test("requires confirmation before preflight or mutation", async () => {
   });
 });
 
+Deno.test("validation failures report the expected and observed feature state", async () => {
+  await withRepository(async (root) => {
+    const base = confirmationRegistry([]);
+    const feature = base.features[0];
+    const registry: FeatureRegistry = {
+      ...base,
+      features: [{
+        ...feature,
+        detect: () =>
+          Promise.resolve({
+            state: "disabled",
+            evidence: [{
+              code: "not-retained",
+              kind: "test",
+              subject: { kind: "file", identifier: "confirmed.txt" },
+              observation: "The setting was not retained.",
+            }],
+          }),
+      }],
+    };
+    const error = await assertRejects(() =>
+      runFeatureOperation(
+        root,
+        parseFeatures(["repo", "features", "--test", "--yes"], registry),
+        registry,
+      ), Error);
+    const message = error.message.replace(/ +/g, " ");
+    assertStringIncludes(message, "Feature validation failed.");
+    assertStringIncludes(
+      message,
+      "test enabled disabled The setting was not retained.",
+    );
+  });
+});
+
 function confirmationRegistry(confirmations: unknown[]): FeatureRegistry {
   return {
     capabilities: [],

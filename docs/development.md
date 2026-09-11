@@ -1,8 +1,8 @@
 # Development
 
-This guide describes work on `hj` itself. The
-[feature guide](repository-features.md) describes files and tasks that `hj` adds
-to other repositories. Use the [Deno](https://deno.com/) version in
+This guide describes work on `hj` itself. Linux is the supported test platform.
+The [feature guide](repository-features.md) describes files and tasks that `hj`
+adds to other repositories. Use the [Deno](https://deno.com/) version in
 [toolchain.json](../toolchain.json). The lockfile records dependency versions.
 Test and type-check tasks use `--frozen` to reject unexpected dependency
 changes.
@@ -208,7 +208,7 @@ step. Complete these checks before announcing the release:
 | Package identity and license | The package name, executable export, and MIT license are present.                                                              |
 | First version                | Replace the development version `0.0.0` in `deno.json` with the selected release version. New workflows use this same version. |
 | Release notes                | Record the initial supported features and known limits.                                                                        |
-| Validation                   | Run `deno task ci`, including the package dry run. Test installation on each supported operating system.                       |
+| Validation                   | Run `deno task ci`, including the package dry run. Test installation in a clean Linux environment.                             |
 | JSR access                   | Confirm access to the `hugojosefson` scope and the `cli` package name on [JSR](https://jsr.io/).                               |
 | Repository publication       | Create the public repository only when authorized. Configure branch protection and allow rebase merges only.                   |
 | Package publication          | Connect the package to its public repository and publish the selected version when authorized.                                 |

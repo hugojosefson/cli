@@ -57,6 +57,8 @@ confirmation.
 
 ## Requirements
 
+Linux is the supported and tested platform.
+
 Only Deno is needed to install `hj`. Install other tools when you need their
 operations. `hj` uses installed tools and does not install them for you.
 

@@ -289,7 +289,10 @@ Deno.test("only the JSR publisher contributes the usual-route pre-tag command", 
     })),
     [{
       id: "github-release-publish-jsr",
-      contributions: [{ command: "deno", args: ["publish", "--dry-run"] }],
+      contributions: [{
+        command: "deno",
+        args: ["publish", "--dry-run", "--allow-dirty", "--check=all"],
+      }],
     }, {
       id: "github-release-publish-github",
       contributions: [],

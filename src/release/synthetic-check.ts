@@ -91,8 +91,20 @@ export function assertExactCurrentCheck(
     classifyReleaseCheck(run, expected) !== "current" ||
     run.name !== expected.context || run.headSha !== expected.releaseSha ||
     run.integrationId !== releaseCheckIntegrationId ||
-    detailsUrl !== undefined && run.detailsUrl !== detailsUrl
+    detailsUrl !== undefined && !matchesCheckDetailsUrl(run, detailsUrl)
   ) {
     throw new TypeError("Synthetic check ownership is incorrect.");
   }
+}
+
+/** GitHub Actions replaces supplied details URLs with the check run's own URL. */
+export function matchesCheckDetailsUrl(
+  run: SyntheticCheckRun,
+  workflowUrl: string,
+): boolean {
+  return run.detailsUrl === workflowUrl ||
+    run.detailsUrl === workflowUrl.replace(
+        /\/actions\/runs\/[1-9][0-9]*$/,
+        `/runs/${run.id}`,
+      );
 }

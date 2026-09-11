@@ -8,6 +8,7 @@ import { sameJson } from "../operations/local-plan-state.ts";
 import { inspectDenoConfig } from "./deno-config.ts";
 import { currentCheckDefinition, isObject } from "./deno-tasks.ts";
 import {
+  legacyPublishCheckDefinition,
   publishCheckDefinition,
   publishCheckName,
 } from "./jsr-package-config.ts";
@@ -94,7 +95,10 @@ export async function inspectJsrPackage(
   const configuredTask = ownedOnly
     ? sameJson(tasks[publishCheckName], publishCheckDefinition)
     : await configuredDenoTask(context, tasks, publishCheckName, "publish");
-  if (!configuredTask) {
+  if (
+    !configuredTask ||
+    sameJson(tasks[publishCheckName], legacyPublishCheckDefinition)
+  ) {
     repairs.push("publish-check task");
   }
   if (ownedOnly && !sameJson(tasks.check, currentCheckDefinition(tasks))) {

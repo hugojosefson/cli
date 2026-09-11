@@ -74,7 +74,7 @@ jobs:
           HJ_RELEASE_TAG: \${{ inputs.tag }}
         run: >-
           deno run
-          --allow-env=GITHUB_OUTPUT,GITHUB_STEP_SUMMARY,HJ_RELEASE_ROUTE,HJ_RELEASE_TAG
+          --allow-env=GITHUB_OUTPUT,GITHUB_STEP_SUMMARY,HJ_RELEASE_ROUTE,HJ_RELEASE_TAG,ESBUILD_BINARY_PATH,ESBUILD_WORKER_THREADS
           --allow-read=.,/tmp/opencode
           --allow-write=deno.json,deno.jsonc,CHANGELOG.md,/tmp/opencode,"\${GITHUB_OUTPUT}","\${GITHUB_STEP_SUMMARY}"
           --allow-run=deno,git

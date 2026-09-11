@@ -44,6 +44,18 @@ export function githubCommandFailure(
     ...(status ? [`HTTP ${status}`] : []),
     ...(Number.isInteger(exit) ? [`exit ${exit}`] : []),
   ];
+  if (status === "403" && result) {
+    try {
+      const body = JSON.parse(new TextDecoder().decode(result.stdout));
+      if (
+        body.message ===
+          "Upgrade to GitHub Pro or make this repository public to enable this feature."
+      ) {
+        return "GitHub rejected a feature because of the repository's plan or visibility. " +
+          "Use a public repository or a GitHub plan that supports this feature.";
+      }
+    } catch { /* Unknown response bodies remain private. */ }
+  }
   return result
     ? `GitHub ${command} failed${
       details.length ? ` (${details.join(", ")})` : ""

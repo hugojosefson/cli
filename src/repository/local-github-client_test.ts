@@ -900,3 +900,23 @@ Deno.test("GitHub mutation errors explain access failure without exposing stderr
     "GitHub API request failed (HTTP 403, exit 1). Run `gh auth status` to check access.",
   );
 });
+
+Deno.test("GitHub plan restrictions do not suggest that valid credentials are missing", async () => {
+  const client = new LocalGithubClient(new URL("file:///tmp/opencode/"), {
+    run: () =>
+      Promise.resolve({
+        success: false,
+        code: 1,
+        stdout: new TextEncoder().encode(JSON.stringify({
+          message:
+            "Upgrade to GitHub Pro or make this repository public to enable this feature.",
+          other: "private-value",
+        })),
+        stderr: new TextEncoder().encode("HTTP 403 private-token"),
+      }),
+  });
+  assertEquals(await client.repository(), undefined);
+  assertEquals(client.diagnostics, [
+    "GitHub rejected a feature because of the repository's plan or visibility. Use a public repository or a GitHub plan that supports this feature.",
+  ]);
+});

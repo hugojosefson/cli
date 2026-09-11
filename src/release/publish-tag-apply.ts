@@ -29,6 +29,7 @@ import { cleanStatusRecovery, sourceFirstCleanup } from "./apply-cleanup.ts";
 import { releaseOwnershipMarker } from "./release-pr.ts";
 import {
   classifyReleaseCheck,
+  matchesCheckDetailsUrl,
   type ParsedReleaseCheckId,
   parseReleaseCheckExternalId,
   releaseCheckExternalId,
@@ -230,7 +231,7 @@ function assertExactOlderCheck(
   if (
     run.name !== parsed.context || run.headSha !== parsed.releaseSha ||
     run.integrationId !== releaseCheckIntegrationId ||
-    run.detailsUrl !== detailsUrlForRun(input, parsed.runId) ||
+    !matchesCheckDetailsUrl(run, detailsUrlForRun(input, parsed.runId)) ||
     (run.status === "in_progress" && run.conclusion !== null)
   ) {
     throw new ReleaseApplyConflictError("Older synthetic check differs.");

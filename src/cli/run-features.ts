@@ -324,7 +324,22 @@ async function validate(
       validation.kind === "feature-redetection" &&
       detections.get(validation.featureId)?.state !== validation.expected
     ) {
-      throw new Error(`validation failed: ${validation.featureId}`);
+      const detection = detections.get(validation.featureId);
+      const details =
+        detection && "issues" in detection && detection.issues.length
+          ? detection.issues.map((item) => item.observation)
+          : detection?.evidence.map((item) => item.observation) ?? [];
+      throw new Error(
+        "Feature validation failed.\n" + formatTable(
+          ["Feature", "Expected", "Observed", "Details"],
+          [[
+            validation.featureId,
+            validation.expected,
+            detection?.state ?? "unknown",
+            [...new Set(details)].join("\n"),
+          ]],
+        ),
+      );
     }
     if (
       validation.kind === "github-main-protection" ||

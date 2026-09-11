@@ -39,7 +39,10 @@ Deno.test("jsr-package adopts SemVer, preserves JSONC, repairs exact drift, and 
     );
     await Deno.writeTextFile(
       new URL("deno.jsonc", root),
-      configured.replace("deno publish --dry-run --check=all", "deno publish"),
+      configured.replace(
+        "deno publish --dry-run --allow-dirty --check=all",
+        "deno publish",
+      ),
     );
     current = context(root);
     assertEquals((await jsrPackageFeature.detect(current)).state, "drifted");
@@ -245,5 +248,43 @@ Deno.test("jsr-package plan rejects new task drift after its check", async () =>
       tasks: { ...ownedTasks(), "publish-check": { command: "changed" } },
     });
     await assertRejects(() => jsrPackageFeature.planEnable(current, allowed));
+  });
+});
+
+Deno.test("legacy publish checks are repaired to accept an uncommitted release candidate", async () => {
+  await withRepository(async (root) => {
+    const tasks = ownedTasks();
+    tasks["publish-check"] = {
+      description: "Check JSR publication.",
+      command: "deno publish --dry-run --check=all",
+    };
+    await writeConfig(root, {
+      name: "@owner/repository",
+      version: "1.0.0",
+      exports: "./mod.ts",
+      tasks,
+    });
+    assertEquals(
+      (await jsrPackageFeature.detect(context(root))).state,
+      "drifted",
+    );
+    const current = context(root, {
+      kind: "features",
+      featureIds: ["jsr-package"],
+    });
+    const allowed = await jsrPackageFeature.checkEnable(current);
+    if (allowed.result !== "allowed") throw new Error("expected repair");
+    await applyLocalChangePlan(
+      root,
+      await jsrPackageFeature.planEnable(current, allowed),
+    );
+    assertEquals(
+      (await jsrPackageFeature.detect(context(root))).state,
+      "enabled",
+    );
+    const config = JSON.parse(
+      await Deno.readTextFile(new URL("deno.json", root)),
+    );
+    assert(config.tasks["publish-check"].command.includes("--allow-dirty"));
   });
 });

@@ -3,7 +3,7 @@ import { requiredEnvironment } from "./release-environment.ts";
 import { parse, type ParseError } from "jsonc-parser";
 import type { ReleaseEnvironment } from "./release-environment.ts";
 import type { ReleaseProcess } from "./release-process.ts";
-import { processText } from "./release-process.ts";
+import { runOrThrow as run } from "./release-process.ts";
 import { parseSemver } from "./semver.ts";
 
 export type PublisherInput = {
@@ -139,15 +139,6 @@ function githubRepository(value: string): boolean {
   const match = /^([A-Za-z0-9_.-]+)\/([A-Za-z0-9_.-]+)$/.exec(value);
   return !!match && match[1] !== "." && match[1] !== ".." &&
     match[2] !== "." && match[2] !== "..";
-}
-async function run(
-  process: ReleaseProcess,
-  command: string,
-  args: readonly string[],
-): Promise<string> {
-  const result = await process.run(command, args);
-  if (!result.success) throw new Error(`Release command failed: ${command}.`);
-  return processText(result);
 }
 function single(text: string): string {
   const values = text.trim().split("\n");

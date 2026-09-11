@@ -54,7 +54,37 @@ export async function runOrThrow(
 ): Promise<string> {
   const result = await process.run(command, args, options);
   if (!result.success) {
-    throw new Error(`Release command failed: ${command}.`);
+    throw new Error(releaseCommandFailure(command, args, result.code));
   }
   return processText(result);
+}
+
+/** Identify the failed operation without disclosing arguments or captured output. */
+export function releaseCommandFailure(
+  command: string,
+  args: readonly string[],
+  code: number,
+): string {
+  const operations = new Set([
+    "fetch",
+    "switch",
+    "status",
+    "add",
+    "commit",
+    "push",
+    "show",
+    "rev-parse",
+    "read-tree",
+    "write-tree",
+    "ls-files",
+    "diff",
+    "fmt",
+    "task",
+    "publish",
+    "api",
+  ]);
+  let index = 0;
+  while (args[index] === "-c") index += 2;
+  const operation = operations.has(args[index]) ? ` ${args[index]}` : "";
+  return `Release command failed: ${command}${operation} (exit ${code}).`;
 }
