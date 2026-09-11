@@ -1,20 +1,38 @@
-/** @module Shared command dispatch for the `hj` CLI. */
-
-import { builtInFeatureRegistry } from "../features/built-in-feature-registry.ts";
-import { buildReadme } from "../readme/build-readme.ts";
-import { parseFeatures } from "./parse-features.ts";
-import { runFeatures } from "./run-features.ts";
-
-export interface CliResult {
-  readonly output: string;
-  readonly terminalNewline: boolean;
-}
+/** Parse commands before constructing services or starting effects. */
+import type { CliResult } from "./cli-result.ts";
+import type { ReleaseServices } from "./run-release.ts";
+import {
+  commandDefinitions,
+  commandHelp,
+  type CommandName,
+} from "./command-help.ts";
 
 export async function runCli(
   root: URL,
   args: readonly string[],
+  services: ReleaseServices = {},
 ): Promise<CliResult> {
-  if (args[0] === "repo" && args[1] === "features") {
+  if (!args.length || (args.length === 1 && isHelp(args[0]))) {
+    return { output: commandHelp(), terminalNewline: true };
+  }
+  if (root.protocol !== "file:") {
+    throw new TypeError("Repository root must be a file URL.");
+  }
+  root = root.pathname.endsWith("/") ? root : new URL(`${root.href}/`);
+  const name = `${args[0]} ${args[1]}`;
+  if (!Object.hasOwn(commandDefinitions, name)) {
+    throw new Error("Unknown command. Run `hj --help` for available commands.");
+  }
+  const command = name as CommandName;
+  if (args.length === 3 && isHelp(args[2])) {
+    return { output: commandHelp(command), terminalNewline: true };
+  }
+  if (command === "repo features") {
+    const { builtInFeatureRegistry } = await import(
+      "../features/built-in-feature-registry.ts"
+    );
+    const { parseFeatures } = await import("./parse-features.ts");
+    const { runFeatures } = await import("./run-features.ts");
     return {
       output: await runFeatures(
         root,
@@ -23,9 +41,21 @@ export async function runCli(
       terminalNewline: true,
     };
   }
-  if (args[0] === "readme" && args[1] === "build") {
-    if (args.length > 3) throw new Error("expected `hj readme build [input]`");
+  const usage = commandDefinitions[command].usage;
+  if (command === "readme build") {
+    if (args.length > 3) throw new Error(`expected \`${usage}\``);
+    const { buildReadme } = await import("../readme/build-readme.ts");
     return { output: await buildReadme(root, args[2]), terminalNewline: false };
   }
-  throw new Error("expected `hj repo features` or `hj readme build [input]`");
+  if (args.length !== 2) throw new Error(`expected \`${usage}\``);
+  const { runReleaseCommand } = await import("./run-release.ts");
+  return await runReleaseCommand(
+    commandDefinitions[command].release,
+    root,
+    services,
+  );
+}
+
+function isHelp(value: string): boolean {
+  return value === "--help" || value === "-h";
 }

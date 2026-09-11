@@ -36,7 +36,7 @@ export async function preflightLocalChangePlan(
 
 function rejectRemoteWork(plan: ChangePlan): void {
   const remotePrecondition = plan.preconditions.some((item) =>
-    item.kind === "github-resource-state"
+    item.kind === "github-resource-state" || item.kind === "github-remote-file"
   );
   const remoteChange = plan.changes.some((item) =>
     item.kind === "upsert-github-resource" ||
@@ -112,7 +112,8 @@ async function apply(
   ) return await applyGitChange(root, change);
   if (
     change.kind === "upsert-github-resource" ||
-    change.kind === "delete-github-resource" || change.kind === "app-setup"
+    change.kind === "delete-github-resource" ||
+    change.kind === "github-ruleset-transition" || change.kind === "app-setup"
   ) throw new ChangePlanError("unsupported", change.kind);
   return await applyFileChange(root, change);
 }

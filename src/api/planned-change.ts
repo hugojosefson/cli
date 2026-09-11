@@ -119,6 +119,34 @@ export type GithubChange =
     readonly expectedStateDigest: string;
   };
 
+/** One guarded ruleset request followed by an exact reread of managed rulesets. */
+export interface GithubRulesetTransitionChange {
+  readonly kind: "github-ruleset-transition";
+  readonly steps: readonly {
+    readonly change:
+      | {
+        readonly kind: "upsert";
+        readonly name: string;
+        readonly definition: JsonObject;
+        readonly expectedStateDigest?: string | undefined;
+      }
+      | {
+        readonly kind: "delete";
+        readonly name: string;
+        readonly expectedStateDigest?: string;
+      };
+    /** Exact local rulesets required before and immediately after this request. */
+    readonly before: readonly GithubRulesetExpectation[];
+    readonly after: readonly GithubRulesetExpectation[];
+  }[];
+}
+
+/** A managed local ruleset, or its required absence. */
+export interface GithubRulesetExpectation {
+  readonly name: string;
+  readonly definition?: JsonObject;
+}
+
 /** Application setup work that contains configuration but never secret values. */
 export interface AppSetupChange {
   readonly kind: "app-setup";
@@ -141,4 +169,5 @@ export type PlannedChange =
   | JsonChange
   | GitChange
   | GithubChange
+  | GithubRulesetTransitionChange
   | AppSetupChange;

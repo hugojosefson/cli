@@ -197,6 +197,18 @@ Deno.test("applicator contains paths and rejects remote changes", async () => {
         ),
       ChangePlanError,
     );
+    await assertRejects(
+      () =>
+        applyLocalChangePlan(
+          root,
+          plan([], [{
+            kind: "github-remote-file",
+            path: ".github/workflows/hj-ci.yaml",
+            expectedContent: "expected\n",
+          }]),
+        ),
+      ChangePlanError,
+    );
     await applyLocalChangePlan(root, plan([{ kind: "git-init" }]));
     await assertRejects(
       () =>

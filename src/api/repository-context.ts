@@ -84,15 +84,70 @@ export interface GithubResource {
   readonly name: string;
   readonly stateDigest: string;
   readonly definition: JsonObject;
+  /** Origin reported by GitHub for a ruleset, including inherited rulesets. */
+  readonly sourceType?: string;
+  /** Repository or organization that owns an inherited or local ruleset. */
+  readonly source?: string;
 }
+
+/** Complete protection data needed to fail closed before release mutations. */
+export interface GithubProtection {
+  /** Repository and inherited rulesets, with complete rule details. */
+  readonly rulesets: readonly GithubResource[];
+  /** Legacy default-branch protection, when GitHub exposes it. */
+  readonly legacyBranchProtection: JsonObject | undefined;
+  /** Repository merge settings used to calculate effective rules. */
+  readonly repository: JsonObject;
+  /** GitHub Actions settings used to calculate effective permissions. */
+  readonly actions: JsonObject;
+}
+
+/** A file observation from the remote default branch. */
+export type GithubRemoteFile =
+  | { readonly kind: "file"; readonly content: string }
+  | { readonly kind: "absent" };
+
+/** A workflow run with the only lifecycle field relevant to safe removal. */
+export type GithubWorkflowRun = { readonly status: string };
+export type GithubOpenPullRequest = {
+  readonly head: string;
+  readonly title: string;
+};
+export type GithubBranch = { readonly name: string };
+export type GithubTag = {
+  readonly name: string;
+  readonly target: string;
+  readonly lightweight: boolean;
+};
+export type GithubCommit = {
+  readonly oid: string;
+  readonly subject: string;
+};
 
 /** Read-only GitHub access, present only when GitHub can be queried. */
 export interface GithubReader {
   /** Authenticated viewer identity, when the adapter supports it. */
   viewer?(): Promise<{ readonly name: string } | undefined>;
   repository(): Promise<GithubRepository | undefined>;
+  /** Reads one file from the remote default branch. `undefined` means unavailable. */
+  remoteFile?(path: RepositoryPath): Promise<GithubRemoteFile | undefined>;
+  /** Lists every run for a workflow path; `undefined` is unavailable or malformed. */
+  workflowRuns?(
+    path: RepositoryPath,
+  ): Promise<readonly GithubWorkflowRun[] | undefined>;
+  openPullRequests?(): Promise<readonly GithubOpenPullRequest[] | undefined>;
+  branches?(): Promise<readonly GithubBranch[] | undefined>;
+  tags?(): Promise<readonly GithubTag[] | undefined>;
+  defaultBranchCommits?(): Promise<readonly GithubCommit[] | undefined>;
   /** `undefined` means the rulesets API could not be read. */
   rulesets(): Promise<readonly GithubResource[] | undefined>;
+  /** Whether active repository tag rulesets are available for this repository. */
+  tagRulesetEligibility?(): Promise<"eligible" | "ineligible" | undefined>;
+  /**
+   * Reads all protection layers for the default branch. `undefined` means a
+   * required response or rule detail was unavailable.
+   */
+  protection?(): Promise<GithubProtection | undefined>;
   environments(): Promise<readonly GithubResource[]>;
   variables(): Promise<readonly GithubResource[]>;
   secretExists(

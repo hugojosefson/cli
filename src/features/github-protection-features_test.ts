@@ -6,10 +6,13 @@ import type {
   OperationContext,
 } from "../api/repository-context.ts";
 import { builtInFeatureRegistry } from "./built-in-feature-registry.ts";
+import { githubCiArtifacts } from "./github-ci-artifacts.ts";
 import {
   mainProtectionDefinition,
   mainReviewDefinition,
   protectedTagsDefinition,
+  protectedTagsGuardDefinition,
+  releaseTagsDefinition,
 } from "./github-protection-definitions.ts";
 import {
   githubMainProtectionFeature,
@@ -42,7 +45,23 @@ function context(
     },
     github: {
       repository: () => Promise.resolve({ owner: "owner", name: "repo" }),
+      remoteFile: (path) =>
+        Promise.resolve(
+          githubCiArtifacts.find((item) => item.path === path)
+            ? {
+              kind: "file" as const,
+              content: githubCiArtifacts.find((item) => item.path === path)!
+                .content,
+            }
+            : { kind: "absent" as const },
+        ),
+      workflowRuns: () => Promise.resolve([]),
+      openPullRequests: () => Promise.resolve([]),
+      branches: () => Promise.resolve([]),
+      tags: () => Promise.resolve([]),
+      defaultBranchCommits: () => Promise.resolve([]),
       rulesets: () => Promise.resolve(rulesets),
+      tagRulesetEligibility: () => Promise.resolve("eligible"),
       environments: () => Promise.resolve([]),
       variables: () => Promise.resolve([]),
       secretExists: () => Promise.resolve(undefined),
@@ -73,6 +92,16 @@ Deno.test("main protection plans generated CI and a separate review bypass", asy
     definition: mainProtectionDefinition,
     expectedStateDigest: undefined,
   }]);
+  assertEquals(main.preconditions, [{
+    kind: "github-resource-state",
+    resource: "repository-ruleset",
+    name: "hj/github-main-protection",
+    stateDigest: undefined,
+  }, {
+    kind: "github-remote-file",
+    path: githubCiArtifacts[0].path,
+    expectedContent: githubCiArtifacts[0].content,
+  }]);
 
   const reviewContext = context([]);
   const reviewAllowed = await githubMainReviewFeature.checkEnable(
@@ -92,6 +121,39 @@ Deno.test("main protection plans generated CI and a separate review bypass", asy
   }]);
 });
 
+Deno.test("main protection requires exact CI on the remote default branch", async () => {
+  for (
+    const remote of [{ kind: "absent" as const }, {
+      kind: "file" as const,
+      content: "custom\n",
+    }, undefined]
+  ) {
+    const operation = context([]);
+    operation.github!.remoteFile = () => Promise.resolve(remote);
+    const check = await githubMainProtectionFeature.checkEnable(operation);
+    assertEquals(check.result, "blocked");
+    if (check.result === "blocked") {
+      assertEquals(check.blockers[0].code, "github-remote-ci-missing");
+    }
+  }
+});
+
+Deno.test("main protection replanning rejects a changed remote CI workflow", async () => {
+  const operation = context([]);
+  let reads = 0;
+  operation.github!.remoteFile = () =>
+    Promise.resolve(
+      reads++ === 0
+        ? { kind: "file", content: githubCiArtifacts[0].content }
+        : { kind: "file", content: "changed\n" },
+    );
+  const allowed = await githubMainProtectionFeature.checkEnable(operation);
+  if (allowed.result !== "allowed") throw new Error("expected allowed");
+  await assertRejects(() =>
+    githubMainProtectionFeature.planEnable(operation, allowed)
+  );
+});
+
 Deno.test("protection definitions match accepted GitHub payloads", () => {
   assertEquals(mainProtectionDefinition, {
     bypass_actors: [],
@@ -101,7 +163,7 @@ Deno.test("protection definitions match accepted GitHub payloads", () => {
     rules: [
       {
         parameters: {
-          allowed_merge_methods: ["merge", "rebase", "squash"],
+          allowed_merge_methods: ["rebase"],
           dismiss_stale_reviews_on_push: false,
           require_code_owner_review: false,
           require_extra_approval_for_unattributed_changes: false,
@@ -115,7 +177,13 @@ Deno.test("protection definitions match accepted GitHub payloads", () => {
       {
         parameters: {
           do_not_enforce_on_create: false,
-          required_status_checks: [{ context: "check", integration_id: 15368 }],
+          required_status_checks: [
+            { context: "check", integration_id: 15368 },
+            {
+              context: "hj-release-commit-validation",
+              integration_id: 15368,
+            },
+          ],
           strict_required_status_checks_policy: true,
         },
         type: "required_status_checks",
@@ -131,11 +199,47 @@ Deno.test("protection definitions match accepted GitHub payloads", () => {
       actor_type: "RepositoryRole",
       bypass_mode: "always",
     }],
-    conditions: { ref_name: { exclude: [], include: ["~ALL"] } },
+    conditions: {
+      ref_name: {
+        exclude: ["refs/tags/[0-9]*.[0-9]*.[0-9]*"],
+        include: ["~ALL"],
+      },
+    },
     enforcement: "active",
     name: "hj/github-protected-tags",
     rules: [
       { type: "creation" },
+      { type: "deletion" },
+      { type: "non_fast_forward" },
+      { type: "update" },
+    ],
+    target: "tag",
+  });
+  assertEquals(releaseTagsDefinition, {
+    bypass_actors: [{
+      actor_id: 5,
+      actor_type: "RepositoryRole",
+      bypass_mode: "always",
+    }],
+    conditions: {
+      ref_name: {
+        exclude: [],
+        include: ["refs/tags/[0-9]*.[0-9]*.[0-9]*"],
+      },
+    },
+    enforcement: "active",
+    name: "hj/github-release-tags",
+    rules: [
+      {
+        parameters: {
+          name: "Exact SemVer",
+          negate: false,
+          operator: "regex",
+          pattern:
+            "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)(?:-((?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\\.(?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\\+([0-9a-zA-Z-]+(?:\\.[0-9a-zA-Z-]+)*))?$",
+        },
+        type: "tag_name_pattern",
+      },
       { type: "deletion" },
       { type: "non_fast_forward" },
       { type: "update" },
@@ -150,12 +254,14 @@ Deno.test("protected tags adopt exact state and preserve unrelated rulesets", as
   if (allowed.result !== "allowed") throw new Error("expected allowed");
   const plan = await githubProtectedTagsFeature.planEnable(initial, allowed);
   const exact = resource(protectedTagsDefinition, "one", 1);
+  const release = resource(releaseTagsDefinition, "two", 2);
   assertEquals(
-    (await githubProtectedTagsFeature.detect(context([exact]))).state,
+    (await githubProtectedTagsFeature.detect(context([exact, release]))).state,
     "enabled",
   );
   assertEquals(
-    (await githubProtectedTagsFeature.checkEnable(context([exact]))).result,
+    (await githubProtectedTagsFeature.checkEnable(context([exact, release])))
+      .result,
     "no-op",
   );
 
@@ -171,10 +277,105 @@ Deno.test("protected tags adopt exact state and preserve unrelated rulesets", as
     (await githubProtectedTagsFeature.detect(context([unrelated]))).state,
     "disabled",
   );
-  assertEquals(plan.changes.length, 1);
+  assertEquals(plan.changes, [{
+    kind: "github-ruleset-transition",
+    steps: [
+      {
+        change: {
+          kind: "upsert",
+          name: "hj/github-protected-tags",
+          definition: protectedTagsGuardDefinition,
+        },
+        before: [
+          { name: "hj/github-protected-tags" },
+          { name: "hj/github-release-tags" },
+        ],
+        after: [
+          {
+            name: "hj/github-protected-tags",
+            definition: protectedTagsGuardDefinition,
+          },
+          { name: "hj/github-release-tags" },
+        ],
+      },
+      {
+        change: {
+          kind: "upsert",
+          name: "hj/github-release-tags",
+          definition: releaseTagsDefinition,
+        },
+        before: [
+          {
+            name: "hj/github-protected-tags",
+            definition: protectedTagsGuardDefinition,
+          },
+          { name: "hj/github-release-tags" },
+        ],
+        after: [
+          {
+            name: "hj/github-protected-tags",
+            definition: protectedTagsGuardDefinition,
+          },
+          { name: "hj/github-release-tags", definition: releaseTagsDefinition },
+        ],
+      },
+      {
+        change: {
+          kind: "upsert",
+          name: "hj/github-protected-tags",
+          definition: protectedTagsDefinition,
+        },
+        before: [
+          {
+            name: "hj/github-protected-tags",
+            definition: protectedTagsGuardDefinition,
+          },
+          { name: "hj/github-release-tags", definition: releaseTagsDefinition },
+        ],
+        after: [
+          {
+            name: "hj/github-protected-tags",
+            definition: protectedTagsDefinition,
+          },
+          { name: "hj/github-release-tags", definition: releaseTagsDefinition },
+        ],
+      },
+    ],
+  }]);
+});
+
+Deno.test("protected tags resume guarded transitions and reject unsafe reserved state", async () => {
+  const guard = resource(protectedTagsGuardDefinition, "guard", 1);
+  const release = resource(releaseTagsDefinition, "release", 2);
+  const enableAllowed = await githubProtectedTagsFeature.checkEnable(
+    context([guard]),
+  );
+  if (enableAllowed.result !== "allowed") throw new Error("expected allowed");
+  const enable = await githubProtectedTagsFeature.planEnable(
+    context([guard]),
+    enableAllowed,
+  );
   assertEquals(
-    (plan.changes[0] as { name: string }).name,
-    "hj/github-protected-tags",
+    (enable.changes[0] as { steps: readonly { change: { name: string } }[] })
+      .steps.map((step) => step.change.name),
+    ["hj/github-release-tags", "hj/github-protected-tags"],
+  );
+  const disableAllowed = await githubProtectedTagsFeature.checkDisable(
+    context([guard, release]),
+  );
+  if (disableAllowed.result !== "allowed") throw new Error("expected allowed");
+  const disable = await githubProtectedTagsFeature.planDisable(
+    context([guard, release]),
+    disableAllowed,
+  );
+  assertEquals(
+    (disable.changes[0] as { steps: readonly { change: { name: string } }[] })
+      .steps.map((step) => step.change.name),
+    ["hj/github-release-tags", "hj/github-protected-tags"],
+  );
+  assertEquals(
+    (await githubProtectedTagsFeature.checkEnable(context([release]))).result,
+    "blocked",
   );
 });
 
@@ -187,6 +388,12 @@ Deno.test("unavailable and duplicate reserved rulesets are ambiguous", async () 
   assertEquals(
     (await githubMainProtectionFeature.detect(
       context([duplicate, { ...duplicate, stateDigest: "b" }]),
+    )).state,
+    "ambiguous",
+  );
+  assertEquals(
+    (await githubMainProtectionFeature.detect(
+      context([{ ...duplicate, sourceType: "Organization" }]),
     )).state,
     "ambiguous",
   );
@@ -222,12 +429,17 @@ Deno.test("ruleset drift requires repair and guards replacement", async () => {
   const allowed = await githubMainProtectionFeature.checkEnable(repairing);
   if (allowed.result !== "allowed") throw new Error("expected repair");
   const plan = await githubMainProtectionFeature.planEnable(repairing, allowed);
-  assertEquals(plan.preconditions, [{
+  assertEquals(plan.preconditions[0], {
     kind: "github-resource-state",
     resource: "repository-ruleset",
     name: "hj/github-main-protection",
     stateDigest: "drift",
-  }]);
+  });
+  assertEquals(plan.preconditions[1], {
+    kind: "github-remote-file",
+    path: githubCiArtifacts[0].path,
+    expectedContent: githubCiArtifacts[0].content,
+  });
   assertEquals(plan.changes, [{
     kind: "upsert-github-resource",
     resource: "repository-ruleset",
@@ -324,6 +536,27 @@ Deno.test("protection dependencies and preset remain granular", () => {
     ["github-main-protection", true],
     ["github-protected-tags", true],
   ]);
+  const reviewActive = {
+    ...detections,
+    "github-main-review": { state: "enabled" as const, evidence: [] },
+  };
+  const retained = resolveFeatureChanges(builtInFeatureRegistry, reviewActive, {
+    changes: [],
+    presets: ["github-protection"],
+    applyDefaults: false,
+    defaults: [],
+  });
+  assertEquals(retained.issues, []);
+  assertEquals(
+    retained.changes.map((change) => change.featureId).sort(),
+    [
+      "deno-fmt",
+      "github-ci",
+      "github-main-protection",
+      "github-protected-tags",
+      "github-repo",
+    ],
+  );
 });
 
 const disabledDetection: FeatureDetection = {
@@ -341,5 +574,7 @@ function resource(
     name: definition.name as string,
     definition: { ...definition, id },
     stateDigest,
+    source: "owner/repo",
+    sourceType: "Repository",
   };
 }

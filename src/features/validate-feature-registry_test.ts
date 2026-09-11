@@ -11,6 +11,7 @@ Deno.test("the complete built-in registry validates", () => {
     [
       "deno-cli",
       "deno-fmt",
+      "deno-config-version",
       "deno-lint",
       "deno-typecheck",
       "deno-test",
@@ -19,7 +20,9 @@ Deno.test("the complete built-in registry validates", () => {
       "git",
       "github-repo",
       "jsr-package",
-      "jsr-release",
+      "github-release-publish-tag",
+      "github-release-publish-jsr",
+      "github-release-publish-github",
       "github-ci",
       "github-main-protection",
       "github-main-review",
@@ -67,6 +70,9 @@ Deno.test("the complete built-in registry validates", () => {
       id: "readme",
       providerPolicy: "exclusive",
       defaultProvider: "readme-static",
+    }, {
+      id: "version-provider",
+      providerPolicy: "multiple",
     }],
   );
 });

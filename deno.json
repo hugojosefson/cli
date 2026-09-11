@@ -3,25 +3,41 @@
     "@std/assert": "jsr:@std/assert@^1.0.19",
     "@std/cli/unstable-prompt-multiple-select": "jsr:@std/cli@1.0.32/unstable-prompt-multiple-select",
     "@std/path": "jsr:@std/path@^1.1.3",
-    "jsonc-parser": "npm:jsonc-parser@3.3.1"
+    "fork-version": "npm:fork-version@5.2.0",
+    "jsonc-parser": "npm:jsonc-parser@3.3.1",
+    "yaml": "npm:yaml@2.8.3"
   },
   "fmt": {
-    "include": ["src", "README.md", "deno.json"]
+    "include": [
+      "src",
+      "scripts",
+      "docs",
+      ".github",
+      "README.md",
+      "deno.json",
+      "toolchain.json"
+    ]
   },
   "tasks": {
-    "fmt": { "description": "Format project source", "command": "deno fmt" },
+    "fmt": {
+      "description": "Format project source",
+      "command": "deno fmt"
+    },
     "format": {
       "description": "Check project formatting",
       "command": "deno fmt --check"
     },
-    "lint": { "description": "Lint source files", "command": "deno lint src" },
+    "lint": {
+      "description": "Lint source files",
+      "command": "deno lint src scripts"
+    },
     "check": {
       "description": "Type-check source files",
-      "command": "deno check src/**/*.ts"
+      "command": "deno check --frozen src/**/*.ts scripts/*.ts"
     },
     "test": {
       "description": "Run tests",
-      "command": "deno test --allow-read=/tmp/opencode --allow-write=/tmp/opencode --allow-run=git,deno"
+      "command": "deno run --allow-env --allow-run=deno --allow-read --allow-write=/tmp/opencode scripts/run-tests.ts"
     },
     "diff-check": {
       "description": "Check the working diff for whitespace errors",
@@ -29,7 +45,46 @@
     },
     "all": {
       "description": "Run all non-mutating checks",
-      "dependencies": ["format", "lint", "check", "test", "diff-check"]
+      "dependencies": [
+        "format",
+        "lint",
+        "check",
+        "test",
+        "diff-check"
+      ]
+    },
+    "coverage": {
+      "description": "Run tests and enforce coverage baselines",
+      "command": "deno task test --coverage && deno task coverage-report"
+    },
+    "coverage-html": {
+      "description": "Build a browsable report from the last coverage run",
+      "command": "deno task coverage-report --html"
+    },
+    "ci": {
+      "description": "Run validation and coverage once",
+      "dependencies": [
+        "format",
+        "lint",
+        "check",
+        "coverage",
+        "diff-check"
+      ]
+    },
+    "hj": {
+      "description": "Run the local CLI",
+      "command": "deno run --allow-env --allow-run=deno --allow-read scripts/run-cli.ts"
+    },
+    "coverage-report": {
+      "description": "Report collected source coverage and enforce baselines",
+      "command": "deno run --allow-env --allow-run=deno --allow-read scripts/report-coverage.ts"
+    }
+  },
+  "coverage": {
+    "thresholds": {
+      "lines": 88,
+      "branches": 87,
+      "functions": 93
     }
   }
 }

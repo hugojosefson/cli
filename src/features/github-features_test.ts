@@ -192,26 +192,26 @@ Deno.test("unavailable GitHub setting fields fail closed", async () => {
   });
 });
 
-Deno.test("mixed local and GitHub mutations are rejected before either system changes", async () => {
+Deno.test("mixed operations apply GitHub before local changes", async () => {
   await withRoot(async (root) => {
     const github = new FakeGithub({ has_issues: false });
-    await assertRejects(
-      () =>
-        runFeatureOperation(
-          root,
-          parseFeatures(
-            ["repo", "features", "--github-issues", "--readme", "--yes"],
-            builtInFeatureRegistry,
-          ),
-          builtInFeatureRegistry,
-          () => [],
-          { github },
-        ),
-      Error,
-      "mixed local and GitHub mutations",
+    await runFeatureOperation(
+      root,
+      parseFeatures(
+        ["repo", "features", "--github-issues", "--readme", "--yes"],
+        builtInFeatureRegistry,
+      ),
+      builtInFeatureRegistry,
+      () => [],
+      { github },
     );
-    assertEquals(github.patches, []);
-    await assertRejects(() => Deno.stat(new URL("README.md", root)));
+    assertEquals(github.patches, [{ has_issues: true }]);
+    assertEquals(
+      (await Deno.readTextFile(new URL("README.md", root))).startsWith(
+        "# hj-github-",
+      ),
+      true,
+    );
   });
 });
 

@@ -18,6 +18,7 @@ type FileChange = Exclude<
       | "set-git-remote"
       | "upsert-github-resource"
       | "delete-github-resource"
+      | "github-ruleset-transition"
       | "app-setup";
   }
 >;

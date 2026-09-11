@@ -1,5 +1,6 @@
 /** @module Canonical GitHub repository rulesets managed by hj. */
 
+import { canonical } from "../repository/canonical-ruleset.ts";
 import type { JsonObject, JsonValue } from "../api/json.ts";
 
 export const rulesetResource = "repository-ruleset";
@@ -15,7 +16,10 @@ export const mainProtectionDefinition = ruleset(
       type: "required_status_checks",
       parameters: {
         do_not_enforce_on_create: false,
-        required_status_checks: [{ context: "check", integration_id: 15368 }],
+        required_status_checks: [
+          { context: "check", integration_id: 15368 },
+          { context: "hj-release-commit-validation", integration_id: 15368 },
+        ],
         strict_required_status_checks_policy: true,
       },
     },
@@ -31,6 +35,36 @@ export const protectedTagsDefinition = ruleset(
   [{ type: "creation" }, { type: "update" }, { type: "deletion" }, {
     type: "non_fast_forward",
   }],
+  { exclude: ["refs/tags/[0-9]*.[0-9]*.[0-9]*"] },
+);
+export const protectedTagsGuardDefinition = ruleset(
+  "hj/github-protected-tags",
+  "tag",
+  [{ actor_id: 5, actor_type: "RepositoryRole", bypass_mode: "always" }],
+  [{ type: "creation" }, { type: "update" }, { type: "deletion" }, {
+    type: "non_fast_forward",
+  }],
+);
+export const releaseTagsDefinition = ruleset(
+  "hj/github-release-tags",
+  "tag",
+  [{ actor_id: 5, actor_type: "RepositoryRole", bypass_mode: "always" }],
+  [
+    { type: "update" },
+    { type: "deletion" },
+    { type: "non_fast_forward" },
+    {
+      type: "tag_name_pattern",
+      parameters: {
+        name: "Exact SemVer",
+        operator: "regex",
+        negate: false,
+        pattern:
+          "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)(?:-((?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\\.(?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\\+([0-9a-zA-Z-]+(?:\\.[0-9a-zA-Z-]+)*))?$",
+      },
+    },
+  ],
+  { include: ["refs/tags/[0-9]*.[0-9]*.[0-9]*"] },
 );
 
 function pullRequest(
@@ -40,7 +74,7 @@ function pullRequest(
   approvals: number,
 ) {
   return {
-    allowed_merge_methods: ["merge", "squash", "rebase"],
+    allowed_merge_methods: ["rebase"],
     dismiss_stale_reviews_on_push: stale,
     require_code_owner_review: false,
     require_extra_approval_for_unattributed_changes: extra,
@@ -55,6 +89,10 @@ function ruleset(
   target: "branch" | "tag",
   bypassActors: readonly JsonValue[],
   rules: readonly JsonValue[],
+  conditions: {
+    readonly include?: readonly string[];
+    readonly exclude?: readonly string[];
+  } = {},
 ): JsonObject {
   return canonical({
     name,
@@ -63,25 +101,12 @@ function ruleset(
     bypass_actors: bypassActors,
     conditions: {
       ref_name: {
-        include: [target === "branch" ? "~DEFAULT_BRANCH" : "~ALL"],
-        exclude: [],
+        include: conditions.include ?? [
+          target === "branch" ? "~DEFAULT_BRANCH" : "~ALL",
+        ],
+        exclude: conditions.exclude ?? [],
       },
     },
     rules,
   }) as JsonObject;
-}
-export function canonical(value: unknown): unknown {
-  if (Array.isArray(value)) {
-    return value.map(canonical).sort((a, b) =>
-      JSON.stringify(a).localeCompare(JSON.stringify(b))
-    );
-  }
-  if (value !== null && typeof value === "object") {
-    return Object.fromEntries(
-      Object.entries(value as Record<string, unknown>).sort(([a], [b]) =>
-        a.localeCompare(b)
-      ).map(([key, item]) => [key, canonical(item)]),
-    );
-  }
-  return value;
 }

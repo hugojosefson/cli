@@ -85,6 +85,20 @@ Deno.test("github-ci owns deterministic pull-request and dependency workflows", 
   const deps = githubCiArtifacts[1].content;
   assertStringIncludes(ci, "pull_request:");
   assertStringIncludes(ci, "deno task all");
+  assertStringIncludes(ci, "hj-release-commit-validation:");
+  assertStringIncludes(ci, "release publish-tag-prepare");
+  assertStringIncludes(ci, "jsr:@hugojosefson/cli@0.0.0");
+  assertStringIncludes(ci, "HJ_RELEASE_ROUTE: source-validation");
+  assertStringIncludes(
+    ci,
+    "HJ_SOURCE_BASE_SHA: ${{ github.event.pull_request.base.sha }}",
+  );
+  assertStringIncludes(
+    ci,
+    "HJ_SOURCE_HEAD_SHA: ${{ github.event.pull_request.head.sha }}",
+  );
+  assertStringIncludes(ci, "fetch-depth: 0");
+  assertStringIncludes(ci, "persist-credentials: false");
   assertStringIncludes(deps, 'cron: "0 3 * * *"');
   assertStringIncludes(deps, "workflow_dispatch:");
   assertStringIncludes(deps, "deno outdated --recursive --update --latest");
@@ -102,6 +116,25 @@ Deno.test("github-ci owns deterministic pull-request and dependency workflows", 
     ci,
     "denoland/setup-deno@22d081ff2d3a40755e97629de92e3bcbfa7cf2ed",
   );
+});
+
+Deno.test("github-ci workflows are valid formatted YAML", async () => {
+  const root = await Deno.makeTempDir({
+    dir: "/tmp/opencode",
+    prefix: "hj-ci-workflows-",
+  });
+  try {
+    for (const artifact of githubCiArtifacts) {
+      const path = `${root}/${artifact.path.split("/").at(-1)}`;
+      await Deno.writeTextFile(path, artifact.content);
+      const result = await new Deno.Command("deno", {
+        args: ["fmt", "--check", path],
+      }).output();
+      assertEquals(result.success, true);
+    }
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
 });
 
 Deno.test("github-ci detects absent, exact, drifted, and custom workflows", async () => {

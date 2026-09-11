@@ -3,6 +3,7 @@
 import type { FeatureRegistry } from "./feature-registry.ts";
 import { denoCliFeature } from "./deno-cli-feature.ts";
 import { denoFmtFeature } from "./deno-fmt-feature.ts";
+import { denoConfigVersionFeature } from "./deno-config-version-feature.ts";
 import {
   denoLintFeature,
   denoTestFeature,
@@ -21,7 +22,11 @@ import {
 } from "./github-features.ts";
 import { githubCiFeature } from "./github-ci-feature.ts";
 import { jsrPackageFeature } from "./jsr-package-feature.ts";
-import { jsrReleaseFeature } from "./jsr-release-feature.ts";
+import {
+  githubReleasePublishGithubFeature,
+  githubReleasePublishJsrFeature,
+  githubReleasePublishTagFeature,
+} from "./github-release-publish-feature.ts";
 import {
   githubMainProtectionFeature,
   githubMainReviewFeature,
@@ -33,6 +38,7 @@ export const builtInFeatureRegistry: FeatureRegistry = {
   features: [
     denoCliFeature,
     denoFmtFeature,
+    denoConfigVersionFeature,
     denoLintFeature,
     denoTypecheckFeature,
     denoTestFeature,
@@ -41,7 +47,9 @@ export const builtInFeatureRegistry: FeatureRegistry = {
     gitFeature,
     githubRepoFeature,
     jsrPackageFeature,
-    jsrReleaseFeature,
+    githubReleasePublishTagFeature,
+    githubReleasePublishJsrFeature,
+    githubReleasePublishGithubFeature,
     githubCiFeature,
     githubMainProtectionFeature,
     githubMainReviewFeature,
@@ -59,6 +67,9 @@ export const builtInFeatureRegistry: FeatureRegistry = {
     id: "readme",
     providerPolicy: "exclusive",
     defaultProvider: "readme-static",
+  }, {
+    id: "version-provider",
+    providerPolicy: "multiple",
   }],
   presets: [{
     id: "github",
@@ -77,7 +88,6 @@ export const builtInFeatureRegistry: FeatureRegistry = {
     summary: "Protect the default branch and tags.",
     changes: [
       { featureId: "github-main-protection", enabled: true },
-      { featureId: "github-main-review", enabled: true },
       { featureId: "github-protected-tags", enabled: true },
     ],
   }, {

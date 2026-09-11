@@ -22,7 +22,7 @@ export type DenoConfigInspection =
 
 /** Selects the only Deno config, rejecting duplicate, invalid, or non-object input. */
 export async function inspectDenoConfig(
-  context: DetectionContext,
+  context: Pick<DetectionContext, "files">,
 ): Promise<DenoConfigInspection> {
   const observations = await Promise.all(
     denoConfigPaths.map((path) => context.files.observe(path)),

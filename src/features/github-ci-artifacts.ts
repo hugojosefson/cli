@@ -1,5 +1,7 @@
 /** @module Exact workflows owned by the GitHub CI feature. */
 
+import { workflowDenoVersion } from "./workflow-toolchain.ts";
+
 import type {
   ArtifactSchema,
   ExactArtifactInspection,
@@ -27,10 +29,35 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - uses: denoland/setup-deno@22d081ff2d3a40755e97629de92e3bcbfa7cf2ed # v2.0.5
         with:
-          deno-version: latest
+          deno-version: ${workflowDenoVersion}
       - run: deno task all
+  hj-release-commit-validation:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: denoland/setup-deno@22d081ff2d3a40755e97629de92e3bcbfa7cf2ed # v2.0.5
+        with:
+          deno-version: ${workflowDenoVersion}
+      - name: Validate release commits
+        env:
+          HJ_RELEASE_ROUTE: source-validation
+          HJ_SOURCE_BASE_SHA: \${{ github.event.pull_request.base.sha }}
+          HJ_SOURCE_HEAD_SHA: \${{ github.event.pull_request.head.sha }}
+        run: >-
+          deno run
+          --allow-env=HJ_RELEASE_ROUTE,HJ_SOURCE_BASE_SHA,HJ_SOURCE_HEAD_SHA
+          --allow-run=git
+          jsr:@hugojosefson/cli@0.0.0
+          release publish-tag-prepare
 `,
 }, {
   path: ".github/workflows/hj-deps.yaml",
@@ -57,14 +84,16 @@ jobs:
         with:
           ref: \${{ github.event.repository.default_branch }}
           fetch-depth: 0
+          persist-credentials: false
       - uses: denoland/setup-deno@22d081ff2d3a40755e97629de92e3bcbfa7cf2ed # v2.0.5
         with:
-          deno-version: latest
+          deno-version: ${workflowDenoVersion}
       - name: Update dependencies
         env:
           GH_TOKEN: \${{ github.token }}
         run: |
           set -euo pipefail
+          gh auth setup-git
           branch="hj/deps"
           base="\${{ github.event.repository.default_branch }}"
           git fetch origin "\${branch}" || true

@@ -30,11 +30,27 @@ export interface FeatureDependencies {
   readonly requires: readonly RequiredFeatureDependency[];
 }
 
+/** Feature combinations which one operation cannot select. */
+export type FeatureConflicts = {
+  readonly featureIds: readonly FeatureId[];
+  /** Features which cannot be disabled in the same operation. */
+  readonly disableWith?: readonly FeatureId[];
+};
+
+/** A command which must succeed before a release candidate is accepted. */
+export type ReleaseContribution = {
+  readonly command: string;
+  readonly args: readonly string[];
+};
+
 /** A feature's identity, dependencies, capabilities, and lifecycle operations. */
 export interface Feature {
   readonly metadata: FeatureMetadata;
   readonly dependencies: FeatureDependencies;
+  readonly conflicts?: FeatureConflicts;
   readonly capabilities: FeatureCapabilities;
+  /** Optional pre-tag validations contributed by an exact active publisher. */
+  readonly releaseContributions?: readonly ReleaseContribution[];
   readonly detect: Detect;
   readonly checkEnable: CheckEnable;
   readonly planEnable: PlanEnable;

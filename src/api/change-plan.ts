@@ -29,6 +29,11 @@ export type Precondition =
     readonly resource: string;
     readonly name: string;
     readonly stateDigest: string | undefined;
+  }
+  | {
+    readonly kind: "github-remote-file";
+    readonly path: RepositoryPath;
+    readonly expectedContent: string;
   };
 
 /** A non-secret validation to run after planned changes are applied. */
@@ -44,6 +49,8 @@ export type PlannedValidation =
     readonly featureId: FeatureId;
     readonly expected: "enabled" | "disabled";
   }
+  | { readonly kind: "github-main-protection" }
+  | { readonly kind: "github-tag-protection"; readonly tag: string }
   | { readonly kind: "clean-tree" }
   | {
     readonly kind: "remote-state";

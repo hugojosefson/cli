@@ -47,6 +47,45 @@ export function checkExclusiveCapabilities(state: ResolutionState): void {
   }
 }
 
+/** Checks explicit general feature conflicts; these never select replacements. */
+export function checkFeatureConflicts(state: ResolutionState): void {
+  const activePairs = new Set<string>();
+  const disabledPairs = new Set<string>();
+  for (const [id, feature] of state.features) {
+    if (
+      isFeatureSelected(state, id) && state.desired.get(id)?.enabled !== false
+    ) {
+      for (const other of feature.conflicts?.featureIds ?? []) {
+        if (
+          isFeatureSelected(state, other) &&
+          state.desired.get(other)?.enabled !== false
+        ) {
+          activePairs.add(pair(id, other));
+        }
+      }
+    }
+    if (state.desired.get(id)?.enabled === false) {
+      for (const other of feature.conflicts?.disableWith ?? []) {
+        if (state.desired.get(other)?.enabled === false) {
+          disabledPairs.add(pair(id, other));
+        }
+      }
+    }
+  }
+  for (const value of [...activePairs, ...disabledPairs].sort()) {
+    const [featureId, relatedId] = value.split("\0");
+    state.issues.push({
+      code: "conflicting-features",
+      featureId,
+      relatedId,
+    });
+  }
+}
+
+function pair(left: string, right: string): string {
+  return [left, right].sort().join("\0");
+}
+
 /** Checks whether explicit disables leave dependencies unsatisfied. */
 export function checkFeatureDisables(state: ResolutionState): void {
   const remaining = [...state.features.keys()].filter((id) =>

@@ -5,7 +5,8 @@ import type {
   GithubResource,
 } from "../api/repository-context.ts";
 import type { JsonObject } from "../api/json.ts";
-import { canonical, rulesetResource } from "./github-protection-definitions.ts";
+import { canonical } from "../repository/canonical-ruleset.ts";
+import { rulesetResource } from "./github-protection-definitions.ts";
 export type RulesetState = {
   readonly definition: JsonObject;
   readonly digest?: string;
@@ -33,6 +34,11 @@ function classify(
   );
   if (!matches.length) return { definition: expected, kind: "absent" };
   if (matches.length !== 1) return { definition: expected, kind: "ambiguous" };
+  if (
+    matches[0].sourceType !== "Repository"
+  ) {
+    return { definition: expected, kind: "ambiguous" };
+  }
   const { id: _id, ...actual } = matches[0].definition;
   return {
     definition: expected,

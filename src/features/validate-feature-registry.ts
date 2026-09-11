@@ -17,7 +17,13 @@ export interface FeatureRegistryIssue {
     | "duplicate-direct-dependency"
     | "duplicate-provided-capability"
     | "duplicate-required-capability"
+    | "duplicate-feature-conflict"
+    | "duplicate-disable-conflict"
     | "unknown-direct-dependency"
+    | "unknown-feature-conflict"
+    | "unknown-disable-conflict"
+    | "self-feature-conflict"
+    | "self-disable-conflict"
     | "dependency-cycle"
     | "unknown-required-capability"
     | "unknown-provided-capability"
@@ -141,6 +147,18 @@ function validateFeature(
     id,
     issues,
   );
+  validateIds(
+    feature.conflicts?.featureIds ?? [],
+    "duplicate-feature-conflict",
+    id,
+    issues,
+  );
+  validateIds(
+    feature.conflicts?.disableWith ?? [],
+    "duplicate-disable-conflict",
+    id,
+    issues,
+  );
   for (const dependency of feature.dependencies.requires) {
     if (!featureIds.has(dependency.featureId)) {
       issues.push({
@@ -166,6 +184,39 @@ function validateFeature(
         featureId: id,
         capabilityId: item.capabilityId,
       });
+    }
+  }
+  validateConflictReferences(
+    id,
+    feature.conflicts?.featureIds ?? [],
+    featureIds,
+    "unknown-feature-conflict",
+    "self-feature-conflict",
+    issues,
+  );
+  validateConflictReferences(
+    id,
+    feature.conflicts?.disableWith ?? [],
+    featureIds,
+    "unknown-disable-conflict",
+    "self-disable-conflict",
+    issues,
+  );
+}
+
+function validateConflictReferences(
+  featureId: string,
+  relatedIds: readonly string[],
+  featureIds: ReadonlySet<string>,
+  unknownCode: FeatureRegistryIssue["code"],
+  selfCode: FeatureRegistryIssue["code"],
+  issues: FeatureRegistryIssue[],
+): void {
+  for (const relatedId of relatedIds) {
+    if (relatedId === featureId) {
+      issues.push({ code: selfCode, featureId, relatedId });
+    } else if (!featureIds.has(relatedId)) {
+      issues.push({ code: unknownCode, featureId, relatedId });
     }
   }
 }

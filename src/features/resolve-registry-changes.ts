@@ -5,6 +5,7 @@ import type { FeatureDetection } from "../api/feature-detection.ts";
 import type { FeatureId } from "../api/feature.ts";
 import {
   checkExclusiveCapabilities,
+  checkFeatureConflicts,
   checkFeatureDisables,
   resolveExplicitExclusiveProviders,
 } from "./check-feature-resolution.ts";
@@ -34,6 +35,7 @@ export function resolveRegistryChanges(
   resolveFeatureEnables(state);
   resolveExplicitExclusiveProviders(state);
   checkExclusiveCapabilities(state);
+  checkFeatureConflicts(state);
   checkFeatureDisables(state);
   const issues = sortFeatureResolutionIssues(state.issues);
   if (issues.length > 0) {

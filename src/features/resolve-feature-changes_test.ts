@@ -9,6 +9,8 @@ function feature(
   id: string,
   options: {
     readonly dependencies?: readonly string[];
+    readonly conflicts?: readonly string[];
+    readonly disableWith?: readonly string[];
     readonly provides?: readonly string[];
     readonly requires?: readonly string[];
   } = {},
@@ -21,6 +23,9 @@ function feature(
         reason: `${id} needs ${featureId}`,
       })),
     },
+    conflicts: options.conflicts
+      ? { featureIds: options.conflicts, disableWith: options.disableWith }
+      : undefined,
     capabilities: {
       provides: options.provides ?? [],
       requires: (options.requires ?? []).map((capabilityId) => ({
@@ -592,5 +597,58 @@ Deno.test("disable order puts dependents before dependencies", () => {
   assertEquals(result.changes.map((change) => change.featureId), [
     "z-app",
     "a-lib",
+  ]);
+});
+
+Deno.test("release-tag and main-review conflicts reject either explicit enable direction", () => {
+  const features = [
+    feature("github-release-publish-tag", {
+      conflicts: ["github-main-review"],
+    }),
+    feature("github-main-review"),
+  ];
+  for (
+    const changes of [[
+      { featureId: "github-release-publish-tag", enabled: true },
+    ], [{ featureId: "github-main-review", enabled: true }]] as const
+  ) {
+    const other = changes[0].featureId === "github-release-publish-tag"
+      ? "github-main-review"
+      : "github-release-publish-tag";
+    const result = resolveFeatureChanges(
+      registry(features),
+      detections({ [changes[0].featureId]: "disabled", [other]: "enabled" }),
+      request([...changes]),
+    );
+    assertEquals(result.changes, []);
+    assertEquals(result.issues.map((issue) => issue.code), [
+      "conflicting-features",
+    ]);
+  }
+});
+
+Deno.test("tag publication cannot be disabled with protected tags", () => {
+  const result = resolveFeatureChanges(
+    registry([
+      feature("github-release-publish-tag", {
+        conflicts: ["github-main-review"],
+        disableWith: ["github-protected-tags"],
+      }),
+      feature("github-main-review"),
+      feature("github-protected-tags"),
+    ]),
+    detections({
+      "github-release-publish-tag": "enabled",
+      "github-main-review": "disabled",
+      "github-protected-tags": "enabled",
+    }),
+    request([{
+      featureId: "github-release-publish-tag",
+      enabled: false,
+    }, { featureId: "github-protected-tags", enabled: false }]),
+  );
+  assertEquals(result.changes, []);
+  assertEquals(result.issues.map((issue) => issue.code), [
+    "conflicting-features",
   ]);
 });

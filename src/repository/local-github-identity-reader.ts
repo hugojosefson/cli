@@ -1,17 +1,26 @@
-/** @module Bounded local Github viewer reader. */
-
+/** Read the authenticated GitHub viewer through the shared command adapter. */
 import type { GithubIdentityReader } from "../api/repository-context.ts";
+import {
+  type GithubCommandRunner,
+  localGithubCommand,
+} from "./github-command.ts";
+import { json, object } from "./github-response.ts";
 
-/** Reads the authenticated Github display name without exposing credentials. */
 export class LocalGithubIdentityReader implements GithubIdentityReader {
+  readonly #runner: GithubCommandRunner;
+  constructor(
+    root: URL,
+    runner: GithubCommandRunner = localGithubCommand(root),
+  ) {
+    this.#runner = runner;
+  }
   async viewer(): Promise<{ readonly name: string } | undefined> {
     try {
-      const output = await new Deno.Command("gh", {
-        args: ["api", "user", "--jq", ".name"],
-      }).output();
-      const name = output.success
-        ? new TextDecoder().decode(output.stdout).trim()
-        : "";
+      const output = await this.#runner.run(["api", "user"]);
+      const value = output.success
+        ? object(json(output.stdout))?.name
+        : undefined;
+      const name = typeof value === "string" ? value.trim() : "";
       return name ? { name } : undefined;
     } catch {
       return undefined;

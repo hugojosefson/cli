@@ -37,6 +37,10 @@ import { repairFeatureChanges } from "./repair-feature-changes.ts";
 import { requireConfirmation } from "./require-confirmation.ts";
 import { requestedDriftedChanges } from "./requested-drifted-changes.ts";
 import {
+  evaluateMainProtection,
+  evaluateReleaseTagProtection,
+} from "../release/effective-protection.ts";
+import {
   type AttributionPrompt,
   resolveLicenseAttribution,
 } from "./license-attribution.ts";
@@ -75,110 +79,137 @@ export async function runFeatureOperation(
   const files = new LocalFileReader(root);
   const git = new LocalGitReader(root);
   const githubIdentity = services.githubIdentity ??
-    new LocalGithubIdentityReader();
+    new LocalGithubIdentityReader(root);
   const github = services.github ?? new LocalGithubClient(root);
-  const detections = await detect(root, files, git, github, registry);
-  if (args.kind === "status") {
-    return formatFeatureStatus(registry, detections);
-  }
-  const request = args.kind === "interactive"
-    ? selectedFeatureActionsToRequest(
-      selectActions(featureActions(registry, detections)),
-    )
-    : args.request;
-  if (
-    request.changes.length === 0 && request.presets.length === 0 &&
-    !request.applyDefaults && !request.repair
-  ) {
-    return formatFeatureStatus(registry, detections);
-  }
-  const resolution = resolveFeatureChanges(
-    registry,
-    Object.fromEntries(detections),
-    request,
-  );
-  if (resolution.issues.length) {
-    throw new Error(`resolution failed: ${resolution.issues[0].code}`);
-  }
-  const changes = [
-    ...resolution.changes,
-    ...requestedDriftedChanges(detections, request),
-    ...repairFeatureChanges(detections, request.repair),
-  ];
-  const baseContext = {
-    repositoryRoot: root,
-    files,
-    git,
-    githubIdentity,
-    github,
-    detections,
-    requestedChanges: request.changes,
-    resolvedChanges: changes,
-    repair: request.repair,
-  };
-  const licenseOptions = changes.some((change) =>
-      change.enabled &&
-      detections.get(change.featureId)?.state === "disabled" &&
-      licenseCatalog.find((provider) => provider.id === change.featureId)
-        ?.definition.placeholders.some(({ kind }) =>
-          kind === "year" || kind === "holder"
-        )
-    )
-    ? await resolveLicenseAttribution(baseContext, services.promptAttribution)
-    : {};
-  const context: OperationContext = {
-    ...baseContext,
-    options: { confirmation: args.confirmation, ...licenseOptions },
-  };
-  const plans = await plansFor(context, changes, registry);
-  rejectMixedMutations(plans);
-  requireConfirmation(plans, args.confirmation);
-  rejectUnsupportedValidations(plans);
-  await Promise.all(
-    plans.map((plan) => preflightLocalChangePlan(root, localPlan(plan))),
-  );
-  await Promise.all(
-    plans.map((plan) => preflightGithubChangePlan(github, plan)),
-  );
-  const beforeGit = await git.isRepository();
-  const paths = plannedCommitPaths(plans);
-  const initializedGit = plans.some((plan) =>
-    plan.changes.some((change) => change.kind === "git-init")
-  );
-  const commit = beforeGit && paths.length > 0
-    ? featureCommitPlan(paths)
-    : undefined;
-  if (commit) {
-    await requireGitIdentity(root);
-    await preflightLocalChangePlan(root, commit);
-  }
-  for (const plan of plans) await applyLocalChangePlan(root, localPlan(plan));
-  await applyGithubChangePlans(github, plans);
-  await validate(
-    root,
-    files,
-    git,
-    github,
-    registry,
-    plans.flatMap((plan) => plan.validations),
-  );
-  const committed = commit !== undefined;
-  const githubChanged = plans.some((plan) =>
-    plan.changes.some((change) =>
-      change.kind === "upsert-github-resource" ||
-      change.kind === "delete-github-resource"
-    )
-  );
-  if (commit) await applyLocalChangePlan(root, commit);
-  return formatFeatureResult(
-    formatFeatureStatus(
+  try {
+    const detections = await detect(root, files, git, github, registry);
+    if (args.kind === "status") {
+      return formatFeatureStatus(registry, detections);
+    }
+    const request = args.kind === "interactive"
+      ? selectedFeatureActionsToRequest(
+        selectActions(featureActions(registry, detections)),
+      )
+      : args.request;
+    if (
+      request.changes.length === 0 && request.presets.length === 0 &&
+      !request.applyDefaults && !request.repair
+    ) {
+      return formatFeatureStatus(registry, detections);
+    }
+    const resolution = resolveFeatureChanges(
       registry,
-      await detect(root, files, git, github, registry),
-    ),
-    committed,
-    !beforeGit && initializedGit,
-    githubChanged,
-  );
+      Object.fromEntries(detections),
+      request,
+    );
+    if (resolution.issues.length) {
+      throw new Error(`resolution failed: ${resolution.issues[0].code}`);
+    }
+    const changes = [
+      ...resolution.changes,
+      ...requestedDriftedChanges(detections, request),
+      ...repairFeatureChanges(detections, request.repair),
+    ];
+    const baseContext = {
+      repositoryRoot: root,
+      files,
+      git,
+      githubIdentity,
+      github,
+      detections,
+      requestedChanges: request.changes,
+      resolvedChanges: changes,
+      repair: request.repair,
+    };
+    const licenseOptions = changes.some((change) =>
+        change.enabled &&
+        detections.get(change.featureId)?.state === "disabled" &&
+        licenseCatalog.find((provider) => provider.id === change.featureId)
+          ?.definition.placeholders.some(({ kind }) =>
+            kind === "year" || kind === "holder"
+          )
+      )
+      ? await resolveLicenseAttribution(baseContext, services.promptAttribution)
+      : {};
+    const context: OperationContext = {
+      ...baseContext,
+      options: { confirmation: args.confirmation, ...licenseOptions },
+    };
+    const plans = await plansFor(context, changes, registry);
+    requireConfirmation(plans, args.confirmation);
+    rejectUnsupportedValidations(plans);
+    await Promise.all(
+      plans.map((plan) => preflightLocalChangePlan(root, localPlan(plan))),
+    );
+    await Promise.all(
+      plans.map((plan) => preflightGithubChangePlan(github, plan)),
+    );
+    const beforeGit = await git.isRepository();
+    const paths = plannedCommitPaths(plans);
+    const initializedGit = plans.some((plan) =>
+      plan.changes.some((change) => change.kind === "git-init")
+    );
+    const commit = beforeGit && paths.length > 0
+      ? featureCommitPlan(paths)
+      : undefined;
+    if (commit) {
+      await requireGitIdentity(root);
+      await preflightLocalChangePlan(root, commit);
+    }
+    const remoteChanges = githubChangeNames(plans);
+    await applyGithubChangePlans(github, plans);
+    try {
+      for (const plan of plans) {
+        await applyLocalChangePlan(root, localPlan(plan));
+      }
+    } catch (error) {
+      if (remoteChanges.length) {
+        throw new Error(
+          `Local changes failed after GitHub changed ${
+            remoteChanges.join(", ")
+          }. Start the same operation again.`,
+          { cause: error },
+        );
+      }
+      throw error;
+    }
+    await validate(
+      root,
+      files,
+      git,
+      github,
+      registry,
+      plans.flatMap((plan) => plan.validations),
+    );
+    const committed = commit !== undefined;
+    const githubChanged = plans.some((plan) =>
+      plan.changes.some((change) =>
+        change.kind === "upsert-github-resource" ||
+        change.kind === "delete-github-resource" ||
+        change.kind === "github-ruleset-transition"
+      )
+    );
+    if (commit) await applyLocalChangePlan(root, commit);
+    return formatFeatureResult(
+      formatFeatureStatus(
+        registry,
+        await detect(root, files, git, github, registry),
+      ),
+      committed,
+      !beforeGit && initializedGit,
+      githubChanged,
+    );
+  } catch (error) {
+    if (
+      error instanceof Error && github instanceof LocalGithubClient &&
+      github.diagnostics.length
+    ) {
+      throw new Error(`${error.message}\n${github.diagnostics.join("\n")}`, {
+        cause: error,
+      });
+    }
+    throw error;
+  }
 }
 
 async function detect(
@@ -229,7 +260,9 @@ async function plansFor(
 
 function rejectUnsupportedValidations(plans: readonly ChangePlan[]): void {
   const validation = plans.flatMap((plan) => plan.validations).find((item) =>
-    item.kind !== "feature-redetection"
+    item.kind !== "feature-redetection" &&
+    item.kind !== "github-main-protection" &&
+    item.kind !== "github-tag-protection"
   );
   if (validation) throw new Error(`unsupported validation: ${validation.kind}`);
 }
@@ -250,6 +283,26 @@ async function validate(
     ) {
       throw new Error(`validation failed: ${validation.featureId}`);
     }
+    if (
+      validation.kind === "github-main-protection" ||
+      validation.kind === "github-tag-protection"
+    ) {
+      const repository = await github.repository();
+      const protection = await github.protection?.();
+      if (!repository?.defaultBranch || !protection) {
+        throw new Error("validation failed: GitHub protection is unavailable");
+      }
+      const result = validation.kind === "github-main-protection"
+        ? evaluateMainProtection(protection, repository.defaultBranch)
+        : evaluateReleaseTagProtection(
+          protection,
+          repository.defaultBranch,
+          validation.tag,
+        );
+      if (result.kind !== "compatible") {
+        throw new Error(`validation failed: ${result.reasons[0]}`);
+      }
+    }
   }
 }
 
@@ -257,26 +310,26 @@ function localPlan(plan: ChangePlan): ChangePlan {
   return {
     ...plan,
     preconditions: plan.preconditions.filter((item) =>
-      item.kind !== "github-resource-state"
+      item.kind !== "github-resource-state" &&
+      item.kind !== "github-remote-file"
     ),
     changes: plan.changes.filter((item) =>
       item.kind !== "upsert-github-resource" &&
-      item.kind !== "delete-github-resource" && item.kind !== "app-setup"
+      item.kind !== "delete-github-resource" &&
+      item.kind !== "github-ruleset-transition" && item.kind !== "app-setup"
     ),
   };
 }
 
-function rejectMixedMutations(plans: readonly ChangePlan[]): void {
-  const local = plans.some((plan) => localPlan(plan).changes.length > 0);
-  const remote = plans.some((plan) =>
-    plan.changes.some((change) =>
+function githubChangeNames(plans: readonly ChangePlan[]): readonly string[] {
+  return plans.flatMap((plan) => plan.changes).flatMap((change) => {
+    if (
       change.kind === "upsert-github-resource" ||
       change.kind === "delete-github-resource" || change.kind === "app-setup"
-    )
-  );
-  if (local && remote) {
-    throw new Error(
-      "mixed local and GitHub mutations are unsupported because rollback is unavailable",
-    );
-  }
+    ) return [change.name];
+    if (change.kind === "github-ruleset-transition") {
+      return [...new Set(change.steps.map((step) => step.change.name))];
+    }
+    return [];
+  });
 }

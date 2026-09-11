@@ -19,6 +19,7 @@ export interface FeatureResolutionIssue {
     | "explicitly-disabled-dependency"
     | "missing-capability-provider"
     | "conflicting-exclusive-providers"
+    | "conflicting-features"
     | "direct-dependent-remains-enabled"
     | "capability-consumer-remains-enabled";
   readonly featureId?: FeatureId;
