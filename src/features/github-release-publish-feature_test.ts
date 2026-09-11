@@ -353,3 +353,51 @@ Deno.test("repair restores automatic publication to a generated manual-only JSR 
   assertEquals(write?.content, publishJsrArtifact.content);
   assertEquals(write?.expectedDigest, "digest");
 });
+
+Deno.test("JSR publisher creates a pinned bootstrap workflow and restores registry loading", async () => {
+  const source = `github:owner/hj@${"b".repeat(40)}`;
+  const bootstrap = { ...context({}), options: { workflowCli: source } };
+  const allowed = await githubReleasePublishJsrFeature.checkEnable(bootstrap);
+  if (allowed.result !== "allowed") throw new Error("Expected enablement");
+  const plan = await githubReleasePublishJsrFeature.planEnable(
+    bootstrap,
+    allowed,
+  );
+  const write = plan.changes.find((change) => change.kind === "write-file")!;
+  assertStringIncludes(write.content, `# hj-workflow-cli: ${source}`);
+  const observed = { [write.path]: exact(write.content) };
+  const detected = context(observed);
+  assertEquals(
+    (await githubReleasePublishJsrFeature.detect(detected)).state,
+    "enabled",
+  );
+  const same = await githubReleasePublishJsrFeature.checkEnable(detected);
+  assertEquals(same.result, "no-op");
+  const remove = { ...detected, github: quiescentGithub };
+  assertEquals(
+    (await githubReleasePublishJsrFeature.checkDisable(remove)).result,
+    "allowed",
+  );
+  const registry = {
+    ...detected,
+    options: { workflowCli: "jsr" },
+    repair: { kind: "all-drifted" as const },
+  };
+  const check = await githubReleasePublishJsrFeature.checkEnable(registry);
+  if (check.result !== "allowed") throw new Error("Expected repair");
+  const fixed = await githubReleasePublishJsrFeature.planEnable(
+    registry,
+    check,
+  );
+  const replacement = fixed.changes.find((change) =>
+    change.kind === "write-file"
+  )!;
+  assertEquals(replacement.content, publishJsrArtifact.content);
+  const invalid = context({
+    [write.path]: exact(write.content.replace(source, "github:owner/hj@main")),
+  });
+  assertEquals(
+    (await githubReleasePublishJsrFeature.detect(invalid)).state,
+    "drifted",
+  );
+});

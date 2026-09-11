@@ -38,6 +38,7 @@ import { promptFeatureActions } from "./prompt-feature-actions.ts";
 import { repairFeatureChanges } from "./repair-feature-changes.ts";
 import { requireConfirmation } from "./require-confirmation.ts";
 import { requestedDriftedChanges } from "./requested-drifted-changes.ts";
+import { workflowCliChanges } from "./workflow-cli-changes.ts";
 import {
   evaluateMainProtection,
   evaluateReleaseTagProtection,
@@ -128,6 +129,9 @@ export async function runFeatureOperation(
       ...requestedDriftedChanges(detections, request),
       ...repairFeatureChanges(detections, request.repair),
     ];
+    if ("workflowCli" in args && args.workflowCli !== undefined) {
+      changes.push(...workflowCliChanges(request, registry, changes));
+    }
     const baseContext = {
       repositoryRoot: root,
       files,
@@ -137,7 +141,22 @@ export async function runFeatureOperation(
       detections,
       requestedChanges: request.changes,
       resolvedChanges: changes,
-      repair: request.repair,
+      repair: request.repair?.kind === "features" && "workflowCli" in args &&
+          args.workflowCli !== undefined
+        ? {
+          kind: "features" as const,
+          featureIds: [
+            ...new Set([
+              ...request.repair.featureIds,
+              ...changes.filter((change) =>
+                change.enabled &&
+                (change.featureId === "github-ci" ||
+                  change.featureId.startsWith("github-release-publish-"))
+              ).map((change) => change.featureId),
+            ]),
+          ],
+        }
+        : request.repair,
     };
     const licenseOptions = changes.some((change) =>
         change.enabled &&
@@ -151,7 +170,13 @@ export async function runFeatureOperation(
       : {};
     const context: OperationContext = {
       ...baseContext,
-      options: { confirmation: args.confirmation, ...licenseOptions },
+      options: {
+        confirmation: args.confirmation,
+        ...licenseOptions,
+        ...("workflowCli" in args && args.workflowCli !== undefined
+          ? { workflowCli: args.workflowCli }
+          : {}),
+      },
     };
     const plans = await plansFor(
       context,

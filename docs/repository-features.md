@@ -306,6 +306,12 @@ resolved review threads.
 | `--no-github`                   | Invalid.                                                                      |
 | `--no-github-repo`              | Blocked; repository deletion is unsupported.                                  |
 
+The workflow source option supports first publication before `hj` exists on JSR.
+Use `--workflow-cli=github:owner/repository@<commit SHA>` with selected workflow
+features. Use `--repair --workflow-cli=jsr` to switch them to the registry. The
+[release guide](releases.md#bootstrap-before-the-first-registry-version) owns
+the setup procedure and source rules.
+
 ## JSR preset and package feature
 
 `--jsr` selects package configuration, the Deno version provider, and the JSR

@@ -2,24 +2,18 @@
 
 Use implemented `hj` features for every operation they support. Use external
 tools only for prerequisites and source changes that `hj` does not manage. The
-CLI repository and package remain unpublished. This plan does not authorize
-publication.
+owner authorized GitHub source publication and JSR releases on 2026-09-12.
 
 ## First-release prerequisite
 
-The standard release features are implemented, but they cannot yet publish this
-CLI's first version without a separate bootstrap mechanism. A bootstrap
-mechanism starts publication before a registry copy of `hj` exists.
+Generated workflows normally load `hj` from JSR. For the first release, use the
+[bootstrap option](releases.md#bootstrap-before-the-first-registry-version) to
+load a pinned commit from the public CLI repository. Commit and push the
+reviewed CLI source before generating workflows that use it. Set `CLI_COMMIT` to
+that full commit SHA.
 
-Generated CI and release workflows load the exact `hj` version from JSR. The CLI
-cannot upload that version through workflows that first need to download it. The
-scratchpad tests used an edited local copy and temporary runners. That fixture
-is test infrastructure, not an implemented feature.
-
-Complete the [planned bootstrap support](planned.md#first-release-bootstrap)
-before running the publication stages below. Keep version preparation and both
-publishers in the implemented release pipeline. Do not replace them with a
-manual tag, direct package upload, or a hand-written release workflow.
+Keep version preparation and both publishers in the implemented release
+pipeline. Do not replace them with a manual tag or direct package upload.
 
 The package metadata currently contains `0.1.0`, with draft release notes. This
 value is a baseline, not a reserved first tag. Tag preparation calculates the
@@ -46,8 +40,8 @@ Let feature operations create their own commits for managed files.
 
 ## External prerequisites
 
-Complete these steps only after the owner authorizes repository and package
-publication. Each step lacks an implemented `hj` operation:
+Complete these prerequisites with the existing tools. Each step lacks an
+implemented `hj` operation:
 
 | Prerequisite                       | Existing tool or interface                                  | Why it is outside `hj`                                                                               |
 | ---------------------------------- | ----------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
@@ -66,13 +60,13 @@ For JSR, link the package in its package settings. Then follow the
 publication. The owner confirmed that this package is linked to
 `hugojosefson/cli`, with CI publication required and **Do not restrict
 publishing** selected. The public GitHub repository exists and remains empty.
-Publishing the CLI source or package still requires authorization.
+The owner also authorized completing publication.
 
 ## Configure GitHub through features
 
 After authorization and external setup, run these commands from the checkout.
-Finish the bootstrap prerequisite before pushing managed workflows that load
-`hj`. Resolve blocked or ambiguous states before the next stage.
+Push the pinned CLI source before pushing workflows that load it. Resolve
+blocked or ambiguous states before the next stage.
 
 ### Repository settings
 
@@ -94,7 +88,8 @@ visibility and disable squash merging.
 Generate CI through its feature:
 
 ```bash
-deno task hj repo features --github-ci
+deno task hj repo features --github-ci \
+  --workflow-cli="github:hugojosefson/cli@${CLI_COMMIT}"
 ```
 
 Make sure that its workflows exist on remote `main` before enabling protection.
@@ -128,7 +123,8 @@ Release feature together:
 ```bash
 deno task hj repo features \
   --jsr \
-  --github-release-publish-github
+  --github-release-publish-github \
+  --workflow-cli="github:hugojosefson/cli@${CLI_COMMIT}"
 ```
 
 Complete the remaining JSR checks in an authorized scratchpad package before
@@ -177,3 +173,7 @@ The formatting feature must be enabled, and the repeated operation must report
 no changes. The [remaining validation](planned.md#remaining-live-validation)
 tracks registry loading and publisher checks. Use the same implemented release
 features for subsequent versions.
+
+After registry installation works, use the
+[registry migration command](releases.md#bootstrap-before-the-first-registry-version)
+to replace the bootstrap source. Merge that managed change through a source PR.

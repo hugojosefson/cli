@@ -10,6 +10,10 @@ export const commandDefinitions = {
     flags: [
       ["--defaults", "Select Git and README."],
       ["--jsr", "Set up a JSR package and publication from GitHub Actions."],
+      [
+        "--workflow-cli=<source>",
+        "Use jsr or github:owner/repository@<commit SHA> in selected workflows.",
+      ],
       ["--github", "Apply common GitHub repository settings (private)."],
       ["--github-protection", "Protect the default branch and tags."],
       [

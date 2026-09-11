@@ -5,10 +5,12 @@ import type {
   RepairSelection,
 } from "../api/feature-change.ts";
 import type { FeatureRegistry } from "../features/feature-registry.ts";
+import { validateWorkflowCli } from "../features/workflow-cli.ts";
 
 interface FeatureRequestArguments {
   readonly request: FeatureChangeRequest;
   readonly confirmation: boolean;
+  readonly workflowCli?: string;
 }
 
 export type FeaturesArguments =
@@ -40,7 +42,15 @@ export function parseFeatures(
   let repair = false;
   let interactive = false;
   let confirmation = false;
+  let workflowCli: string | undefined;
   for (const arg of args.slice(2)) {
+    if (arg.startsWith("--workflow-cli=")) {
+      if (workflowCli !== undefined) {
+        throw new Error("duplicate --workflow-cli");
+      }
+      workflowCli = validateWorkflowCli(arg.slice("--workflow-cli=".length));
+      continue;
+    }
     if (arg === "--defaults") {
       if (applyDefaults) throw new Error("duplicate `--defaults`");
       applyDefaults = true;
@@ -88,7 +98,8 @@ export function parseFeatures(
   }
   if (interactive) {
     if (
-      applyDefaults || repair || requested.size > 0 || selectedPresets.size > 0
+      applyDefaults || repair || requested.size > 0 ||
+      selectedPresets.size > 0 || workflowCli !== undefined
     ) {
       throw new Error(
         "`--interactive` cannot be combined with defaults, repair, or feature flags",
@@ -106,10 +117,30 @@ export function parseFeatures(
     defaults: featureDefaults,
     ...(repair ? { repair: repairSelection(requested) } : {}),
   };
+  if (
+    workflowCli !== undefined &&
+    !request.changes.some((change) =>
+      change.enabled && [
+        "github-ci",
+        "github-release-publish-tag",
+        "github-release-publish-jsr",
+        "github-release-publish-github",
+      ].includes(change.featureId)
+    ) && !selectedPresets.has("jsr")
+  ) {
+    throw new Error(
+      "--workflow-cli requires an explicit positive workflow feature or --jsr.",
+    );
+  }
   return requested.size === 0 && selectedPresets.size === 0 && !applyDefaults &&
       !repair
     ? { kind: "status", request, confirmation }
-    : { kind: "change", request, confirmation };
+    : {
+      kind: "change",
+      request,
+      confirmation,
+      ...(workflowCli === undefined ? {} : { workflowCli }),
+    };
 }
 
 function repairSelection(

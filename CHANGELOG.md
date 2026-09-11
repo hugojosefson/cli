@@ -13,6 +13,7 @@ Prepared for the first public release. This version is not published yet.
 | GitHub           | Configure existing repositories, CI, and protection for personal repositories.                                             |
 | Releases         | Prepare release PRs, merge by rebase, create tags, and run separate publishers.                                            |
 | JSR setup        | Select package and release features with `--jsr`; publish automatically through GitHub Actions after release tag creation. |
+| First release    | Load a pinned public GitHub commit with `--workflow-cli`, then migrate generated workflows to JSR.                         |
 | Terminal output  | Show structured results in tables with terminal-aware colors.                                                              |
 
 Linux is the supported test platform. The package exposes a CLI, with no

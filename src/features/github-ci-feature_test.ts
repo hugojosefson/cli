@@ -309,3 +309,119 @@ function contextForRoot(root: URL): OperationContext {
     files: new LocalFileReader(root),
   };
 }
+
+Deno.test("CI bootstrap source is pinned, detected, repaired, and removable", async () => {
+  const revision = "a".repeat(40);
+  const bootstrap = {
+    ...context({}),
+    options: { workflowCli: `github:owner/hj@${revision}` },
+  };
+  const allowed = await githubCiFeature.checkEnable(bootstrap);
+  if (allowed.result !== "allowed") throw new Error("Expected enablement");
+  const plan = await githubCiFeature.planEnable(bootstrap, allowed);
+  const observations: Record<string, ArtifactObservation> = {};
+  for (const change of plan.changes) {
+    if (change.kind !== "write-file") continue;
+    observations[change.path] = {
+      kind: "file",
+      content: change.content,
+      digest: "pinned",
+      mode: 0o644,
+    };
+  }
+  const ci = observations[githubCiArtifacts[0].path];
+  if (ci.kind !== "file") throw new Error("Expected workflow");
+  assertStringIncludes(
+    ci.content,
+    `--import-map=https://raw.githubusercontent.com/owner/hj/${revision}/deno.json`,
+  );
+  assertStringIncludes(
+    ci.content,
+    `https://raw.githubusercontent.com/owner/hj/${revision}/src/cli/cli.ts`,
+  );
+  assertEquals(
+    (await githubCiFeature.detect(context(observations))).state,
+    "enabled",
+  );
+  assertEquals(
+    (await githubCiFeature.checkDisable(context(observations))).result,
+    "allowed",
+  );
+  const registry = {
+    ...context(observations),
+    options: { workflowCli: "jsr" },
+  };
+  assertEquals((await githubCiFeature.checkEnable(registry)).result, "blocked");
+  const repair = { ...registry, repair: { kind: "all-drifted" as const } };
+  const check = await githubCiFeature.checkEnable(repair);
+  if (check.result !== "allowed") throw new Error("Expected repair");
+  const fixed = await githubCiFeature.planEnable(repair, check);
+  assertEquals(
+    fixed.changes.filter((change) => change.kind === "write-file").map((
+      change,
+    ) => change.content),
+    [githubCiArtifacts[0].content],
+  );
+  observations[githubCiArtifacts[0].path] = {
+    ...ci,
+    content: ci.content + "# custom drift\n",
+  };
+  assertEquals(
+    (await githubCiFeature.detect(context(observations))).state,
+    "drifted",
+  );
+});
+
+Deno.test("workflow source migration reaches enabled features through the CLI operation", async () => {
+  const { runFeatureOperation } = await import("../cli/run-features.ts");
+  const { parseFeatures } = await import("../cli/parse-features.ts");
+  const path = await Deno.makeTempDir({
+    dir: "/tmp/opencode",
+    prefix: "hj-bootstrap-cli-",
+  });
+  const root = new URL(`file://${path}/`);
+  const registry = {
+    features: [{ ...githubCiFeature, dependencies: { requires: [] } }],
+    capabilities: [],
+  };
+  const services = {
+    github: {
+      ...github(true),
+      upsertResources: () => Promise.resolve(),
+      deleteResources: () => Promise.resolve(),
+    },
+  };
+  try {
+    const enable = parseFeatures([
+      "repo",
+      "features",
+      "--github-ci",
+      `--workflow-cli=github:owner/hj@${"c".repeat(40)}`,
+    ], registry);
+    await runFeatureOperation(root, enable, registry, undefined, services);
+    const file = new URL(githubCiArtifacts[0].path, root);
+    assertStringIncludes(
+      await Deno.readTextFile(file),
+      "# hj-workflow-cli: github:",
+    );
+    const migrate = parseFeatures([
+      "repo",
+      "features",
+      "--github-ci",
+      "--workflow-cli=jsr",
+      "--repair",
+    ], registry);
+    await runFeatureOperation(root, migrate, registry, undefined, services);
+    assertEquals(await Deno.readTextFile(file), githubCiArtifacts[0].content);
+    const again = await runFeatureOperation(
+      root,
+      migrate,
+      registry,
+      undefined,
+      services,
+    );
+    assertStringIncludes(again, "No changes");
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});

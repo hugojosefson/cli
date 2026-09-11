@@ -9,6 +9,7 @@ import type {
 } from "../api/artifact-inspection.ts";
 import type { DetectionContext } from "../api/repository-context.ts";
 import { inspectArtifact } from "../artifacts/inspect-artifact.ts";
+import { workflowCliArtifact } from "./workflow-cli.ts";
 import {
   publishGithubWorkflow,
   publishJsrWorkflow,
@@ -206,8 +207,12 @@ export async function inspectReleaseArtifact(
   context: DetectionContext,
   artifact: { readonly path: string; readonly content: string },
 ): Promise<ExactArtifactInspection> {
-  const schema: ArtifactSchema = { kind: "file", ...artifact, mode: 0o644 };
   const observation = await context.files.observe(artifact.path);
+  const schema: ArtifactSchema = {
+    kind: "file",
+    ...workflowCliArtifact(artifact, context, observation),
+    mode: 0o644,
+  };
   return inspectArtifact(
     schema,
     observation.kind === "file"

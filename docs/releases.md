@@ -1,8 +1,9 @@
 # Releases
 
 This guide describes release setup, operation, and recovery. Generated workflows
-use the exact `hj` version that generated them. That version must be available
-on [JSR](https://jsr.io/@hugojosefson/cli).
+use the exact `hj` version that generated them by default. That version must be
+available on [JSR](https://jsr.io/@hugojosefson/cli). A pinned GitHub source can
+start the first release before that registry version exists.
 
 ## Setup and workflow roles
 
@@ -51,7 +52,40 @@ paid plan. The CLI reports this restriction when GitHub rejects setup.
 
 For this package's first publication, follow the
 [first-release plan](first-release.md). It uses these features and tracks the
-missing bootstrap support needed before a JSR copy of `hj` exists.
+bootstrap source needed before a JSR copy of `hj` exists.
+
+## Bootstrap before the first registry version
+
+Bootstrap means running the CLI before its package exists on JSR. Use
+`--workflow-cli=github:owner/repository@<commit SHA>` with the workflow
+features. Replace the placeholder with a full, 40-character commit SHA from the
+public CLI repository. Branch names and tags are rejected because they can move.
+
+```bash
+hj repo features --github-ci --repair \
+  --workflow-cli="github:hugojosefson/cli@${CLI_COMMIT}"
+hj repo features --jsr --github-release-publish-github --repair \
+  --workflow-cli="github:hugojosefson/cli@${CLI_COMMIT}"
+```
+
+The generated workflow loads that revision's CLI and import map from GitHub. Its
+marker records the source. Detection, repair, and removal recognize the exact
+generated variant. Running feature operations without the source option
+preserves a recorded source. Custom changes still require repair or manual
+resolution under the normal ownership rules.
+
+After the CLI version exists on JSR, generate normal workflows with that version
+of the CLI:
+
+```bash
+hj repo features --github-ci --jsr --github-release-publish-github \
+  --repair --workflow-cli=jsr
+```
+
+The source option changes selected workflows and their selected dependencies. It
+does not change README build tasks or fetch the source during generation. Before
+merging generated workflows, make sure that the pinned source is public and
+runnable. CI and release preparation still run the project checks.
 
 ## JSR scope security
 

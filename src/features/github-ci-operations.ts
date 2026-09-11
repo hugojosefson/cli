@@ -8,7 +8,6 @@ import type {
 import type { PlannedChange } from "../api/planned-change.ts";
 import type { OperationContext } from "../api/repository-context.ts";
 import {
-  githubCiArtifacts,
   githubCiFeatureId,
   githubCiMarker,
   githubCiPermissionName,
@@ -81,12 +80,15 @@ export async function planEnableGithubCi(
       changes.push({ kind: "create-directory", path });
     }
   }
-  for (const [index, item] of artifacts.entries()) {
+  for (const item of artifacts) {
     if (item.result === "matches") continue;
+    if (item.schema.kind !== "file") {
+      throw new Error("Expected workflow file schema.");
+    }
     changes.push({
       kind: "write-file",
-      path: githubCiArtifacts[index].path,
-      content: githubCiArtifacts[index].content,
+      path: item.schema.path,
+      content: item.schema.content,
       mode: 0o644,
       expectedDigest:
         item.result === "differs" && item.observation.kind === "file"

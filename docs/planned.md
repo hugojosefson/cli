@@ -53,30 +53,10 @@ proposed trigger is the same tag-success event that starts the GitHub Release
 publisher. Its authentication and build procedure remain separate from tag
 publication.
 
-## First-release bootstrap
-
-The release features are implemented. Loading the unpublished CLI in its own
-generated workflows is not implemented. Current templates always use the exact
-JSR reference from the CLI package metadata.
-
-Add supported bootstrap execution before the first public release. Keep the
-existing release commands and their checks. The
-[first-release plan](first-release.md) owns the setup order and required
-external steps.
-
-| Planned requirement | Required result                                                                                            |
-| ------------------- | ---------------------------------------------------------------------------------------------------------- |
-| CLI source          | Load a reviewed, immutable CLI revision without requiring an existing JSR version.                         |
-| Managed workflows   | Generate and detect the bootstrap form through features, including repair and removal.                     |
-| Release behavior    | Reuse tag preparation, guarded application, and both existing publishers.                                  |
-| JSR identity        | Keep the expected workflow path and event route so provenance verification still applies.                  |
-| First version       | Review the version calculated from source history and the configured baseline before publication.          |
-| Validation          | Repeat the first-release path in scratchpad without editing generated templates or copying a modified CLI. |
-| Normal distribution | Switch to the released JSR reference through managed feature operations.                                   |
-
-There is no bootstrap feature flag yet. The local-copy scratchpad fixture does
-not supply this product capability. Hand-written workflows, manual tags, and
-direct package uploads are not the planned replacement.
+The implemented
+[bootstrap option](releases.md#bootstrap-before-the-first-registry-version)
+loads the CLI from a pinned public GitHub commit. The first-release plan uses
+that option until registry loading is available.
 
 ## Remaining live validation
 

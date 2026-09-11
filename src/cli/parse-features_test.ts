@@ -321,3 +321,30 @@ Deno.test("JSR preset selects package, version, and release dependencies through
   assertEquals(enabled.has("github-release-publish-github"), false);
   assertEquals(enabled.has("github-private"), false);
 });
+
+Deno.test("workflow CLI source accepts exact GitHub commits and explicit registry migration", () => {
+  for (const source of ["jsr", `github:owner/hj@${"a".repeat(40)}`]) {
+    const parsed = parseFeatures([
+      "repo",
+      "features",
+      "--github-ci",
+      `--workflow-cli=${source}`,
+    ], builtInFeatureRegistry);
+    if (parsed.kind !== "change") throw new Error("Expected change");
+    assertEquals(parsed.workflowCli, source);
+  }
+  for (
+    const args of [
+      ["--workflow-cli=github:owner/hj@main", "--github-ci"],
+      [`--workflow-cli=github:owner/..@${"a".repeat(40)}`, "--github-ci"],
+      ["--workflow-cli=jsr"],
+      ["--workflow-cli=jsr", "--no-github-ci"],
+      ["--workflow-cli=jsr", "--interactive"],
+      ["--workflow-cli=jsr", "--workflow-cli=jsr", "--github-ci"],
+    ]
+  ) {
+    assertThrows(() =>
+      parseFeatures(["repo", "features", ...args], builtInFeatureRegistry)
+    );
+  }
+});

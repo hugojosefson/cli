@@ -362,6 +362,9 @@ async function planEnable(
     }
   }
   if (current.result !== "matches") {
+    if (current.schema.kind !== "file") {
+      throw new Error("Expected workflow file schema.");
+    }
     const expectedDigest =
       current.result === "differs" && current.observation.kind === "file"
         ? current.observation.digest
@@ -369,7 +372,7 @@ async function planEnable(
     changes.push({
       kind: "write-file",
       path: artifact.path,
-      content: artifact.content,
+      content: current.schema.content,
       mode: 0o644,
       expectedDigest,
     });

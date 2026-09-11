@@ -203,16 +203,16 @@ The README describes installation after the first JSR release. Registry
 installation is not yet available. Publication remains a separate, authorized
 step. Complete these checks before announcing the release:
 
-| Preparation                  | State or next action                                                                                                    |
-| ---------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
-| Package identity and license | The package name, executable exports, and MIT license are present.                                                      |
-| First version                | `0.1.0` is the current baseline. Tag preparation selects the release version. No tag exists here.                       |
-| Release notes                | [CHANGELOG.md](../CHANGELOG.md) records supported features and known limits.                                            |
-| Local validation             | CI includes coverage and a package dry run. Linux installation is tested.                                               |
-| GitHub validation            | Disposable repositories exercise configuration and real release workflows. See the [record](live-validation.md).        |
-| Bootstrap                    | Implement [supported first-release loading](planned.md#first-release-bootstrap) before running the generated workflows. |
-| Publication                  | Follow the [first-release procedure](first-release.md) after separate authorization.                                    |
-| JSR validation               | Account access, registry publication, registry installation, and provenance remain untested.                            |
+| Preparation                  | State or next action                                                                                                     |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| Package identity and license | The package name, executable exports, and MIT license are present.                                                       |
+| First version                | `0.1.0` is the current baseline. Tag preparation selects the release version. No tag exists here.                        |
+| Release notes                | [CHANGELOG.md](../CHANGELOG.md) records supported features and known limits.                                             |
+| Local validation             | CI includes coverage and a package dry run. Linux installation is tested.                                                |
+| GitHub validation            | Disposable repositories exercise configuration and real release workflows. See the [record](live-validation.md).         |
+| Bootstrap                    | Use [pinned first-release loading](releases.md#bootstrap-before-the-first-registry-version) until the CLI exists on JSR. |
+| Publication                  | Follow the [first-release procedure](first-release.md) after separate authorization.                                     |
+| JSR validation               | Account access, registry publication, registry installation, and provenance remain untested.                             |
 
 ## Git history
 
