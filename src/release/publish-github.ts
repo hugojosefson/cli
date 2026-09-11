@@ -81,15 +81,36 @@ export function githubReleaseApi(
     async read(tag) {
       const result = await process.run("gh", [
         "api",
-        "--include",
-        `repos/${repository}/releases/tags/${encodeURIComponent(tag)}`,
+        "--paginate",
+        "--slurp",
+        `repos/${repository}/releases?per_page=100`,
       ]);
-      const response = ghResponse(processText(result));
-      if (response.status === 404) return undefined;
-      if (!result.success || response.status !== 200) {
+      if (!result.success) {
         throw new Error("GitHub Release lookup failed.");
       }
-      return parseRelease(response.body);
+      // The tag endpoint omits drafts, including releases whose tag was deleted.
+      let pages: unknown;
+      try {
+        pages = JSON.parse(processText(result));
+      } catch {
+        throw new TypeError("GitHub Release listing is not JSON.");
+      }
+      if (!Array.isArray(pages) || !pages.every(Array.isArray)) {
+        throw new TypeError("GitHub Release listing is invalid.");
+      }
+      const matches = pages.flat().filter((value: unknown) => {
+        if (
+          !value || typeof value !== "object" ||
+          !("tag_name" in value) || typeof value.tag_name !== "string"
+        ) throw new TypeError("GitHub Release listing entry is invalid.");
+        return value.tag_name === tag;
+      });
+      if (matches.length > 1) {
+        throw new TypeError("Multiple GitHub Releases use this tag.");
+      }
+      return matches.length
+        ? parseRelease(JSON.stringify(matches[0]))
+        : undefined;
     },
     async create(input) {
       const result = await process.run("gh", [

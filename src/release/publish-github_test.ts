@@ -1,4 +1,4 @@
-import { assertEquals, assertRejects, assertStringIncludes } from "@std/assert";
+import { assertEquals, assertRejects } from "@std/assert";
 import {
   changelogSection,
   type GithubRelease,
@@ -114,82 +114,119 @@ Deno.test("GitHub publisher marks only SemVer prereleases", async () => {
     assertEquals(created, release);
   }
 });
-Deno.test("GitHub API validates statuses, JSON, encoding, and process success", async () => {
-  const calls: Array<{ args: readonly string[]; stdin?: string }> = [];
-  const api = githubReleaseApi({
-    run: (_c, args, options) => {
-      calls.push({ args, stdin: options?.stdin });
-      return Promise.resolve(
-        ok(
-          `HTTP/1.1 ${calls.length === 1 ? 404 : 201} OK\nX: y\n\n${
-            JSON.stringify(expected)
-          }`,
-        ),
-      );
-    },
-  }, "owner/repo");
-  assertEquals(await api.read("1.2.3"), undefined);
-  await api.create(expected);
-  assertEquals(calls[1].args.join(" ").includes("token"), false);
-  assertEquals(calls[1].stdin!.includes("token"), false);
-  const encodedCalls: string[][] = [];
-  const encoded = githubReleaseApi({
-    run: (_command, args) => {
-      encodedCalls.push([...args]);
-      return Promise.resolve(
-        ok(`HTTP/2 404 Not Found\r\nX: y\r\n\r\n${JSON.stringify({})}`),
-      );
-    },
-  }, "owner/repo");
-  assertEquals(await encoded.read("1.2.3+build/a"), undefined);
-  assertStringIncludes(
-    encodedCalls[0].join(" "),
-    "repos/owner/repo/releases/tags/1.2.3%2Bbuild%2Fa",
-  );
+Deno.test("GitHub API reads all release pages, including drafts and duplicate tags", async () => {
+  const draft = { ...expected, draft: true };
+  for (const release of [expected, draft]) {
+    const calls: string[][] = [];
+    const api = githubReleaseApi({
+      run: (_command, args) => {
+        calls.push([...args]);
+        return Promise.resolve(ok(JSON.stringify([
+          [{ ...expected, tag_name: "older" }],
+          [release],
+        ])));
+      },
+    }, "owner/repo");
+    assertEquals(await api.read("1.2.3"), release);
+    assertEquals(await api.read("1.2.3+build/a"), undefined);
+    assertEquals(calls[0], [
+      "api",
+      "--paginate",
+      "--slurp",
+      "repos/owner/repo/releases?per_page=100",
+    ]);
+  }
   for (
     const response of [
-      "HTTP/1.1 200 OK\nX: y\n\n{",
-      "HTTP/1.1 200 OK\nX: y\n\n[]",
-      "bad",
+      "{",
+      "{}",
+      "[{}]",
+      "[[null]]",
+      "[[{}]]",
+      JSON.stringify([[expected], [draft]]),
     ]
   ) {
     await assertRejects(() =>
-      githubReleaseApi(
-        { run: () => Promise.resolve(ok(response)) },
-        "owner/repo",
-      ).read("a/b c")
+      githubReleaseApi({
+        run: () => Promise.resolve(ok(response)),
+      }, "owner/repo").read("1.2.3")
     );
   }
+  await assertRejects(
+    () =>
+      githubReleaseApi({
+        run: () => Promise.resolve({ ...ok("[[]]"), success: false, code: 1 }),
+      }, "owner/repo").read("1.2.3"),
+    Error,
+    "lookup failed",
+  );
+  assertEquals(
+    await githubReleaseApi({
+      run: () => Promise.resolve(ok("[[]]")),
+    }, "owner/repo").read("1.2.3"),
+    undefined,
+  );
+});
+
+Deno.test("GitHub publisher preserves an existing draft without creating a duplicate", async () => {
+  const base = process([], { "git show HEAD:CHANGELOG.md": expected.body });
+  let creates = 0;
+  await assertRejects(
+    () =>
+      publishGithub({
+        environment: environment(),
+        process: base,
+        files: files(),
+        api: githubReleaseApi({
+          run: (_command, args) => {
+            if (args.includes("POST")) creates++;
+            return Promise.resolve(
+              ok(JSON.stringify([[{ ...expected, draft: true }]])),
+            );
+          },
+        }, "owner/repo"),
+      }),
+    TypeError,
+    "differs",
+  );
+  assertEquals(creates, 0);
+});
+
+Deno.test("GitHub API validates creation status, JSON, and process success", async () => {
+  let body: string | undefined;
+  await githubReleaseApi({
+    run: (_command, _args, options) => {
+      body = options?.stdin;
+      return Promise.resolve(
+        ok(`HTTP/1.1 201 Created\nX: y\n\n${JSON.stringify(expected)}`),
+      );
+    },
+  }, "owner/repo").create(expected);
+  assertEquals(body, JSON.stringify(expected));
   for (
-    const [status, success] of [[500, true], [200, false]] as const
+    const response of [
+      "HTTP/1.1 201 Created\nX: y\n\n{",
+      "HTTP/1.1 201 Created\nX: y\n\n[]",
+      "HTTP/1.1 201 Created\nX: y\n\n{}",
+      "bad",
+      `HTTP/1.1 200 OK\nX: y\n\n${JSON.stringify(expected)}`,
+    ]
   ) {
     await assertRejects(() =>
       githubReleaseApi({
-        run: () =>
-          Promise.resolve({
-            ...ok(
-              `HTTP/1.1 ${status} Error\nX: y\n\n${JSON.stringify(expected)}`,
-            ),
-            success,
-            code: success ? 0 : 1,
-          }),
-      }, "owner/repo").read("1.2.3"), Error);
+        run: () => Promise.resolve(ok(response)),
+      }, "owner/repo").create(expected)
+    );
   }
-  for (
-    const [status, success] of [[200, true], [201, false]] as const
-  ) {
-    await assertRejects(() =>
-      githubReleaseApi({
-        run: () =>
-          Promise.resolve({
-            ...ok(
-              `HTTP/1.1 ${status} Error\nX: y\n\n${JSON.stringify(expected)}`,
-            ),
-            success,
-            code: success ? 0 : 1,
-          }),
-      }, "owner/repo").create(expected), Error);
-  }
+  await assertRejects(() =>
+    githubReleaseApi({
+      run: () =>
+        Promise.resolve({
+          ...ok(`HTTP/1.1 201 Created\nX: y\n\n${JSON.stringify(expected)}`),
+          success: false,
+          code: 1,
+        }),
+    }, "owner/repo").create(expected), Error);
 });
 Deno.test("GitHub changelog sections reject missing and duplicate data", () => {
   for (const text of ["", "## 1.2.3\na\n## 1.2.3\nb\n"]) {
