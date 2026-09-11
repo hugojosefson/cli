@@ -76,7 +76,13 @@ async function runPublishGithub(
     process,
     requiredEnvironment(environment, "GITHUB_REPOSITORY"),
   );
-  await publisher.publishGithub({ environment, process, files, api });
+  await publisher.publishGithub({
+    environment,
+    process,
+    files,
+    api,
+    clock: dependencies.releaseClock,
+  });
   return {
     output: "GitHub Release publication finished.",
     terminalNewline: true,

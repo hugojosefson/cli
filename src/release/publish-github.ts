@@ -2,6 +2,10 @@
 import type { ReleaseEnvironment } from "./release-environment.ts";
 import type { ReleaseProcess } from "./release-process.ts";
 import { processText } from "./release-process.ts";
+import {
+  confirmPublication,
+  type ReleaseClock,
+} from "./confirm-publication.ts";
 import { parseSemver } from "./semver.ts";
 import {
   type PublisherFiles,
@@ -28,6 +32,7 @@ export async function publishGithub(
     process: ReleaseProcess;
     files: PublisherFiles;
     api: GithubReleaseApi;
+    clock?: ReleaseClock;
   },
 ): Promise<void> {
   const release = await publisherInput(input.environment, input.process);
@@ -45,14 +50,14 @@ export async function publishGithub(
   if (existing) return requireExact(existing, expected);
   try {
     await input.api.create(expected);
-  } catch (_error) {
+  } catch { /* Confirm an uncertain write without creating another release. */ }
+  const confirmed = await confirmPublication(async () => {
     const after = await input.api.read(release.tag);
-    if (after) return requireExact(after, expected);
-    throw new Error("GitHub Release creation was not confirmed.");
-  }
-  const after = await input.api.read(release.tag);
-  if (!after) throw new Error("GitHub Release creation was not confirmed.");
-  requireExact(after, expected);
+    if (!after) return false;
+    requireExact(after, expected);
+    return true;
+  }, input.clock);
+  if (!confirmed) throw new Error("GitHub Release creation was not confirmed.");
 }
 
 export function changelogSection(text: string, version: string): string {

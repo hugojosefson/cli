@@ -2,6 +2,11 @@
 import type { ReleaseEnvironment } from "./release-environment.ts";
 import type { ReleaseProcess } from "./release-process.ts";
 import {
+  confirmPublication,
+  type ReleaseClock,
+} from "./confirm-publication.ts";
+export type { ReleaseClock } from "./confirm-publication.ts";
+import {
   type PublisherFiles,
   type PublisherInput,
   publisherInput,
@@ -20,7 +25,6 @@ export type JsrApi = {
   verifyProvenance(input: ProvenanceInput): Promise<void>;
 };
 export type PackageFileReader = { read(path: string): Promise<Uint8Array> };
-export type ReleaseClock = { sleep(milliseconds: number): Promise<void> };
 export type ReleaseFetch = (url: string, init?: RequestInit) => Promise<{
   readonly status: number;
   json(): Promise<unknown>;
@@ -29,7 +33,6 @@ export type ProvenanceInput = {
   readonly packageName: string;
   readonly version: string;
   readonly sha: string;
-  readonly route: "event" | "user";
   readonly rekorLogId: number;
   readonly repository: string;
 };
@@ -155,13 +158,12 @@ export async function publishJsr(input: {
   } catch (_error) {
     publishFailed = true;
   }
-  const confirmed = await pollVerification(
-    input.api,
-    packageName,
-    release.version,
-    verify,
-    input.clock,
-  );
+  const confirmed = await confirmPublication(async () => {
+    const remote = await input.api.version(packageName, release.version);
+    if (!remote) return false;
+    await verify(remote);
+    return true;
+  }, input.clock);
   if (!confirmed) {
     throw new Error(
       publishFailed
@@ -237,38 +239,11 @@ async function verifyVersion(
     packageName: name,
     version: release.version,
     sha: release.sha,
-    route: release.route,
     rekorLogId: remote.rekorLogId,
     repository: release.repository,
   });
 }
 
-async function pollVerification(
-  api: JsrApi,
-  name: string,
-  version: string,
-  verify: (remote: JsrVersion) => Promise<void>,
-  clock: ReleaseClock | undefined,
-): Promise<boolean> {
-  const wait = clock ??
-    {
-      sleep: (milliseconds: number) =>
-        new Promise<void>((resolve) => setTimeout(resolve, milliseconds)),
-    };
-  for (let elapsed = 0; elapsed <= 60_000; elapsed += 5_000) {
-    try {
-      const value = await api.version(name, version);
-      if (value) {
-        await verify(value);
-        return true;
-      }
-    } catch (error) {
-      if (error instanceof TypeError) throw error;
-    }
-    if (elapsed < 60_000) await wait.sleep(5_000);
-  }
-  return false;
-}
 async function checksum(bytes: Uint8Array): Promise<string> {
   const source = bytes.buffer.slice(
     bytes.byteOffset,
@@ -376,8 +351,8 @@ function verifyStatement(
     workflow?.path !== ".github/workflows/hj-release-publish-jsr.yaml" ||
     typeof workflow.ref !== "string" ||
     !/^refs\/(?:heads|tags)\/[^\s]+$/.test(workflow.ref) ||
-    github?.eventName !==
-      (input.route === "event" ? "repository_dispatch" : "workflow_dispatch") ||
+    (github?.eventName !== "repository_dispatch" &&
+      github?.eventName !== "workflow_dispatch") ||
     !/^[1-9]\d*$/.test(String(github?.repositoryId)) ||
     !/^[1-9]\d*$/.test(String(github?.repositoryOwnerId)) ||
     typeof metadata?.invocationId !== "string" ||
