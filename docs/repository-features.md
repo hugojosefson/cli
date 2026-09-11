@@ -82,8 +82,10 @@ The first feature set includes:
   and force-push blocking.
 - `github-main-review`: layers one stale-dismissed, last-push approval on main.
   Repository admins can bypass this review layer only through a pull request.
-- `github-protected-tags`: requires `github-repo` and protects all tags.
-  Repository admins can bypass tag mutation.
+- `github-protected-tags`: requires `github-repo` and manages layered tag
+  protection. The [release guide](releases.md#normal-release) defines the tag
+  patterns, administrator bypass, and CLI SemVer validation. Repository admins
+  can bypass tag mutation.
 - `github-protection`: weak preset that enables main protection and protected
   tags. It keeps an active main-review feature but does not select that feature.
 - `deno-config-version`: provides a release version from one Deno configuration

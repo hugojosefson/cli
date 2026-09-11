@@ -2,6 +2,7 @@
 
 import {
   githubCommandFailure,
+  type GithubCommandResult,
   type GithubCommandRunner,
   localGithubCommand,
 } from "./github-command.ts";
@@ -527,7 +528,16 @@ export class LocalGithubClient implements GithubWriter {
     const output = await this.#run([
       "api",
       `repos/${repository.owner}/${repository.name}/branches/${repository.defaultBranch}/protection`,
-    ]);
+    ], (result) => {
+      const error = object(json(result.stdout));
+      // Rulesets also set branch.protected=true. Only this exact response
+      // establishes that the separate legacy protection layer is absent.
+      return error?.message === "Branch not protected" &&
+        error.status === "404";
+    });
+    if (output && object(json(output))?.message === "Branch not protected") {
+      return undefined;
+    }
     return output === undefined ? null : object(json(output)) ?? null;
   }
   async #upsertRuleset(resource: GithubResourceUpsert): Promise<void> {
@@ -615,10 +625,13 @@ export class LocalGithubClient implements GithubWriter {
     return undefined;
   }
 
-  async #run(args: readonly string[]): Promise<Uint8Array | undefined> {
+  async #run(
+    args: readonly string[],
+    expectedFailure?: (result: GithubCommandResult) => boolean,
+  ): Promise<Uint8Array | undefined> {
     try {
       const result = await this.#runner.run(args);
-      if (result.success) return result.stdout;
+      if (result.success || expectedFailure?.(result)) return result.stdout;
       this.#diagnostics.add(githubCommandFailure(args, result));
     } catch {
       this.#diagnostics.add(githubCommandFailure(args));

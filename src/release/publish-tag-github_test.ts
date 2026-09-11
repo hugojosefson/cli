@@ -8,10 +8,73 @@ import {
 import { PullRequestCleanStatusError } from "./apply-types.ts";
 import { publishTagGithub } from "./publish-tag-github.ts";
 import type { ReleaseProcess } from "./release-process.ts";
+import { exactAutoMerge } from "./apply-observation.ts";
 
 const sha = "a".repeat(40);
 const calls: { command: string; args: readonly string[]; stdin?: string }[] =
   [];
+
+Deno.test("auto-merge ownership uses GraphQL bot identity", async () => {
+  for (
+    const [actor, expected] of [
+      [{ login: "github-actions", __typename: "Bot" }, true],
+      [{ login: "github-actions", __typename: "User" }, false],
+      [{ login: "another-app", __typename: "Bot" }, false],
+      [{ login: "github-actions[bot]", __typename: "Bot" }, false],
+    ] as const
+  ) {
+    const api = github(() =>
+      JSON.stringify({
+        data: {
+          repository: {
+            pullRequests: {
+              nodes: [{
+                ...pullRequest("OPEN"),
+                autoMergeRequest: { mergeMethod: "REBASE", enabledBy: actor },
+              }],
+              pageInfo: { hasNextPage: false, endCursor: null },
+            },
+          },
+        },
+      })
+    );
+    const pr = await api.readPullRequest();
+    assertEquals(exactAutoMerge(pr), expected);
+    assertStringIncludes(
+      calls.at(-1)!.args.join(" "),
+      "enabledBy{login __typename}",
+    );
+  }
+});
+
+Deno.test("auto-merge reads reject missing actor and request data", async () => {
+  for (
+    const autoMergeRequest of [
+      undefined,
+      [],
+      { mergeMethod: "REBASE", enabledBy: { login: "github-actions" } },
+      { mergeMethod: "REBASE", enabledBy: null },
+    ]
+  ) {
+    const api = github(() =>
+      JSON.stringify({
+        data: {
+          repository: {
+            pullRequests: {
+              nodes: [{ ...pullRequest("OPEN"), autoMergeRequest }],
+              pageInfo: { hasNextPage: false, endCursor: null },
+            },
+          },
+        },
+      })
+    );
+    await assertRejects(
+      () => api.readPullRequest(),
+      TypeError,
+      "Auto-merge response is invalid.",
+    );
+  }
+});
 
 function process(
   reply: (command: string, args: readonly string[]) => string,
@@ -162,7 +225,7 @@ Deno.test("distinguishes zero, one, ambiguous, and later merged release PRs", as
         const query = args.find((arg) => arg.startsWith("query=")) ?? "";
         assertStringIncludes(
           query,
-          "autoMergeRequest{mergeMethod enabledBy{login}}} pageInfo{hasNextPage endCursor}",
+          "autoMergeRequest{mergeMethod enabledBy{login __typename}}} pageInfo{hasNextPage endCursor}",
         );
         return page([]);
       }).readPullRequest(),

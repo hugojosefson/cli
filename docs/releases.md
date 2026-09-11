@@ -58,10 +58,16 @@ for the merge. It validates the rebased release commit, creates the tag, removes
 the owned release branch, and sends `hj-release-publish-tag-success`. That event
 starts the two publishers independently.
 
-The tag is lightweight and has no prefix, for example `1.2.3`. The release
-commit subject is `chore(release): <version>`. Each publisher compares the
-remote tag, checkout, version, and existing published data before changes.
-Correct existing objects can be reused. Conflicting objects stop the operation.
+The tag is lightweight and has no prefix, for example `1.2.3`. GitHub permits
+creation of tags matching `[0-9]*.[0-9]*.[0-9]*` and blocks updates and deletion
+by the workflow token. Administrators retain a bypass. Other tag names require
+the administrator bypass to create, update, or delete. The wildcard is broader
+than SemVer: a direct GitHub API request can create `01.2.3`, but `hj` rejects
+it. Exact SemVer validation belongs to the CLI; the managed rules do not require
+Enterprise-only tag-name restrictions. The release commit subject is
+`chore(release): <version>`. Each publisher compares the remote tag, checkout,
+version, and existing published data before changes. Correct existing objects
+can be reused. Conflicting objects stop the operation.
 
 ## Retry and recovery
 
@@ -126,7 +132,7 @@ main-review feature but does not select it automatically.
 The following constraints guide implementation and review. Detailed response
 schemas live beside their parsers and tests, rather than in a duplicate prose
 schema. Local tests cover these decisions with real Git refs and injected GitHub
-operations. The [live validation list](planned.md#validation-after-publication)
+operations. The [live validation list](planned.md#remaining-live-validation)
 covers behavior that needs the remote services.
 
 ### Versions and candidate files
@@ -174,8 +180,8 @@ conditions or rules block publication instead of being ignored.
 Synthetic check IDs identify the schema, workflow run, attempt, context, bundle
 digest, and release SHA. New checks start in progress before older owned checks
 are neutralized. An auto-merge request must use `REBASE`, the expected head, and
-`github-actions[bot]`. The code never performs a direct PR merge or merges after
-a timeout.
+the GraphQL `Bot` actor named `github-actions`. The code never performs a direct
+PR merge or merges after a timeout.
 
 Request confirmation polls every five seconds for up to one minute. The merge
 wait polls every ten seconds within a 29-minute overall application deadline.
@@ -205,7 +211,8 @@ expected fields agree.
 Tag preparation and application share one concurrency group for `main`. Each
 publisher has a separate group for its tag, with active runs kept alive. The
 implementation assumes token-triggered event behavior described by the generated
-workflows. That assumption still needs the live checks listed in planned work.
+workflows. The [live validation record](live-validation.md) describes the tested
+GitHub behavior and the remaining limits.
 
 ## Command environment
 

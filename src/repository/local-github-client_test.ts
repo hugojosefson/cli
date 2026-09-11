@@ -338,6 +338,42 @@ Deno.test("LocalGithubClient fails closed when legacy protection availability is
   assertEquals(await githubClient(runner).protection(), undefined);
 });
 
+Deno.test("ruleset-protected branches can have no legacy protection", async () => {
+  for (
+    const [body, absent] of [
+      [{ message: "Branch not protected", status: "404" }, true],
+      [{ message: "Not Found", status: "404" }, false],
+      [{ message: "Branch not protected", status: "403" }, false],
+      [
+        { message: "Resource not accessible by integration", status: "403" },
+        false,
+      ],
+      [{ message: "Branch not protected" }, false],
+    ] as const
+  ) {
+    const base = githubRunner([
+      json([]),
+      json({ allow_rebase_merge: true }),
+      json({ can_approve_pull_request_reviews: true }),
+      json({ protected: true }),
+    ]);
+    const client = githubClient({
+      run: (args) =>
+        args.at(-1)?.endsWith("/protection")
+          ? Promise.resolve({ success: false, code: 1, stdout: json(body) })
+          : base.run(args),
+    });
+    const result = await client.protection();
+    assertEquals(result !== undefined, absent);
+    if (absent) {
+      assertEquals(result!.legacyBranchProtection, undefined);
+      assertEquals(client.diagnostics, []);
+    } else {
+      assertEquals(client.diagnostics.length, 1);
+    }
+  }
+});
+
 Deno.test("LocalGithubClient fails closed for malformed ruleset responses", async () => {
   const malformed = [
     { ...mainProtectionDefinition, id: 1, bypass_actors: undefined },
@@ -788,7 +824,7 @@ function githubRunner(
     ...results,
   ]);
 }
-function githubClient(runner: FakeRunner): LocalGithubClient {
+function githubClient(runner: GithubCommandRunner): LocalGithubClient {
   return new LocalGithubClient(new URL("file:///tmp/opencode/"), runner);
 }
 function reverseArrays(value: unknown): unknown {

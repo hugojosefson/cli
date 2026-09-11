@@ -53,16 +53,6 @@ export const releaseTagsDefinition = ruleset(
     { type: "update" },
     { type: "deletion" },
     { type: "non_fast_forward" },
-    {
-      type: "tag_name_pattern",
-      parameters: {
-        name: "Exact SemVer",
-        operator: "regex",
-        negate: false,
-        pattern:
-          "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)(?:-((?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\\.(?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\\+([0-9a-zA-Z-]+(?:\\.[0-9a-zA-Z-]+)*))?$",
-      },
-    },
   ],
   { include: ["refs/tags/[0-9]*.[0-9]*.[0-9]*"] },
 );

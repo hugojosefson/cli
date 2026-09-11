@@ -16,7 +16,10 @@ export type ApplyPullRequest = {
   readonly mergeStateStatus: string;
   readonly ownership: ReleaseOwnership | undefined;
   readonly autoMerge:
-    | { readonly mergeMethod: string; readonly enabledBy: string }
+    | {
+      readonly mergeMethod: string;
+      readonly enabledBy: { readonly login: string; readonly type: string };
+    }
     | undefined;
 };
 export type ApplyGithub = {

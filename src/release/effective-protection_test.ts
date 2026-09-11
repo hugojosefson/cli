@@ -26,6 +26,86 @@ Deno.test("effective protection accepts the exact release configuration", () => 
   });
 });
 
+Deno.test("personal tag rules permit creation but hj rejects invalid SemVer", () => {
+  for (const releaseTag of ["01.2.3", "1.2.3-01", "1.2.3+", "v1.2.3"]) {
+    const result = evaluateReleaseProtection(exactProtection(), {
+      ...input,
+      releaseTag,
+    });
+    if (result.kind !== "incompatible") throw new Error("expected rejection");
+    assertStringIncludes(result.reasons.join("\n"), "not SemVer");
+  }
+});
+
+Deno.test("inherited tag-name restrictions are still enforced", () => {
+  for (
+    const [parameters, compatible, reason] of [
+      [
+        { name: "Release", operator: "regex", negate: false, pattern: "^1[.]" },
+        true,
+        "",
+      ],
+      [
+        { name: "Release", operator: "regex", negate: false, pattern: "^2[.]" },
+        false,
+        "rejects the release tag name",
+      ],
+      [
+        { name: "Release", operator: "regex", negate: true, pattern: "^1[.]" },
+        false,
+        "rejects the release tag name",
+      ],
+      [
+        { name: "Release", operator: "regex", negate: true, pattern: "^2[.]" },
+        true,
+        "",
+      ],
+      [
+        { name: "Release", operator: "regex", negate: false, pattern: "[" },
+        false,
+        "unsupported tag-name pattern",
+      ],
+      [
+        {
+          name: "Release",
+          operator: "starts_with",
+          negate: false,
+          pattern: "1",
+        },
+        false,
+        "incomplete tag-name parameters",
+      ],
+      [
+        {
+          name: "Release",
+          operator: "regex",
+          negate: false,
+          pattern: "^1",
+          unknown: true,
+        },
+        false,
+        "unsupported tag_name_pattern parameters",
+      ],
+    ] as const
+  ) {
+    const restriction = tagRuleset("organization/tag-names", [{
+      type: "tag_name_pattern",
+      parameters,
+    }], ["refs/tags/*"]);
+    const result = evaluateReleaseProtection(
+      withRules(exactProtection(), {
+        ...restriction,
+        sourceType: "Organization",
+      }),
+      input,
+    );
+    assertEquals(result.kind, compatible ? "compatible" : "incompatible");
+    if (result.kind === "incompatible") {
+      assertStringIncludes(result.reasons.join("\n"), reason);
+    }
+  }
+});
+
 Deno.test("release-first collision requires strict source status checks", () => {
   const weakened = {
     ...mainProtectionDefinition,

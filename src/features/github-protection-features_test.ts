@@ -230,16 +230,6 @@ Deno.test("protection definitions match accepted GitHub payloads", () => {
     enforcement: "active",
     name: "hj/github-release-tags",
     rules: [
-      {
-        parameters: {
-          name: "Exact SemVer",
-          negate: false,
-          operator: "regex",
-          pattern:
-            "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)(?:-((?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\\.(?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\\+([0-9a-zA-Z-]+(?:\\.[0-9a-zA-Z-]+)*))?$",
-        },
-        type: "tag_name_pattern",
-      },
       { type: "deletion" },
       { type: "non_fast_forward" },
       { type: "update" },

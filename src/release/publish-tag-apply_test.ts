@@ -116,7 +116,7 @@ class Github implements ApplyGithub {
       ...this.pr,
       autoMerge: {
         mergeMethod: value.mergeMethod,
-        enabledBy: "github-actions[bot]",
+        enabledBy: { login: "github-actions", type: "Bot" },
       },
     };
     return Promise.resolve();
@@ -214,7 +214,10 @@ Deno.test("apply disables only an exact prior request and rejects another merge 
   const clock = new Clock();
   github.pr = {
     ...github.pr,
-    autoMerge: { mergeMethod: "SQUASH", enabledBy: "github-actions[bot]" },
+    autoMerge: {
+      mergeMethod: "SQUASH",
+      enabledBy: { login: "github-actions", type: "Bot" },
+    },
   };
   await assertRejects(
     () => applyPublishTag(github, clock, input),

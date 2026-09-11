@@ -76,8 +76,8 @@ act push -W .github/workflows/ci.yaml -j check \
 
 The host checks need no container. `act` tests workflow execution, but it does
 not prove live GitHub ruleset, event, or OIDC behavior. The
-[planned work](planned.md#validation-after-publication) lists those remaining
-checks.
+[live validation record](live-validation.md) describes the opt-in scratchpad
+fixtures, completed checks, and remaining checks.
 
 ## Code structure
 

@@ -1,0 +1,50 @@
+# Temporary hj validation fixture. No package publication.
+name: hj live validation
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        type: choice
+        options: [checks, tags]
+        default: checks
+  push:
+    branches: [main]
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  event-probe:
+    if: github.event_name != 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - env:
+          EVENT_NAME: ${{ github.event_name }}
+        run: echo "Observed $EVENT_NAME"
+  checks:
+    if: github.event_name == 'workflow_dispatch' && inputs.mode == 'checks'
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    permissions:
+      contents: write
+      checks: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - env:
+          GH_TOKEN: ${{ github.token }}
+        run: bash .github/hj-live/checks.sh
+  tags:
+    if: github.event_name == 'workflow_dispatch' && inputs.mode == 'tags'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - env:
+          GH_TOKEN: ${{ github.token }}
+        run: bash .github/hj-live/tags.sh

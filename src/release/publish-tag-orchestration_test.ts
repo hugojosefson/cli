@@ -462,7 +462,10 @@ class Github implements PublishTagApplyGithub {
     assertEquals(input.expectedHeadOid, this.pr!.headSha);
     this.pr = {
       ...this.pr!,
-      autoMerge: { mergeMethod: "REBASE", enabledBy: "github-actions[bot]" },
+      autoMerge: {
+        mergeMethod: "REBASE",
+        enabledBy: { login: "github-actions", type: "Bot" },
+      },
     };
     return Promise.resolve();
   }

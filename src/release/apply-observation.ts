@@ -45,7 +45,8 @@ export function requireOpenPullRequest(pr: ApplyPullRequest): void {
 
 export function exactAutoMerge(pr: ApplyPullRequest): boolean {
   return pr.autoMerge?.mergeMethod === "REBASE" &&
-    pr.autoMerge.enabledBy === "github-actions[bot]";
+    pr.autoMerge.enabledBy.type === "Bot" &&
+    pr.autoMerge.enabledBy.login === "github-actions";
 }
 
 export async function request(

@@ -22,7 +22,6 @@ import {
   releaseTagsDefinition,
   rulesetResource,
 } from "./github-protection-definitions.ts";
-import { schemaSupportsProtectedTags } from "./github-ruleset-schema.ts";
 import { requireTagQuiescence } from "./release-quiescence.ts";
 import { publishTagWorkflow } from "../release/names.ts";
 import { publishTagArtifact } from "./github-release-publish-artifacts.ts";
@@ -94,8 +93,7 @@ function check(enable: boolean) {
       if (quiescence) return blocked(quiescence);
     }
     if (
-      enable && (!schemaSupportsProtectedTags() ||
-        await context.github?.tagRulesetEligibility?.() !== "eligible")
+      enable && await context.github?.tagRulesetEligibility?.() !== "eligible"
     ) {
       return blocked(
         "GitHub tag ruleset eligibility is unavailable or unsupported.",

@@ -40,21 +40,17 @@ proposed trigger is the same tag-success event that starts the current
 publishers. Its authentication and build procedure remain separate from tag
 publication.
 
-## Validation after publication
+## Remaining live validation
 
 Local tests use real temporary Git repositories with injected GitHub responses.
-They cannot establish how live GitHub permissions, events, and OIDC interact.
-Run these checks in a disposable remote repository after publication is
-authorized:
+The [live validation record](live-validation.md) covers the separate scratchpad
+checks completed without publishing this project. Full generated workflows and
+publisher checks still need a published package. Run the remaining checks in a
+disposable remote repository after package publication is authorized:
 
 - Complete a source PR and confirm that its merge starts tag preparation.
-- Confirm the two synthetic checks block the release PR until both succeed.
-- Confirm a rebase merge completes without a person approving the release PR.
-- Observe the generated PR's CI state and token-triggered event behavior.
 - Confirm the release commit tree, lightweight tag, branch cleanup, and success
   event.
-- Confirm GitHub rejects tag changes, tag deletion, and invalid release-like
-  tags.
 - Confirm JSR module digests, provenance, and a repeated publication of the same
   version.
 - Confirm GitHub Release fields and a repeated publication of the same version.

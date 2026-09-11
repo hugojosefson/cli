@@ -456,6 +456,9 @@ function pullRequest(
   const autoMerge = item && item.autoMergeRequest === null
     ? undefined
     : object(item?.autoMergeRequest);
+  if (item?.autoMergeRequest !== null && !autoMerge) {
+    throw new TypeError("Auto-merge response is invalid.");
+  }
   const enabledBy = object(autoMerge?.enabledBy);
   const id = string(item?.id);
   const title = string(item?.title);
@@ -471,12 +474,16 @@ function pullRequest(
   if (
     autoMerge &&
     (typeof autoMerge.mergeMethod !== "string" || !enabledBy ||
-      typeof enabledBy.login !== "string")
+      typeof enabledBy.login !== "string" ||
+      typeof enabledBy.__typename !== "string")
   ) throw new TypeError("Auto-merge response is invalid.");
   const exactAutoMerge = autoMerge && enabledBy
     ? {
       mergeMethod: autoMerge.mergeMethod as string,
-      enabledBy: enabledBy.login as string,
+      enabledBy: {
+        login: enabledBy.login as string,
+        type: enabledBy.__typename as string,
+      },
     }
     : undefined;
   return {
@@ -634,9 +641,9 @@ function fail(message: string): never {
 }
 
 const prQuery =
-  `query($owner:String!,$name:String!,$branch:String!,$cursor:String){repository(owner:$owner,name:$name){pullRequests(first:100,after:$cursor,states:[OPEN],headRefName:$branch,baseRefName:"main"){nodes{id title state headRefName baseRefName headRefOid mergeStateStatus body headRepository{nameWithOwner} baseRepository{nameWithOwner} autoMergeRequest{mergeMethod enabledBy{login}}} pageInfo{hasNextPage endCursor}}}}`;
+  `query($owner:String!,$name:String!,$branch:String!,$cursor:String){repository(owner:$owner,name:$name){pullRequests(first:100,after:$cursor,states:[OPEN],headRefName:$branch,baseRefName:"main"){nodes{id title state headRefName baseRefName headRefOid mergeStateStatus body headRepository{nameWithOwner} baseRepository{nameWithOwner} autoMergeRequest{mergeMethod enabledBy{login __typename}}} pageInfo{hasNextPage endCursor}}}}`;
 const pullRequestByIdQuery =
-  `query($pullRequestId:ID!){node(id:$pullRequestId){... on PullRequest{id title state headRefName baseRefName headRefOid mergeStateStatus body headRepository{nameWithOwner} baseRepository{nameWithOwner} autoMergeRequest{mergeMethod enabledBy{login}}}}}`;
+  `query($pullRequestId:ID!){node(id:$pullRequestId){... on PullRequest{id title state headRefName baseRefName headRefOid mergeStateStatus body headRepository{nameWithOwner} baseRepository{nameWithOwner} autoMergeRequest{mergeMethod enabledBy{login __typename}}}}}`;
 const mergedPrQuery =
   `query($owner:String!,$name:String!,$branch:String!,$cursor:String){repository(owner:$owner,name:$name){pullRequests(first:100,after:$cursor,states:[MERGED],headRefName:$branch,baseRefName:"main"){nodes{body headRefName baseRefName headRepository{nameWithOwner} baseRepository{nameWithOwner}} pageInfo{hasNextPage endCursor}}}}`;
 const disableMutation =
