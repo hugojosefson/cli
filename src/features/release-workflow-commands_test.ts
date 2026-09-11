@@ -51,6 +51,7 @@ Deno.test("generated release YAML runs one complete command with quoted output p
           const args = new TextDecoder().decode(result.stdout).split("\0")
             .filter(Boolean);
           assertEquals(args[0], "run");
+          assertEquals(args.includes("--no-lock"), true);
           assertEquals(args.at(-2), "release");
           const command = args.at(-1)!;
           commands.push(command);

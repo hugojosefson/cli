@@ -55,7 +55,7 @@ jobs:
           HJ_SOURCE_BASE_SHA: \${{ github.event.pull_request.base.sha }}
           HJ_SOURCE_HEAD_SHA: \${{ github.event.pull_request.head.sha }}
         run: >-
-          deno run
+          deno run --no-lock
           --allow-env=HJ_RELEASE_ROUTE,HJ_SOURCE_BASE_SHA,HJ_SOURCE_HEAD_SHA
           --allow-run=git
           ${hjPackageReference}

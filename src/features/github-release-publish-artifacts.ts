@@ -74,7 +74,7 @@ jobs:
           HJ_RELEASE_ROUTE: \${{ github.event_name == 'workflow_dispatch' && inputs.tag != '' && 'recovery' || 'usual' }}
           HJ_RELEASE_TAG: \${{ inputs.tag }}
         run: >-
-          deno run
+          deno run --no-lock
           --allow-env=GITHUB_OUTPUT,GITHUB_STEP_SUMMARY,HJ_RELEASE_ROUTE,HJ_RELEASE_TAG,ESBUILD_BINARY_PATH,ESBUILD_WORKER_THREADS
           --allow-read=.,/tmp/opencode
           --allow-write=deno.json,deno.jsonc,CHANGELOG.md,/tmp/opencode,"\${GITHUB_OUTPUT}","\${GITHUB_STEP_SUMMARY}"
@@ -109,7 +109,7 @@ jobs:
           HJ_RELEASE_BUNDLE: \${{ needs.publish-tag-prepare.outputs.release-bundle }}
           HJ_RELEASE_BUNDLE_DIGEST: \${{ needs.publish-tag-prepare.outputs.bundle-digest }}
         run: >-
-          deno run
+          deno run --no-lock
           --allow-env=GITHUB_REPOSITORY,GITHUB_RUN_ATTEMPT,GITHUB_RUN_ID,GITHUB_SERVER_URL,GITHUB_STEP_SUMMARY,HJ_RELEASE_BUNDLE,HJ_RELEASE_BUNDLE_DIGEST,HJ_RELEASE_ROUTE
           --allow-read=.,/tmp/opencode
           --allow-write=deno.json,deno.jsonc,CHANGELOG.md,/tmp/opencode,"\${GITHUB_STEP_SUMMARY}"
@@ -175,7 +175,7 @@ jobs:
           HJ_RELEASE_TAG: \${{ github.event_name == 'repository_dispatch' && github.event.client_payload.tag || inputs.tag }}
           HJ_RELEASE_VERSION: \${{ github.event.client_payload.version }}
         run: >-
-          deno run
+          deno run --no-lock
           --allow-env=GITHUB_REPOSITORY,HJ_RELEASE_ROUTE,HJ_RELEASE_SCHEMA,HJ_RELEASE_SHA,HJ_RELEASE_TAG,HJ_RELEASE_VERSION
           --allow-read=.
 ${allowNet ? `${allowNet}\n` : ""}          --allow-run=${allowRun}
