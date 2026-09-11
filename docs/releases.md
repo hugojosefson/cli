@@ -116,6 +116,11 @@ The pipeline creates the release tag and starts both publishers automatically.
 No extra publishing command or stored JSR token is required. Manual workflow
 runs remain available for [retry and recovery](#retry-and-recovery).
 
+If `main` advances before JSR publication starts, the workflow starts another
+run at the release tag automatically. This keeps the signed publication record
+tied to the released commit. Only this dispatch job receives permission to start
+a workflow. The upload job receives permission to request identity credentials.
+
 ## Normal release
 
 A tree is the complete set of tracked file contents and modes. A release bundle
