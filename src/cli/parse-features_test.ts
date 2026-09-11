@@ -1,6 +1,7 @@
 import { assertEquals, assertThrows } from "@std/assert";
 import { builtInFeatureRegistry } from "../features/built-in-feature-registry.ts";
 import { formatFeatureStatus } from "./format-features.ts";
+import { resolveFeatureChanges } from "../features/resolve-feature-changes.ts";
 import {
   featureDefaults,
   type FeaturesArguments,
@@ -280,3 +281,43 @@ function changeRequest(args: FeaturesArguments) {
   if (args.kind !== "change") throw new Error("expected change request");
   return args.request;
 }
+
+Deno.test("JSR preset selects package, version, and release dependencies through the CLI", () => {
+  const request = changeRequest(parseFeatures(
+    ["repo", "features", "--jsr", "--deno-lib"],
+    builtInFeatureRegistry,
+  ));
+  assertEquals(request.presets, ["jsr"]);
+  const detections = Object.fromEntries(
+    builtInFeatureRegistry.features.map((feature) => [
+      feature.metadata.id,
+      { state: "disabled" as const, evidence: [] },
+    ]),
+  );
+  const resolved = resolveFeatureChanges(
+    builtInFeatureRegistry,
+    detections,
+    request,
+  );
+  assertEquals(resolved.issues, []);
+  const enabled = new Set(
+    resolved.changes.filter((change) => change.enabled).map((change) =>
+      change.featureId
+    ),
+  );
+  for (
+    const id of [
+      "jsr-package",
+      "deno-config-version",
+      "github-release-publish-jsr",
+      "github-release-publish-tag",
+      "github-ci",
+      "github-main-protection",
+      "github-protected-tags",
+    ]
+  ) {
+    assertEquals(enabled.has(id), true, id);
+  }
+  assertEquals(enabled.has("github-release-publish-github"), false);
+  assertEquals(enabled.has("github-private"), false);
+});

@@ -49,8 +49,8 @@ command becomes available after publication. The
 remaining preparation.
 
 An npm publisher is planned. There is no npm feature, command, or workflow. Its
-proposed trigger is the same tag-success event that starts the current
-publishers. Its authentication and build procedure remain separate from tag
+proposed trigger is the same tag-success event that starts the GitHub Release
+publisher. Its authentication and build procedure remain separate from tag
 publication.
 
 ## First-release bootstrap

@@ -57,13 +57,16 @@ publication. Each step lacks an implemented `hj` operation:
 | Actions PR permission              | GitHub repository Settings > Actions > General              | `github-ci` checks this permission but does not enable it.                                           |
 | JSR scope and package access       | [JSR](https://jsr.io/)                                      | `jsr-package` configures local files. It does not create registry accounts or packages.              |
 | JSR repository link                | JSR package settings                                        | The publisher requires the link but does not manage it.                                              |
-| GitHub Actions actor policy        | JSR scope settings                                          | The release bot needs permission to trigger publication without JSR scope membership.                |
+| JSR publication security           | JSR scope settings                                          | Require CI publication and membership for the account that starts the workflow.                      |
 | Source PRs and pushes              | Git and GitHub CLI                                          | Feature operations commit local files. They do not submit ordinary source PRs or push those commits. |
 
 For Actions, enable “Allow GitHub Actions to create and approve pull requests”.
 For JSR, link the package in its package settings. Then follow the
-[scope security instructions](releases.md#jsr-scope-security) for bot
-publication.
+[scope security instructions](releases.md#jsr-scope-security) for
+member-triggered publication. The owner confirmed that this package is linked to
+`hugojosefson/cli`, with both restrictions enabled. That public repository
+exists and remains empty. Publishing the CLI source or package still requires
+authorization.
 
 ## Configure GitHub through features
 
@@ -119,19 +122,23 @@ repositories and enforces exact SemVer in the CLI.
 
 ## Publish through release features
 
-After the bootstrap prerequisite is complete, enable the three implemented
-release features together:
+After the bootstrap prerequisite is complete, use the JSR preset and the GitHub
+Release feature together:
 
 ```bash
 deno task hj repo features \
-  --github-release-publish-tag \
-  --github-release-publish-jsr \
+  --jsr \
   --github-release-publish-github
 ```
 
 Complete the remaining JSR checks in an authorized scratchpad package before
 enabling unattended publication here. Then merge the generated workflows into
 `main` through the source review process. The main push starts tag preparation.
+After the tag exists, start the JSR workflow through the authenticated
+`hugojosefson` account. Use the
+[member dispatch command](releases.md#jsr-scope-security) with the selected
+version. This step uses the generated publisher and preserves both JSR
+restrictions.
 
 | Release work                               | Implemented owner                        |
 | ------------------------------------------ | ---------------------------------------- |

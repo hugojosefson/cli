@@ -268,7 +268,7 @@ and an existing repository link. These features do not create repositories.
 | `github-protected-tags`         | Apply the layered tag rules described in the [release guide](releases.md#tag-policy).                       |
 | `github-protection`             | Select main protection and protected tags. Keep an enabled review layer without selecting it automatically. |
 | `github-release-publish-tag`    | Prepare release PRs and lightweight tags; conflicts with `github-main-review`.                              |
-| `github-release-publish-jsr`    | Publish through temporary GitHub identity credentials; requires `jsr-package`.                              |
+| `github-release-publish-jsr`    | Publish after member dispatch with temporary GitHub identity credentials; requires `jsr-package`.           |
 | `github-release-publish-github` | Create the GitHub Release after tag publication.                                                            |
 
 `github-ci` also requires the Actions setting that allows PR creation and
@@ -306,7 +306,24 @@ resolved review threads.
 | `--no-github`                   | Invalid.                                                                      |
 | `--no-github-repo`              | Blocked; repository deletion is unsupported.                                  |
 
-## JSR package feature
+## JSR preset and package feature
+
+`--jsr` selects package configuration, the Deno version provider, and the JSR
+release workflow. Their dependencies select CI, release tags, and repository
+protection. Use this preset after the
+[release setup requirements](releases.md#setup-and-workflow-roles) are ready. It
+requires an existing Deno export and version, or a separate package setup first.
+
+```bash
+hj repo features --jsr --yes
+```
+
+The preset preserves repository visibility and does not select GitHub Release
+creation. Add `--github-release-publish-github` when you want that publisher
+too. The JSR workflow requires a scope member to start each upload through
+GitHub Actions. Use both
+[JSR security settings](releases.md#jsr-scope-security). `hj` does not change
+those account settings.
 
 `jsr-package` detects local package configuration without GitHub access. It
 requires a valid scoped name, an exact SemVer version, local export paths, and a

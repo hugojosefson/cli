@@ -215,3 +215,26 @@ The local-copy runs test real GitHub events, tokens, checks, rulesets, rebase
 merges, tags, and GitHub Releases. They do not test loading the CLI from JSR.
 JSR credentials, actual package upload, registry installation, module digests,
 and provenance remain in [planned work](planned.md#remaining-live-validation).
+
+## Member-triggered JSR workflow, 2026-09-12
+
+The generated JSR workflow passed an identity test on a GitHub-hosted Linux
+runner in
+[scratchpad-hj-jsr-identity](https://github.com/hugojosefson/scratchpad-hj-jsr-identity).
+[Run 34656257334](https://github.com/hugojosefson/scratchpad-hj-jsr-identity/actions/runs/34656257334)
+used the generated workflow with its CLI reference replaced by a small test
+script. The script requested GitHub identity credentials without uploading a
+package. The repository contains no unpublished CLI source.
+
+| Check       | Observed result                                                                                                  |
+| ----------- | ---------------------------------------------------------------------------------------------------------------- |
+| Trigger     | `gh workflow run` selected `main` and supplied tag `0.0.1`.                                                      |
+| Identity    | The credential identified `hugojosefson` as the actor and `workflow_dispatch` as the event.                      |
+| Workflow    | The credential named `.github/workflows/hj-release-publish-jsr.yaml` on `main` in the test repository.           |
+| Checkout    | The workflow selected the tagged commit, although `main` pointed to a later commit.                              |
+| Permissions | The generated permissions allowed Git authentication and the child Deno process to obtain temporary credentials. |
+| Cleanup     | Actions were disabled after the successful run.                                                                  |
+
+This test proves the GitHub identity route used with both JSR restrictions. It
+does not prove that JSR accepts an upload or that registry provenance matches.
+Those checks still need an authorized package publication.

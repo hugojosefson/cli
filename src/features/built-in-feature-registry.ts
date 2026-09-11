@@ -72,6 +72,15 @@ export const builtInFeatureRegistry: FeatureRegistry = {
     providerPolicy: "multiple",
   }],
   presets: [{
+    id: "jsr",
+    name: "JSR publication",
+    summary: "Set up a JSR package and publication from GitHub Actions.",
+    changes: [
+      { featureId: "jsr-package", enabled: true },
+      { featureId: "deno-config-version", enabled: true },
+      { featureId: "github-release-publish-jsr", enabled: true },
+    ],
+  }, {
     id: "github",
     name: "GitHub",
     summary: "Apply common GitHub repository settings.",

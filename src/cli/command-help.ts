@@ -9,6 +9,7 @@ export const commandDefinitions = {
       "With no flags, report status without changes.\nPresets select a group of features with one flag. Explicit feature flags override presets.\nGitHub changes require an authenticated gh CLI, an existing repository link, and --yes.",
     flags: [
       ["--defaults", "Select Git and README."],
+      ["--jsr", "Set up a JSR package and publication from GitHub Actions."],
       ["--github", "Apply common GitHub repository settings (private)."],
       ["--github-protection", "Protect the default branch and tags."],
       [

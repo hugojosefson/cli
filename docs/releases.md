@@ -19,19 +19,19 @@ and changelog changes. Both target `main`.
 The [feature guide](repository-features.md) owns feature dependencies. SemVer is
 a version format such as `1.2.3`.
 
-| Setup requirement                       | Reason                                                                          |
-| --------------------------------------- | ------------------------------------------------------------------------------- |
-| One Deno version configuration          | Supply the exact SemVer release version.                                        |
-| Generated CI                            | Validate source commits and project checks.                                     |
-| Compatible main protection              | Require the two release checks and rebase-only PR merges.                       |
-| Protected tags                          | Allow tag creation while blocking later changes.                                |
-| Zero required approvals                 | Allow the generated release PR to merge unattended.                             |
-| Auto-merge enabled                      | Let GitHub merge after the checks pass.                                         |
-| Actions allowed to create PRs           | Permit the release workflow to create its PR.                                   |
-| No `github-main-review`                 | This review feature conflicts with unattended releases.                         |
-| Workflow files in `CODEOWNERS`, if used | Cover the generated workflow files in the repository's ownership policy.        |
-| JSR package linked to GitHub            | Configure the link in the package settings.                                     |
-| JSR scope permits bot publication       | Configure [GitHub Actions security](#jsr-scope-security) in the scope settings. |
+| Setup requirement                       | Reason                                                                   |
+| --------------------------------------- | ------------------------------------------------------------------------ |
+| One Deno version configuration          | Supply the exact SemVer release version.                                 |
+| Generated CI                            | Validate source commits and project checks.                              |
+| Compatible main protection              | Require the two release checks and rebase-only PR merges.                |
+| Protected tags                          | Allow tag creation while blocking later changes.                         |
+| Zero required approvals                 | Allow the generated release PR to merge unattended.                      |
+| Auto-merge enabled                      | Let GitHub merge after the checks pass.                                  |
+| Actions allowed to create PRs           | Permit the release workflow to create its PR.                            |
+| No `github-main-review`                 | This review feature conflicts with unattended releases.                  |
+| Workflow files in `CODEOWNERS`, if used | Cover the generated workflow files in the repository's ownership policy. |
+| JSR package linked to GitHub            | Configure the link in the package settings.                              |
+| JSR scope requires CI and membership    | Use the [scope security configuration](#jsr-scope-security).             |
 
 The Actions PR setting also permits review approval, but these workflows do not
 create review approvals. OIDC gives the JSR workflow temporary identity
@@ -56,36 +56,54 @@ missing bootstrap support needed before a JSR copy of `hj` exists.
 ## JSR scope security
 
 A scope is a group of packages, such as `@hugojosefson`. The actor is the
-account that starts a GitHub Actions run. Our release bot is not a JSR scope
-member, so publication must not require actor membership.
+account that starts a GitHub Actions run. The generated JSR workflow expects a
+scope member to start publication through their GitHub account.
 
-| Step | Action                                                                                     |
-| ---- | ------------------------------------------------------------------------------------------ |
-| 1    | Open [the scope settings](https://jsr.io/@hugojosefson/~/settings) in your normal browser. |
-| 2    | Find **GitHub Actions security**.                                                          |
-| 3    | Click **Do not restrict publishing**. The button saves the change immediately.             |
+In your scope settings, use this configuration:
 
-This setting applies to every package in the scope. Publication still requires a
-workflow in the GitHub repository linked to the package. See the
-[JSR scope security documentation](https://jsr.io/docs/scopes#github-actions-publishing-security)
-for the policy. Repository linking remains a separate package setting.
+| Setting                        | Value   | Effect                                                                   |
+| ------------------------------ | ------- | ------------------------------------------------------------------------ |
+| Restrict publishing to members | Enabled | Require the account that starts the workflow to belong to the JSR scope. |
+| Require Publishing from CI     | Enabled | Accept uploads only through GitHub Actions identity credentials.         |
+
+These settings apply to every package in the scope. `hj` generates a compatible
+workflow, but it does not change JSR account configuration. The package must
+also link to the GitHub repository where the workflow runs. See the
+[JSR scope security documentation](https://jsr.io/docs/scopes#github-actions-publishing-security).
+
+After the release tag exists, a scope member starts publication from the linked
+repository with [GitHub CLI](https://cli.github.com/):
+
+```bash
+gh workflow run hj-release-publish-jsr.yaml --ref main -f tag=1.2.3
+```
+
+Replace `1.2.3` with the exact release tag. Use `--ref main` to select the
+workflow definition. The workflow checks out the requested tag and validates its
+remote commit before upload. You can also use **Run workflow** on the workflow
+page in GitHub Actions.
+
+The JSR workflow does not listen to the bot's release event. That event starts
+as `github-actions[bot]`, which is not a scope member. Member dispatch keeps
+both restrictions enabled and needs no stored JSR token.
 
 ## Normal release
 
 A tree is the complete set of tracked file contents and modes. A release bundle
 is validated data describing the exact proposed changes.
 
-| Phase             | Work                                                                                              |
-| ----------------- | ------------------------------------------------------------------------------------------------- |
-| Source merge      | Start the tag workflow on `main`.                                                                 |
-| Prepare           | Select current `main`, validate source commits, build the candidate tree, and run project checks. |
-| Reserve           | Recreate the tree in a fresh checkout and reserve `release-<version>` with its PR.                |
-| Block             | Create in-progress `check` and `hj-release-commit-validation` checks on the exact PR head.        |
-| Request merge     | Wait for the blocked state, then enable rebase auto-merge for that head.                          |
-| Complete checks   | Mark both synthetic checks successful and wait for GitHub to merge.                               |
-| Validate merge    | Confirm the rebased commit's parent, tree, and release files.                                     |
-| Publish tag       | Create the lightweight tag and remove the owned release branch.                                   |
-| Notify publishers | Send `hj-release-publish-tag-success`; each publisher runs independently.                         |
+| Phase                  | Work                                                                                              |
+| ---------------------- | ------------------------------------------------------------------------------------------------- |
+| Source merge           | Start the tag workflow on `main`.                                                                 |
+| Prepare                | Select current `main`, validate source commits, build the candidate tree, and run project checks. |
+| Reserve                | Recreate the tree in a fresh checkout and reserve `release-<version>` with its PR.                |
+| Block                  | Create in-progress `check` and `hj-release-commit-validation` checks on the exact PR head.        |
+| Request merge          | Wait for the blocked state, then enable rebase auto-merge for that head.                          |
+| Complete checks        | Mark both synthetic checks successful and wait for GitHub to merge.                               |
+| Validate merge         | Confirm the rebased commit's parent, tree, and release files.                                     |
+| Publish tag            | Create the lightweight tag and remove the owned release branch.                                   |
+| Publish GitHub Release | Send `hj-release-publish-tag-success` to start the GitHub Release publisher.                      |
+| Publish JSR package    | A scope member starts the JSR workflow for the new tag.                                           |
 
 Preparation runs package checks on uncommitted candidate files. The generated
 `publish-check` task uses `--dry-run --allow-dirty --check=all`. It uploads
@@ -118,11 +136,11 @@ tag-name restrictions.
 Use [GitHub CLI](https://cli.github.com/) with a configured remote repository.
 Rerun only the route that needs recovery:
 
-| Problem                                                    | Command                                                       |
-| ---------------------------------------------------------- | ------------------------------------------------------------- |
-| Release PR merged, but its tag or success event is missing | `gh workflow run hj-release-publish-tag.yaml -f tag=1.2.3`    |
-| JSR publisher failed                                       | `gh workflow run hj-release-publish-jsr.yaml -f tag=1.2.3`    |
-| GitHub Release publisher failed                            | `gh workflow run hj-release-publish-github.yaml -f tag=1.2.3` |
+| Problem                                                    | Command                                                               |
+| ---------------------------------------------------------- | --------------------------------------------------------------------- |
+| Release PR merged, but its tag or success event is missing | `gh workflow run hj-release-publish-tag.yaml -f tag=1.2.3`            |
+| JSR publisher failed                                       | `gh workflow run hj-release-publish-jsr.yaml --ref main -f tag=1.2.3` |
+| GitHub Release publisher failed                            | `gh workflow run hj-release-publish-github.yaml -f tag=1.2.3`         |
 
 Recovery requires exactly one matching release commit on `main`. It verifies the
 tree and any existing tag. Branch removal requires matching head and PR
@@ -163,6 +181,11 @@ Removal deletes only exact generated rulesets and workflow files. It preserves
 published packages, releases, tags, changelogs, and version files.
 
 ## Migration and repair
+
+To replace an older bot-triggered JSR workflow, run
+`hj repo features --repair --github-release-publish-jsr`. Review the generated
+commit and merge it through the normal source process. The repaired workflow
+requires member dispatch for each upload.
 
 `github-release-publish-jsr` replaces the legacy `jsr-release` feature. Enable
 or repair can migrate the exact `.github/workflows/hj-release.yaml` template.
