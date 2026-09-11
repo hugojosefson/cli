@@ -3,6 +3,7 @@
 import type { Feature } from "../api/feature.ts";
 import type { OperationContext } from "../api/repository-context.ts";
 import { githubCiArtifacts } from "./github-ci-artifacts.ts";
+import { workflowCliArtifact } from "./workflow-cli.ts";
 import {
   mainProtectionDefinition,
   mainReviewDefinition,
@@ -24,16 +25,14 @@ export const githubMainProtectionFeature: Feature = {
   checkEnable: async (context) =>
     await checkMainProtectionEnable(context, mainProtectionFeature),
   planEnable: async (context, operation) => {
-    const expectedRemote = remoteCiPrecondition();
+    const expectedRemote = await remoteCiPrecondition(context);
     const remotePreconditions = operation.preconditions.filter((condition) =>
       condition.kind === "github-remote-file"
     );
-    const remote = await context.github?.remoteFile?.(expectedRemote.path);
     if (
+      !expectedRemote ||
       JSON.stringify(remotePreconditions) !==
-        JSON.stringify([expectedRemote]) ||
-      remote?.kind !== "file" ||
-      remote.content !== expectedRemote.expectedContent
+        JSON.stringify([expectedRemote])
     ) {
       throw new Error("The remote CI workflow changed after check.");
     }
@@ -71,12 +70,11 @@ async function checkMainProtectionEnable(
 ) {
   const check = await feature.checkEnable(context);
   if (check.result !== "allowed") return check;
-  const artifact = githubCiArtifacts[0];
-  const remote = await context.github?.remoteFile?.(artifact.path);
-  if (remote?.kind === "file" && remote.content === artifact.content) {
+  const remote = await remoteCiPrecondition(context);
+  if (remote) {
     return {
       ...check,
-      preconditions: [...check.preconditions, remoteCiPrecondition()],
+      preconditions: [...check.preconditions, remote],
     };
   }
   return {
@@ -93,11 +91,19 @@ async function checkMainProtectionEnable(
   };
 }
 
-function remoteCiPrecondition() {
+async function remoteCiPrecondition(context: OperationContext) {
   const artifact = githubCiArtifacts[0];
+  const remote = await context.github?.remoteFile?.(artifact.path);
+  if (remote?.kind !== "file") return undefined;
+  const expected = workflowCliArtifact(artifact, {
+    repositoryRoot: context.repositoryRoot,
+    files: context.files,
+    git: context.git,
+  }, { ...remote, digest: "remote", mode: 0o644 });
+  if (remote.content !== expected.content) return undefined;
   return {
     kind: "github-remote-file" as const,
     path: artifact.path,
-    expectedContent: artifact.content,
+    expectedContent: expected.content,
   };
 }

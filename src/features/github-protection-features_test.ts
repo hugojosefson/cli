@@ -568,3 +568,30 @@ function resource(
     sourceType: "Repository",
   };
 }
+
+Deno.test("main protection accepts exact pinned CI and binds its observed source", async () => {
+  const { workflowCliArtifact } = await import("./workflow-cli.ts");
+  const operation = context([]);
+  const pinned = workflowCliArtifact(githubCiArtifacts[0], {
+    ...operation,
+    options: { workflowCli: `github:owner/hj@${"d".repeat(40)}` },
+  } as OperationContext, { kind: "absent" });
+  operation.github!.remoteFile = () =>
+    Promise.resolve({ kind: "file", content: pinned.content });
+  const allowed = await githubMainProtectionFeature.checkEnable(operation);
+  if (allowed.result !== "allowed") {
+    throw new Error("Expected bootstrap CI to be allowed");
+  }
+  const plan = await githubMainProtectionFeature.planEnable(operation, allowed);
+  assertEquals(plan.preconditions.at(-1), {
+    kind: "github-remote-file",
+    path: pinned.path,
+    expectedContent: pinned.content,
+  });
+  operation.github!.remoteFile = () =>
+    Promise.resolve({ kind: "file", content: pinned.content + "# drift\n" });
+  assertEquals(
+    (await githubMainProtectionFeature.checkEnable(operation)).result,
+    "blocked",
+  );
+});
