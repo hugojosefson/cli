@@ -10,6 +10,7 @@ Deno.exit(
     "--allow-read=/tmp/opencode",
     "--allow-write=/tmp/opencode",
     "--allow-run=git,deno,sh",
+    "--allow-net=127.0.0.1",
     "--allow-env=ESBUILD_BINARY_PATH,ESBUILD_WORKER_THREADS,LOG_TOKENS,LOG_STREAM",
     ...(coverage
       ? ["--coverage=.coverage", "--clean", "--coverage-raw-data-only"]

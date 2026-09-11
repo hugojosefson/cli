@@ -118,7 +118,7 @@ only its planned paths in one Conventional Commit.
 | `deno-test`           | A `test` task.                                                             | `deno-fmt`.                                    |
 | `deno-lib`            | Library source and export.                                                 | `deno-fmt`.                                    |
 | `deno-cli`            | Executable source and command registry.                                    | `deno-fmt`.                                    |
-| `deno-server`         | A minimal `Deno.serve` server.                                             | `deno-fmt`; integrates with an enabled CLI.    |
+| `deno-server`         | A `deno serve` module with `serve` and `dev` tasks.                        | `deno-fmt`; integrates with an enabled CLI.    |
 | `deno-config-version` | A release version from one Deno configuration.                             | An exact SemVer version, such as `1.2.3`.      |
 
 Git is not required by the Deno project or formatting features. The Deno
@@ -133,6 +133,48 @@ features can coexist. With no enabled features, `hj` creates nothing.
 Generated tests live under `test/`. When the CLI and server coexist, the server
 contributes a `serve` command to the CLI registry. Neither feature patches the
 other's custom source.
+
+## Start a Deno server
+
+In an empty directory, create the server project:
+
+```bash
+hj repo features --deno-server
+```
+
+The server module exports the standard `{ fetch }` object. It does not open a
+listener when another module imports it.
+[Deno serve](https://docs.deno.com/runtime/reference/cli/serve/) starts the
+listener.
+
+| Command                                         | Behavior                                                 |
+| ----------------------------------------------- | -------------------------------------------------------- |
+| `deno task serve`                               | Start the server on port 8000.                           |
+| `deno task dev`                                 | Start on port 8000 and restart when source files change. |
+| `deno serve ./src/server/server.ts`             | Start the same module directly.                          |
+| `deno serve --port=3000 ./src/server/server.ts` | Use another port.                                        |
+| `deno test test/server_test.ts`                 | Test the response without starting a listener.           |
+
+Open `http://localhost:8000/` to see the response. Stop the server with Ctrl+C.
+For Deno flags such as `--port`, use the direct command with flags before the
+file path. Deno does not accept `deno serve .` as a directory entry point.
+
+| Generated file             | Purpose                                                            |
+| -------------------------- | ------------------------------------------------------------------ |
+| `src/server/server.ts`     | Handle HTTP requests through the default export.                   |
+| `test/server_test.ts`      | Test that default export.                                          |
+| `src/cli/serve-command.ts` | Adapt the server to the CLI, only when the CLI feature is enabled. |
+
+The tasks call `deno serve` directly. The development task adds `--watch`. The
+optional CLI adapter uses the same fetch handler and stays active until the
+server stops. Disabling the feature removes its exact tasks and export, and
+preserves source files. Custom tasks block removal.
+
+To update an older generated starter, run
+`hj repo features --repair --deno-server`. This replaces generated server files
+and the `serve` and `dev` tasks, so preserve custom changes before repair.
+Repair also migrates the old generated CLI adapter to `src/cli/` when needed. It
+removes the old adapter only when its content and mode are unchanged.
 
 ## README and license features
 

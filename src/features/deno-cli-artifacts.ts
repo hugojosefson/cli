@@ -38,7 +38,7 @@ export const commands: readonly CliCommand[] = [helpCommand];
 `;
 
 const serverCommandsContent = `import type { CliCommand } from "./command.ts";
-import { serveCommand } from "../server/serve-command.ts";
+import { serveCommand } from "./serve-command.ts";
 
 const helpCommand: CliCommand = {
   name: "help",
@@ -99,13 +99,38 @@ if (import.meta.main) {
   mode: 0o644,
 }] as const;
 
+/** CLI adapter, contributed only when both CLI and server are enabled. */
+export const denoCliServeArtifact = {
+  path: "src/cli/serve-command.ts",
+  content: `import server from "../server/server.ts";
+
+export const serveCommand = {
+  name: "serve",
+  description: "Start the server.",
+  run: async () => {
+    const permission = await Deno.permissions.request({
+      name: "net",
+      host: "0.0.0.0:8000",
+    });
+    if (permission.state !== "granted") {
+      return "Network permission denied.";
+    }
+    await Deno.serve(server.fetch).finished;
+    return "Server stopped.";
+  },
+};
+`,
+  mode: 0o644,
+} as const;
+
 /** Exact registry variants selected by the current or resolved server export. */
 export function denoCliArtifactsForServer(serverEnabled: boolean) {
-  return denoCliArtifacts.map((artifact) =>
+  const artifacts = denoCliArtifacts.map((artifact) =>
     artifact.path === "src/cli/commands.ts" && serverEnabled
       ? { ...artifact, content: serverCommandsContent }
       : artifact
   );
+  return serverEnabled ? [...artifacts, denoCliServeArtifact] : artifacts;
 }
 
 /** Inspects the executable seed with exact content and mode checks. */

@@ -27,9 +27,11 @@ Tasks provide the supported development interface:
 
 Tests use temporary repositories under `/tmp/opencode` and remove their own
 fixtures. The test runner creates the parent directory on a fresh machine. It
-grants subprocess access to Git and Deno. Tests do not need GitHub credentials.
-The local runners remove dynamic-loader overrides from child environments. This
-prevents restricted Deno subprocesses from failing when a development shell sets
+grants subprocess access to Git and Deno. Server tests make HTTP requests over
+the local loopback interface and test watch restarts. Network permissions are
+limited to `127.0.0.1`. Tests do not need GitHub credentials. The local runners
+remove dynamic-loader overrides from child environments. This prevents
+restricted Deno subprocesses from failing when a development shell sets
 `LD_LIBRARY_PATH`.
 
 Run one coverage collection at a time. Each collection clears `.coverage` first.

@@ -1,5 +1,6 @@
 /** @module Built-in Deno server feature declaration and detection. */
 
+import { inspectDenoServerTasks } from "./deno-server-tasks.ts";
 import type { DetectionIssue } from "../api/feature-detection.ts";
 import type { DetectionContext } from "../api/repository-context.ts";
 import type { Feature } from "../api/feature.ts";
@@ -39,11 +40,26 @@ async function detectDenoServer(context: DetectionContext) {
   if (config.value.exports["./server"] !== denoServerExport) {
     return issue("drifted", "The server export differs.");
   }
+  const tasks = inspectDenoServerTasks(config.value);
+  if (tasks.kind === "ambiguous") {
+    return issue("ambiguous", "The Deno tasks entry is not an object.");
+  }
+  if (tasks.missing.length || tasks.different.length) {
+    return issue(
+      "drifted",
+      `Server task ${
+        [...tasks.missing, ...tasks.different][0]
+      } is missing or differs.`,
+    );
+  }
   const invalid = (await inspectDenoServerArtifacts(context)).find((item) =>
     item.result !== "matches"
   );
   if (!invalid) {
-    return simple("enabled", "Server export and starter files are adopted.");
+    return simple(
+      "enabled",
+      "Server export, serve/dev tasks, and starter files are adopted.",
+    );
   }
   const ambiguous = invalid.result === "unreadable" ||
     invalid.result === "differs" && invalid.observation.kind !== "file";
@@ -92,7 +108,7 @@ export const denoServerFeature: Feature = {
   metadata: {
     id: denoServerFeatureId,
     name: "Deno server",
-    summary: "Creates a minimal Deno.serve server.",
+    summary: "Creates an HTTP server with serve and dev tasks.",
   },
   dependencies: {
     requires: [{

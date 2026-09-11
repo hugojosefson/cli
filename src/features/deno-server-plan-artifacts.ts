@@ -48,27 +48,38 @@ export function addServerArtifacts(
   }
 }
 
-export function addServerRegistry(
+export function addServerCliArtifacts(
   changes: PlannedChange[],
   inspections: readonly Awaited<
     ReturnType<typeof inspectDenoCliArtifacts>
   >[number][],
   serverEnabled: boolean,
 ) {
-  const item = inspections.find((entry) =>
-    entry.schema.path === "src/cli/commands.ts"
-  );
-  if (!item || item.result !== "differs" || item.observation.kind !== "file") {
-    return;
+  const wanted = denoCliArtifactsForServer(serverEnabled);
+  for (
+    const item of inspections.filter((entry) =>
+      ["src/cli/commands.ts", "src/cli/serve-command.ts"].includes(
+        entry.schema.path,
+      )
+    )
+  ) {
+    const artifact = wanted.find((entry) => entry.path === item.schema.path)!;
+    if (item.result === "absent") {
+      changes.push({
+        kind: "write-file",
+        path: artifact.path,
+        content: artifact.content,
+        mode: artifact.mode,
+        expectedDigest: undefined,
+      });
+    } else if (item.result === "differs" && item.observation.kind === "file") {
+      changes.push({
+        kind: "write-file",
+        path: artifact.path,
+        content: artifact.content,
+        mode: artifact.mode,
+        expectedDigest: item.observation.digest,
+      });
+    }
   }
-  const artifact = denoCliArtifactsForServer(serverEnabled).find((entry) =>
-    entry.path === item.schema.path
-  )!;
-  changes.push({
-    kind: "write-file",
-    path: artifact.path,
-    content: artifact.content,
-    mode: artifact.mode,
-    expectedDigest: item.observation.digest,
-  });
 }

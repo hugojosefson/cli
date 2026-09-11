@@ -1,5 +1,8 @@
 /** @module Ordered Deno server change plans. */
 
+import { removeLegacyServerAdapter } from "./deno-server-legacy.ts";
+import { denoServerTasks } from "./deno-server-tasks.ts";
+import { sameJson } from "../operations/local-plan-state.ts";
 import type { ChangePlan } from "../api/change-plan.ts";
 import type { AllowedOperation } from "../api/feature-operation.ts";
 import type { PlannedChange } from "../api/planned-change.ts";
@@ -20,7 +23,7 @@ import {
 } from "./deno-server-artifacts.ts";
 import {
   addServerArtifacts,
-  addServerRegistry,
+  addServerCliArtifacts,
 } from "./deno-server-plan-artifacts.ts";
 import { resolvedCliEnabled } from "./deno-server-state.ts";
 import { isObject } from "./deno-tasks.ts";
@@ -64,6 +67,34 @@ export async function planEnableDenoServer(
         : undefined,
     });
   }
+  if (config.kind === "config") {
+    const tasks = config.value.tasks;
+    const formatterCreatesTasks = tasks === undefined &&
+      context.resolvedChanges.some((change) =>
+        change.featureId === "deno-fmt" && change.enabled
+      );
+    if (tasks === undefined && !formatterCreatesTasks) {
+      changes.push({
+        kind: "set-json",
+        path: config.path,
+        jsonPath: ["tasks"],
+        value: denoServerTasks,
+        expected: undefined,
+      });
+    } else if (isObject(tasks)) {
+      for (const [name, definition] of Object.entries(denoServerTasks)) {
+        if (!sameJson(tasks[name], definition)) {
+          changes.push({
+            kind: "set-json",
+            path: config.path,
+            jsonPath: ["tasks", name],
+            value: definition,
+            expected: tasks[name],
+          });
+        }
+      }
+    }
+  }
   for (const path of ["src", "src/server", "test"]) {
     if ((await context.files.observe(path)).kind === "absent") {
       changes.push({ kind: "create-directory", path });
@@ -76,12 +107,13 @@ export async function planEnableDenoServer(
       config.value.exports["./cli"] === denoCliExport,
   );
   if (cliEnabled && !ownsCliChange(context)) {
-    addServerRegistry(
+    addServerCliArtifacts(
       changes,
       await inspectDenoCliArtifacts(context, true),
       true,
     );
   }
+  changes.push(...await removeLegacyServerAdapter(context));
   return plan(
     "enable",
     allowed,
@@ -96,27 +128,42 @@ export async function planDisableDenoServer(
   allowed: AllowedOperation,
 ): Promise<ChangePlan> {
   const config = await inspectDenoConfig(context);
-  const changes: PlannedChange[] =
-    config.kind === "config" && isObject(config.value.exports) &&
-      config.value.exports["./server"] === denoServerExport
-      ? [{
-        kind: "remove-json",
-        path: config.path,
-        jsonPath: ["exports", "./server"],
-        expected: denoServerExport,
-      }]
-      : [];
+  const changes: PlannedChange[] = [];
+  if (config.kind === "config" && isObject(config.value.tasks)) {
+    for (const [name, definition] of Object.entries(denoServerTasks)) {
+      if (sameJson(config.value.tasks[name], definition)) {
+        changes.push({
+          kind: "remove-json",
+          path: config.path,
+          jsonPath: ["tasks", name],
+          expected: definition,
+        });
+      }
+    }
+  }
   const cliEnabled = resolvedCliEnabled(
     context,
     config.kind === "config" && isObject(config.value.exports) &&
       config.value.exports["./cli"] === denoCliExport,
   );
   if (cliEnabled && !ownsCliChange(context)) {
-    addServerRegistry(
+    addServerCliArtifacts(
       changes,
       await inspectDenoCliArtifacts(context, false),
       false,
     );
+  }
+  // Keep the feature visible until task and registry cleanup succeeds.
+  if (
+    config.kind === "config" && isObject(config.value.exports) &&
+    config.value.exports["./server"] === denoServerExport
+  ) {
+    changes.push({
+      kind: "remove-json",
+      path: config.path,
+      jsonPath: ["exports", "./server"],
+      expected: denoServerExport,
+    });
   }
   return plan(
     "disable",

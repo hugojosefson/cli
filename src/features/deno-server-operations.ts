@@ -1,5 +1,7 @@
 /** @module Safety checks for the Deno server feature. */
 
+import { legacyServerRegistry } from "./deno-server-legacy.ts";
+import { inspectDenoServerTasks } from "./deno-server-tasks.ts";
 import type { OperationCheck } from "../api/feature-operation.ts";
 import type { OperationContext } from "../api/repository-context.ts";
 import { inspectDenoCliArtifacts } from "./deno-cli-artifacts.ts";
@@ -22,6 +24,19 @@ export async function checkEnableDenoServer(
     config.kind === "config" && config.value.exports !== undefined &&
     !isObject(config.value.exports)
   ) return blocked("The Deno exports entry is not an object.");
+  const tasks = inspectDenoServerTasks(
+    config.kind === "config" ? config.value : {},
+  );
+  if (tasks.kind === "ambiguous") {
+    return blocked("The Deno tasks entry is not an object.");
+  }
+  if (tasks.different.length && !repair(context)) {
+    return blocked(
+      `Server task ${
+        tasks.different[0]
+      } differs. Re-run with --repair to replace it.`,
+    );
+  }
   const actual = config.kind === "config" && isObject(config.value.exports)
     ? config.value.exports["./server"]
     : undefined;
@@ -56,22 +71,38 @@ export async function checkEnableDenoServer(
     config.kind === "config" && isObject(config.value.exports) &&
       config.value.exports["./cli"] === "./src/cli/cli.ts",
   );
+  let cliReady = true;
   if (cliEnabled && !ownsCliChange(context)) {
     const integrated = await inspectDenoCliArtifacts(context, true);
     const base = await inspectDenoCliArtifacts(context, false);
+    const adapter = integrated.find((item) =>
+      item.schema.path === "src/cli/serve-command.ts"
+    )!;
+    if (adapter.result !== "matches" && adapter.result !== "absent") {
+      return blocked(
+        "The CLI serve adapter differs and cannot be replaced by server setup.",
+      );
+    }
+
     const registry = integrated.find((item) =>
       item.schema.path === "src/cli/commands.ts"
     )!;
     const baseRegistry = base.find((item) =>
       item.schema.path === "src/cli/commands.ts"
     )!;
-    if (registry.result !== "matches" && baseRegistry.result !== "matches") {
+    cliReady = registry.result === "matches" && adapter.result === "matches";
+    if (
+      registry.result !== "matches" && baseRegistry.result !== "matches" &&
+      !legacyServerRegistry(registry)
+    ) {
       return blocked(
         "The CLI command registry differs and cannot be replaced by server setup.",
       );
     }
   }
-  return actual === denoServerExport &&
+  return cliReady && actual === denoServerExport &&
+      tasks.missing.length === 0 &&
+      tasks.different.length === 0 &&
       artifacts.every((item) => item.result === "matches")
     ? {
       result: "no-op",
@@ -95,6 +126,10 @@ export async function checkDisableDenoServer(
   if (config.value.exports["./server"] === undefined) return absent();
   if (config.value.exports["./server"] !== denoServerExport) {
     return blocked("The server export differs and cannot be removed.");
+  }
+  const tasks = inspectDenoServerTasks(config.value);
+  if (tasks.kind === "ambiguous" || tasks.different.length) {
+    return blocked("Custom server tasks cannot be removed.");
   }
   const cliEnabled = resolvedCliEnabled(
     context,

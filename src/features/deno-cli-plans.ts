@@ -5,7 +5,6 @@ import type { AllowedOperation } from "../api/feature-operation.ts";
 import type { PlannedChange } from "../api/planned-change.ts";
 import type { OperationContext } from "../api/repository-context.ts";
 import {
-  denoCliArtifacts,
   denoCliArtifactsForServer,
   denoCliExport,
   denoCliFeatureId,
@@ -89,7 +88,7 @@ export async function planEnableDenoCli(
         expectedDigest: file ? item.observation.digest : undefined,
       });
     }
-    if (file && item.observation.mode !== denoCliArtifacts[index].mode) {
+    if (file && item.observation.mode !== desiredArtifacts[index].mode) {
       changes.push({
         kind: "set-file-mode",
         path: desiredArtifacts[index].path,

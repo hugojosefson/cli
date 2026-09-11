@@ -3,6 +3,7 @@ import { parse } from "jsonc-parser";
 import { parseFeatures } from "../cli/parse-features.ts";
 import { runFeatures } from "../cli/run-features.ts";
 import { builtInFeatureRegistry } from "./built-in-feature-registry.ts";
+import { denoServerTasks } from "./deno-server-tasks.ts";
 import { denoTaskDefinitions, leafTaskDefinitions } from "./deno-tasks.ts";
 
 const taskIds = ["deno-lint", "deno-typecheck", "deno-test"] as const;
@@ -87,6 +88,7 @@ Deno.test("composes task and code features initially", async () => {
     });
     assertEquals(config.tasks, {
       ...denoTaskDefinitions(taskIds),
+      ...denoServerTasks,
       lint: leafTaskDefinitions["deno-lint"],
       typecheck: leafTaskDefinitions["deno-typecheck"],
       test: leafTaskDefinitions["deno-test"],
