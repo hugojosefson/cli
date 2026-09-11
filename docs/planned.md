@@ -2,7 +2,9 @@
 
 Items in this guide are not available features or completed validation. The
 [feature guide](repository-features.md) describes the implemented behavior. This
-project remains unpublished.
+project remains unpublished. The [`git-hj-init` assessment](git-hj-init.md)
+assesses missing behavior that this plan does not already cover, with reasons
+and proposed README additions.
 
 ## Global configuration
 
@@ -16,7 +18,7 @@ configuration directory:
 | `hj config list`              | List defaults.      |
 | `hj config unset <key>`       | Remove one default. |
 
-The CLI does not implement these commands yet. Secrets will not be configuration
+`hj` does not implement these commands yet. Secrets will not be configuration
 values.
 
 | Planned priority | Source              |
@@ -26,12 +28,12 @@ values.
 | 3                | Interactive prompt  |
 
 The planned configuration includes default features and the Deno version for
-generated workflows. Current feature defaults are built in, and generated
-workflows use the checked-in toolchain version.
+generated workflows. `hj` uses built-in feature defaults and the Deno version
+from `toolchain.json` for generated workflows.
 
 Prompting for unresolved repository visibility and creating GitHub repositories
-are also planned. Current features manage an existing linked GitHub repository.
-The GitHub preset has fixed values. It does not query recent repositories to
+are also planned. `hj` features manage an existing linked GitHub repository. The
+`hj` GitHub preset has fixed values. It does not query recent repositories to
 choose defaults.
 
 ## Package distribution and npm
