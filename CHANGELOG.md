@@ -1,8 +1,8 @@
 # Changelog
 
-## 0.1.0
+## Initial capabilities
 
-Prepared for the first public release. This version is not published yet.
+The initial release includes these capabilities.
 
 | Area             | Included behavior                                                                                                          |
 | ---------------- | -------------------------------------------------------------------------------------------------------------------------- |
@@ -21,5 +21,5 @@ supported library API. Global configuration and an npm publisher are planned.
 GitHub repository creation is also planned.
 
 Live GitHub release tests passed in disposable repositories. JSR publication and
-installation from JSR still need validation after publication is authorized. See
-the [validation record](docs/live-validation.md) for evidence and limits.
+installation from JSR are being validated through the first-release pipeline.
+See the [validation record](docs/live-validation.md) for evidence and limits.
