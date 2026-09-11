@@ -1,9 +1,8 @@
 # Live GitHub validation
 
-These checks use `hugojosefson/scratchpad`, a disposable public repository. They
-do not publish the CLI or a package. The shell fixtures test GitHub API behavior
-with a real workflow token; they do not run the unpublished CLI on GitHub. The
-local CLI is tested against the same remote repository separately.
+These checks use disposable GitHub repositories owned by `hugojosefson`. They do
+not publish the CLI repository or a JSR package. The records distinguish GitHub
+API probes from full workflow runs with the local CLI.
 
 ## Results on 2026-09-11
 
@@ -76,9 +75,143 @@ the workflow token. It reads the tag again after each rejected mutation. It also
 proves the documented boundary by creating a version-shaped tag with a leading
 zero. These temporary tags use the run ID and are printed for cleanup.
 
+## Generated workflow runs on 2026-09-11 and 2026-09-12
+
+These tests run on Linux. The dates include the local Stockholm date and UTC
+workflow timestamps.
+
+| Repository                                                                       | Purpose                                                              |
+| -------------------------------------------------------------------------------- | -------------------------------------------------------------------- |
+| [scratchpad](https://github.com/hugojosefson/scratchpad)                         | Confirm a reversible setting change against the existing repository. |
+| [scratchpad-hj-settings](https://github.com/hugojosefson/scratchpad-hj-settings) | Exercise repository settings and protection lifecycle.               |
+| [scratchpad-hj-release](https://github.com/hugojosefson/scratchpad-hj-release)   | Run generated CI, tag publication, and the GitHub Release publisher. |
+
+The release fixture uses two temporary GitHub Actions runners in Docker on the
+local machine. The runners receive a read-only copy of the unpublished CLI.
+Generated workflows substitute a local `file:` reference for the JSR reference
+and select these runners. No CLI source is uploaded to GitHub.
+
+The fixture otherwise runs the generated commands with their declared Deno
+permissions and real workflow tokens. The JSR publisher is removed before any
+workflow runs. Package checks use `deno publish --dry-run` and upload nothing.
+
+### Repository configuration
+
+| Check               | Observed result                                                                                    |
+| ------------------- | -------------------------------------------------------------------------------------------------- |
+| Existing scratchpad | Discussions enabled and disabled. Original configuration and tracked files preserved.              |
+| Private repository  | GitHub Free rejected rulesets and did not enable auto-merge.                                       |
+| Plan diagnostics    | The CLI reports the private-repository plan restriction without suggesting a login failure.        |
+| Public visibility   | The CLI changed the disposable repository from private to public.                                  |
+| Scalar settings     | Each managed boolean setting enabled and disabled, then restored to the publication configuration. |
+| CI dependency       | Main protection rejected setup before the generated CI workflow existed remotely.                  |
+| Actions PR setting  | Setup rejected missing permission to create PRs. It passed after the setting changed.              |
+| Main protection     | Required checks and rebase-only merges enabled.                                                    |
+| Main review         | Enabled, disabled, and preserved independently of the protection preset.                           |
+| Tag protection      | Personal-repository rulesets enabled, removed, and enabled again.                                  |
+
+| Scalar setting tested in both directions | GitHub field                  |
+| ---------------------------------------- | ----------------------------- |
+| Merge commits                            | `allow_merge_commit`          |
+| Squash merging                           | `allow_squash_merge`          |
+| Rebase merging                           | `allow_rebase_merge`          |
+| Auto-merge                               | `allow_auto_merge`            |
+| Delete merged branches                   | `delete_branch_on_merge`      |
+| Issues                                   | `has_issues`                  |
+| Projects                                 | `has_projects`                |
+| Branch updates                           | `allow_update_branch`         |
+| Wiki                                     | `has_wiki`                    |
+| Discussions                              | `has_discussions`             |
+| Web commit signoff                       | `web_commit_signoff_required` |
+| Private visibility                       | `private`                     |
+
+The fixture ends with merge commits and squash merging disabled.
+
+### Release results
+
+| Check                               | Evidence or observed result                                                                                                                                      |
+| ----------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Source CI                           | Both required jobs passed for [PR 2](https://github.com/hugojosefson/scratchpad-hj-release/pull/2).                                                              |
+| Release preparation and application | [Run 34651242050, attempt 3](https://github.com/hugojosefson/scratchpad-hj-release/actions/runs/34651242050/attempts/3) completed both jobs.                     |
+| Release PR                          | [PR 3](https://github.com/hugojosefson/scratchpad-hj-release/pull/3) merged by rebase with the workflow token.                                                   |
+| Commit identity                     | The release commit uses `github-actions[bot]` for author and committer.                                                                                          |
+| Commit contents                     | The rebased candidate retained its expected tree and had one parent.                                                                                             |
+| Tag and branch                      | Lightweight tag `0.0.1` points to `c21d358dadaefd55bc18c474028aad0e0338e2dd`. Its owned branch was removed.                                                      |
+| Independent publisher               | [Run 34651687176](https://github.com/hugojosefson/scratchpad-hj-release/actions/runs/34651687176) created the GitHub Release after the success event.            |
+| Repeated publisher                  | [Run 34651769927](https://github.com/hugojosefson/scratchpad-hj-release/actions/runs/34651769927) succeeded without changing the release ID or publication time. |
+| Existing-tag recovery               | [Run 34651772010](https://github.com/hugojosefson/scratchpad-hj-release/actions/runs/34651772010) accepted the exact tag and repeated the publisher event.       |
+| Release-first collision             | PR 5 needed rebase and fresh checks after release `0.0.2` reached `main`. Both source changes survived.                                                          |
+
+| Additional check       | Evidence or observed result                                                                                                                                                                                                           |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Source-first collision | [Run 34652352267, attempt 2](https://github.com/hugojosefson/scratchpad-hj-release/actions/runs/34652352267/attempts/2) closed stale [PR 10](https://github.com/hugojosefson/scratchpad-hj-release/pull/10) after source PR 9 merged. |
+| Fresh preparation      | [Run 34652758570](https://github.com/hugojosefson/scratchpad-hj-release/actions/runs/34652758570) released `0.0.3` from the new source, with `collision-proof.txt` intact.                                                            |
+| Publisher conflict     | [Run 34652760606](https://github.com/hugojosefson/scratchpad-hj-release/actions/runs/34652760606) rejected a changed release description. A fresh read confirmed no overwrite.                                                        |
+| Publisher retry        | Attempt 2 of the same run succeeded after the original description was restored.                                                                                                                                                      |
+| Draft conflict         | After tag deletion, GitHub changed the old release to a draft. The old publisher overlooked it and created a duplicate. The corrected local CLI found the draft and refused publication without changes.                              |
+| Draft recovery         | The duplicate was deleted and the original release was restored manually. The corrected CLI then accepted it. Exactly one published release per tag remains.                                                                          |
+| Missing-tag recovery   | [Run 34652875645](https://github.com/hugojosefson/scratchpad-hj-release/actions/runs/34652875645) restored the deleted `0.0.1` tag to its exact original commit.                                                                      |
+| Active removal guard   | Feature removal stopped while tag publication was active. Local files stayed unchanged.                                                                                                                                               |
+| Ordered removal        | [PR 12](https://github.com/hugojosefson/scratchpad-hj-release/pull/12) removed both publication workflows. Tag-protection removal was blocked before that merge and succeeded afterward.                                              |
+| Dependency update      | [Run 34653191461](https://github.com/hugojosefson/scratchpad-hj-release/actions/runs/34653191461) created [PR 13](https://github.com/hugojosefson/scratchpad-hj-release/pull/13) for a deliberately outdated dependency.              |
+| Dependency retry       | [Run 34653241667](https://github.com/hugojosefson/scratchpad-hj-release/actions/runs/34653241667) updated the same branch and reused PR 13. No duplicate PR appeared.                                                                 |
+| CI removal             | Removing main protection and CI together removed the exact generated workflows from the settings fixture.                                                                                                                             |
+| Dependency no-op       | [Run 34652917128](https://github.com/hugojosefson/scratchpad-hj-release/actions/runs/34652917128) completed without creating a PR when dependencies were current.                                                                     |
+
+The collision rehearsal inserted a 90-second pause after PR reservation in the
+local test copy only. This made the source-first order deterministic. The pause
+was removed before the next release run. The first rehearsal exposed the cleanup
+bug and needed manual removal of its stale PR. The corrected rehearsal closed
+its own PR and removed its branch.
+
+Bot-created PR workflow runs did not execute jobs without approval. The tag
+workflow's owned synthetic checks still gated the release PR. Source PRs ran the
+normal CI jobs.
+
+### Fixes found by these runs
+
+| Problem                   | Fix                                                                                                                             |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| Version calculator import | Generated preparation grants the two environment reads required by `fork-version` through esbuild.                              |
+| Candidate package check   | The generated dry run accepts the deliberately uncommitted version and changelog. Exact older task definitions can be repaired. |
+| Git commit identity       | Release commit commands set the standard bot identity explicitly.                                                               |
+| Check URL comparison      | Ownership accepts GitHub's canonical check URL for the exact check ID and repository. Other ownership checks remain required.   |
+| Early source collision    | Cleanup also handles a source merge before the release enables auto-merge.                                                      |
+| Hidden release drafts     | The publisher reads all release pages, including drafts, and rejects duplicate tags before creating a release.                  |
+| Mutation result text      | Local file changes and GitHub changes have separate result rows.                                                                |
+
+Regression tests cover each fix. A clean Linux container also installed the CLI
+from the local package entry point, ran help, and applied a formatting feature.
+A repeated operation reported no changes.
+
+| Local check       | Result on 2026-09-12                                          |
+| ----------------- | ------------------------------------------------------------- |
+| Full Linux suite  | 394 tests passed, with zero failures.                         |
+| Line coverage     | 89.3%.                                                        |
+| Branch coverage   | 89.0%.                                                        |
+| Function coverage | 93.3%.                                                        |
+| Package           | Version `0.1.0` passed the JSR dry run with full type checks. |
+| Documentation     | Formatting passed and local file links resolved.              |
+
+## Final cleanup
+
+| Resource              | Final state                                                                                             |
+| --------------------- | ------------------------------------------------------------------------------------------------------- |
+| Original scratchpad   | Clean `main` and original repository configuration.                                                     |
+| Settings fixture      | Generated CI files removed. Actions disabled.                                                           |
+| Release fixture       | Tag and publisher workflows removed. Tag protection removed after the workflow merge. Actions disabled. |
+| Test PRs and branches | All PRs closed or merged. Temporary remote branches removed.                                            |
+| GitHub Releases       | Three scratchpad releases remain as evidence. Their tags and source changes are preserved.              |
+| Local runners         | Both containers removed and both runner registrations deleted.                                          |
+| Local credentials     | Temporary runner credentials removed with their runner directories.                                     |
+| CLI repository        | Local `main` only, with no release tag and no publication.                                              |
+
+The remaining remote logs and releases belong only to the disposable
+repositories. They contain generated fixture projects, not this CLI source.
+
 ## Limits
 
-These runs test GitHub primitives and local adapter reads. They do not prove the
-full generated release workflow, package installation, JSR identity credentials,
-module digests, provenance, or publisher retries. Those checks remain in
-[planned work](planned.md#remaining-live-validation).
+The local-copy runs test real GitHub events, tokens, checks, rulesets, rebase
+merges, tags, and GitHub Releases. They do not test loading the CLI from JSR.
+JSR credentials, actual package upload, registry installation, module digests,
+and provenance remain in [planned work](planned.md#remaining-live-validation).

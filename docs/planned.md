@@ -41,10 +41,10 @@ choose defaults.
 The JSR package name is `@hugojosefson/cli`. Package metadata, the MIT license,
 the executable export, and a local installation task are present. CI validates
 the package with a dry run. Generated workflows read the package name and
-version from `deno.json`. Version `0.0.0` is still the development placeholder.
-The README is prepared for the first public JSR release; its registry command
-becomes available after publication. The [development guide](development.md)
-describes current local installation. The
+version from `deno.json`. Version `0.1.0` is prepared locally with draft release
+notes. The README is prepared for the first public JSR release; its registry
+command becomes available after publication. The
+[development guide](development.md) describes current local installation. The
 [first-release checklist](development.md#first-public-release) tracks the
 remaining preparation.
 
@@ -56,27 +56,21 @@ publication.
 ## Remaining live validation
 
 Local tests use real temporary Git repositories with injected GitHub responses.
-The [live validation record](live-validation.md) covers the separate scratchpad
-checks completed without publishing this project. Full generated workflows and
-publisher checks still need a published package. Run the remaining checks in a
-disposable remote repository after package publication is authorized:
+The [live validation record](live-validation.md) covers real GitHub workflow
+runs in disposable repositories. These runs use a local copy of the unpublished
+CLI in isolated Linux runners. The CLI source stays on the local machine.
 
-| Scenario                    | Required check                                               |
-| --------------------------- | ------------------------------------------------------------ |
-| Source PR merge             | Starts tag preparation.                                      |
-| Release commit              | Has the expected tree.                                       |
-| Tag creation                | Creates the lightweight tag and removes the owned branch.    |
-| Success event               | Starts the independent publishers.                           |
-| JSR publication             | Module digests and provenance match.                         |
-| Repeated JSR publication    | Accepts the same version without conflicting changes.        |
-| GitHub Release              | Fields match the prepared release data.                      |
-| Repeated GitHub Release     | Reuses the matching release.                                 |
-| Competing source merges     | Resolves the collision without overwriting unrelated work.   |
-| Interrupted tag publication | Recovers the exact release.                                  |
-| Publisher failure           | Retries safely.                                              |
-| Feature removal             | Merge workflow removal before removing exact tag protection. |
-| Cleanup                     | Remove temporary workflows and fixtures.                     |
+The remaining checks need registry access and separate publication
+authorization:
 
-A live test fixture must identify its owned resources and restrict its input
-operations. The fixture must confirm the remote state after an expected
-rejection. Keep publication and these live checks outside local CI.
+| Scenario                  | Required check                                                                        |
+| ------------------------- | ------------------------------------------------------------------------------------- |
+| JSR account               | Confirm scope ownership and package access.                                           |
+| JSR publication           | Link an authorized package, publish it, and compare module digests and provenance.    |
+| Repeated JSR publication  | Accept identical content and reject a conflicting version.                            |
+| Registry installation     | Install the released CLI in clean Linux, then run help and a local feature operation. |
+| Registry workflow loading | Run the generated workflows with their exact published JSR reference.                 |
+
+The local-copy runs prove the GitHub release path, but they do not prove JSR
+credentials or registry distribution. Keep live publication checks outside local
+CI. See the [first-release procedure](first-release.md) for the order.

@@ -43,6 +43,15 @@ credentials. Credentials are not stored by checkout.
 | JSR publisher            | Request OIDC credentials.            |
 | GitHub Release publisher | Write repository release data.       |
 
+Enable and push generated CI before enabling main protection. Protection needs
+the required checks to exist in the remote workflow. On GitHub Free, use a
+public repository for rulesets and auto-merge. Private repositories can need a
+paid plan. The CLI reports this restriction when GitHub rejects setup.
+
+For this package's first publication, use the
+[first-release procedure](first-release.md). It avoids depending on an `hj`
+version that is not yet on JSR.
+
 ## Normal release
 
 A tree is the complete set of tracked file contents and modes. A release bundle
@@ -59,6 +68,13 @@ is validated data describing the exact proposed changes.
 | Validate merge    | Confirm the rebased commit's parent, tree, and release files.                                     |
 | Publish tag       | Create the lightweight tag and remove the owned release branch.                                   |
 | Notify publishers | Send `hj-release-publish-tag-success`; each publisher runs independently.                         |
+
+Preparation runs package checks on uncommitted candidate files. The generated
+`publish-check` task uses `--dry-run --allow-dirty --check=all`. It uploads
+nothing. The real publisher still requires the exact tagged source.
+
+The release commit uses the standard `github-actions[bot]` Git identity. The
+workflow does not need a runner's global Git identity.
 
 The release commit subject is `chore(release): <version>`. Publishers compare
 remote state with the checkout before writing. Matching existing objects can be
@@ -99,6 +115,15 @@ The success event can repeat, so publishers must accept matching existing data.
 | -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Source merges first  | Disable the exact auto-merge request, remove the owned branch with an expected-head guard, and close the PR. Prepare again from the new source state. |
 | Release merges first | Update the source PR against the new `main` and rerun its checks.                                                                                     |
+
+Deleting a tag can turn its GitHub Release into a draft. Restoring the tag does
+not restore the release's published state. The publisher rejects that draft
+instead of creating a duplicate. Review and restore the intended release in
+GitHub, then retry publication.
+
+The publisher lists all releases because GitHub's
+[tag lookup excludes drafts](https://docs.github.com/en/rest/releases/releases#get-a-release-by-tag-name).
+Multiple releases with the same tag also block publication.
 
 Do not overwrite a conflicting tag or delete an unknown release branch to force
 recovery.
@@ -181,6 +206,7 @@ agree before release data is reused or removed.
 | Main rules               | Strict checks, rebase-only PRs, resolved review threads, zero approvals, and no deletion or force-push.         |
 | Effective protection     | Include inherited rulesets and legacy branch protection; unknown rules block publication.                       |
 | Synthetic check identity | Schema, run, attempt, context, bundle digest, and release SHA.                                                  |
+| Check details URL        | The exact workflow URL or GitHub's canonical URL for that check ID in the same repository.                      |
 | Check replacement        | Start new checks before neutralizing old owned checks.                                                          |
 | Auto-merge owner         | GraphQL `Bot` named `github-actions`, using `REBASE` and the expected head.                                     |
 | Cleanup                  | Recheck ownership before disabling auto-merge or canceling checks; delete branches with an expected-head guard. |

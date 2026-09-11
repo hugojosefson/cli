@@ -203,17 +203,15 @@ The README describes installation after the first JSR release. Registry
 installation is not yet available. Publication remains a separate, authorized
 step. Complete these checks before announcing the release:
 
-| Preparation                  | State or next action                                                                                                           |
-| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
-| Package identity and license | The package name, executable export, and MIT license are present.                                                              |
-| First version                | Replace the development version `0.0.0` in `deno.json` with the selected release version. New workflows use this same version. |
-| Release notes                | Record the initial supported features and known limits.                                                                        |
-| Validation                   | Run `deno task ci`, including the package dry run. Test installation in a clean Linux environment.                             |
-| JSR access                   | Confirm access to the `hugojosefson` scope and the `cli` package name on [JSR](https://jsr.io/).                               |
-| Repository publication       | Create the public repository only when authorized. Configure branch protection and allow rebase merges only.                   |
-| Package publication          | Connect the package to its public repository and publish the selected version when authorized.                                 |
-| Registry installation        | Run the README command in a clean environment and check help and a local feature operation.                                    |
-| Release workflows            | Complete the [remaining live validation](planned.md#remaining-live-validation) in scratchpad.                                  |
+| Preparation                  | State or next action                                                                                             |
+| ---------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| Package identity and license | The package name, executable exports, and MIT license are present.                                               |
+| First version                | `0.1.0` is prepared in `deno.json`. No release tag exists here.                                                  |
+| Release notes                | [CHANGELOG.md](../CHANGELOG.md) records supported features and known limits.                                     |
+| Local validation             | CI includes coverage and a package dry run. Linux installation is tested.                                        |
+| GitHub validation            | Disposable repositories exercise configuration and real release workflows. See the [record](live-validation.md). |
+| Publication                  | Follow the [first-release procedure](first-release.md) after separate authorization.                             |
+| JSR validation               | Account access, registry publication, registry installation, and provenance remain untested.                     |
 
 ## Git history
 

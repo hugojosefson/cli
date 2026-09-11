@@ -80,6 +80,7 @@ operations. `hj` uses installed tools and does not install them for you.
 | Guide                                              | Topic                                                         |
 | -------------------------------------------------- | ------------------------------------------------------------- |
 | [Repository features](docs/repository-features.md) | Select, enable, disable, and repair features.                 |
+| [Changelog](CHANGELOG.md)                          | Read release notes and known limits.                          |
 | [Releases](docs/releases.md)                       | Configure release workflows and recover interrupted releases. |
 | [Development](docs/development.md)                 | Run from source, install locally, test, and contribute.       |
 | [Live validation](docs/live-validation.md)         | Read the scratchpad test results and their limits.            |
