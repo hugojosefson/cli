@@ -1,5 +1,6 @@
 /** @module Generated README paths and read-only state inspection. */
 
+import { inspectLegacyReadme, legacyDefaultTask } from "./legacy-readme.ts";
 import type { ArtifactObservation } from "../api/artifact-inspection.ts";
 import type { DetectionContext } from "../api/repository-context.ts";
 import { sameJson } from "../operations/local-plan-state.ts";
@@ -52,10 +53,14 @@ export async function inspectReadmeBuild(context: DetectionContext) {
     schema.kind === "file" && initialSource === schema.content
       ? "# {{package.name}}\n"
       : initialSource;
-  const output = await generatedOutput(context, source, initialSource);
+  const legacy = await inspectLegacyReadme(context, taskValue, source);
+  const output = legacy.kind === "recognized"
+    ? legacy.output
+    : await generatedOutput(context, source, initialSource);
   return {
     root,
     source,
+    legacy,
     directory,
     configKind: config.kind,
     configPath: config.kind === "config" ? config.path : undefined,
@@ -66,9 +71,11 @@ export async function inspectReadmeBuild(context: DetectionContext) {
     exactTask,
     exactDefault,
     taskUsable: config.kind === "config" && tasks !== undefined &&
-      (!taskPresent || isObject(taskValue)),
+      (!taskPresent || isObject(taskValue) || legacy.kind === "recognized"),
     defaultUsable: config.kind === "config" && tasks !== undefined &&
-      (defaultValue === undefined || isObject(defaultValue)),
+      (defaultValue === undefined || isObject(defaultValue) ||
+        legacy.kind === "recognized" && typeof defaultValue === "string" &&
+          defaultValue.trim() === legacyDefaultTask),
     output,
     initialSource: managedSource,
     rootMatches: root.kind === "file" && output !== undefined &&

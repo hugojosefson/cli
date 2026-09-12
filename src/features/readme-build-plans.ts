@@ -1,5 +1,6 @@
 /** @module Guarded generated README change plans. */
 
+import { legacyReadmePreview } from "./readme-build-checks.ts";
 import type { ChangePlan } from "../api/change-plan.ts";
 import type { AllowedOperation } from "../api/feature-operation.ts";
 import type { PlannedChange } from "../api/planned-change.ts";
@@ -31,7 +32,10 @@ export async function planEnableReadmeBuild(
   const initialSource = state.source.kind === "file"
     ? state.source.content
     : state.initialSource;
-  const sourceContent = buildSourceContent(context, initialSource);
+  const sourceContent = buildSourceContent(
+    context,
+    state.legacy.kind === "recognized" ? state.legacy.source : initialSource,
+  );
   if (state.source.kind === "absent") {
     changes.push({ kind: "create-directory", path: readmeBuildDirectoryPath }, {
       kind: "write-file",
@@ -77,11 +81,32 @@ export async function planEnableReadmeBuild(
       rootMatches: state.root.kind === "file" && state.root.content === output,
     }));
   } else changes.push(...rootEnableChanges(state));
+  const migration = state.legacy.kind === "recognized";
+  if (migration && !await context.files.exists(".hj/readme.json")) {
+    changes.push({ kind: "create-directory", path: ".hj" }, {
+      kind: "write-file",
+      path: ".hj/readme.json",
+      content: JSON.stringify({ version: 1, files: {} }, null, 2) + "\n",
+      mode: 0o644,
+      expectedDigest: undefined,
+    });
+  }
   return plan(
     "enable",
-    allowed,
+    migration && state.directory.kind === "directory"
+      ? {
+        ...allowed,
+        preconditions: [...allowed.preconditions, {
+          kind: "directory-state",
+          path: readmeBuildDirectoryPath,
+          digest: state.directory.stateDigest,
+        }],
+      }
+      : allowed,
     changes,
-    "Configure generated README output.",
+    migration
+      ? legacyReadmePreview(state)
+      : "Configure generated README output.",
     "enabled",
   );
 }

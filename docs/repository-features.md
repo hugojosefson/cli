@@ -334,6 +334,9 @@ adds the network flag to an unchanged generated CLI launcher.
 
 ## README and license features
 
+For existing `git-hj-init` output, use the
+[legacy README migration](legacy-readmes.md).
+
 | Feature         | Behavior                                                           |
 | --------------- | ------------------------------------------------------------------ |
 | `readme-static` | Use a writable root `README.md`; the default README provider.      |
