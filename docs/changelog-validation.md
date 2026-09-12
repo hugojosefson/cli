@@ -49,8 +49,23 @@ versions are `conventional-commits-parser@7.1.2` and
 The earlier tag workflow lacks the new repository permission. Its repair preview
 names that exact addition once and preserves the recorded source pin. The tag
 and GitHub Release workflows now select public commit
-`b6a37696f8cb8769522165129873194f05b5d48d`, containing the implementation and
-the HTML-comment regression fix. They were regenerated through the same artifact
-builder used by feature repair. The public source passed the source-validation
-route with narrow release-command permissions. The separately loaded public
-renderer imported and rendered without permission grants.
+`5d5bdf831c15025774ed5fd7f22ca8778c3ed7b2`, containing the implementation and
+the HTML-comment regression fix, candidate-only release validation, and
+dependency caching from the integrated main branch. They were regenerated
+through the same artifact builder used by feature repair. The public source
+passed the source-validation route with narrow release-command permissions. The
+separately loaded public renderer imported and rendered without permission
+grants.
+
+The production npm build and native test build passed after both frozen npm
+manifests were given the same exact parser and writer versions. Built Node and
+Bun migration previews matched CHANGELOG.md byte for byte. The Deno import
+isolation fixture now copies the root frozen graph and reports unexpected
+underlying import errors; a fresh-cache reproduction passed without fetching
+additional fixture dependencies. Its runner grants read access only to the two
+additional config/lock files needed by that test.
+
+After integrating concurrent release and CI work, 50 focused checks passed for
+command dispatch, preparation, orchestration, release features, and repair
+output. The pull request records the complete local matrix and final GitHub
+check results.
