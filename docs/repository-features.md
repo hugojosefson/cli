@@ -9,8 +9,8 @@ README:
 hj repo features --defaults
 ```
 
-For an existing linked GitHub repository, authenticate with `gh auth login`
-before applying GitHub presets:
+For an existing linked GitHub repository, authenticate with
+`gh auth login --scopes project` before applying GitHub presets:
 
 ```bash
 # Apply common GitHub settings with public visibility.
@@ -128,8 +128,7 @@ removal. For this repository's results, read the
 
 A capability is a function provided by a feature. The `readme` capability uses
 its enabled provider, or `readme-static` by default. Required capabilities can
-also select a default provider. Global default configuration is
-[planned](planned.md#global-configuration).
+also select a default provider.
 
 The command changes only selected features and their required dependencies. It
 stores no installation reason and has no automatic dependency removal. Disable
@@ -272,6 +271,7 @@ and an existing repository link. These features do not create repositories.
 | Feature                         | Behavior                                                                                                     |
 | ------------------------------- | ------------------------------------------------------------------------------------------------------------ |
 | `github-repo`                   | Detect authenticated access to the linked GitHub repository.                                                 |
+| `github-default-project`        | Link a default project and add all repository issues; requires `github-projects` and GitHub project access.  |
 | `github-*` settings             | Manage individual repository settings. See the preset table below.                                           |
 | `github-ci`                     | Add PR checks and nightly or manual dependency updates; requires `github-repo` and `deno-fmt`.               |
 | `github-main-protection`        | Require PRs and generated checks on the default branch; block deletion and force-pushes.                     |
@@ -291,20 +291,21 @@ resolved review threads.
 
 `--github` uses fixed defaults. It does not inspect recent repositories.
 
-| Setting                | Preset value |
-| ---------------------- | ------------ |
-| Auto-merge             | Enabled      |
-| Delete merged branches | Enabled      |
-| Squash merges          | Enabled      |
-| Rebase merges          | Enabled      |
-| Issues                 | Enabled      |
-| Projects               | Enabled      |
-| Branch updates         | Enabled      |
-| Visibility             | Private      |
-| Merge commits          | Disabled     |
-| Wiki                   | Disabled     |
-| Discussions            | Disabled     |
-| Web commit signoff     | Disabled     |
+| Setting                | Preset value                       |
+| ---------------------- | ---------------------------------- |
+| Auto-merge             | Enabled                            |
+| Delete merged branches | Enabled                            |
+| Squash merges          | Enabled                            |
+| Rebase merges          | Enabled                            |
+| Issues                 | Enabled                            |
+| Projects               | Enabled                            |
+| Default project        | Linked, with all repository issues |
+| Branch updates         | Enabled                            |
+| Visibility             | Private                            |
+| Merge commits          | Disabled                           |
+| Wiki                   | Disabled                           |
+| Discussions            | Disabled                           |
+| Web commit signoff     | Disabled                           |
 
 | Override or constraint          | Rule                                                                          |
 | ------------------------------- | ----------------------------------------------------------------------------- |
@@ -322,6 +323,91 @@ Use `--workflow-cli=github:owner/repository@<commit SHA>` with selected workflow
 features. Use `--repair --workflow-cli=jsr` to switch them to the registry. The
 [release guide](releases.md#bootstrap-before-the-first-registry-version) owns
 the setup procedure and source rules.
+
+## Default GitHub project
+
+`--github` selects `github-default-project` alongside the repository settings.
+`--github-projects` controls only the Projects setting. To omit project setup,
+use `--github --no-github-default-project`.
+
+The feature reuses a project with the repository name under the repository
+owner. Otherwise, it uses the only linked project or creates a repository-named
+project. Multiple candidates, closed projects, and conflicting fields block
+changes. New projects start private. Existing project visibility stays
+unchanged.
+
+Projects need the `project` scope in addition to repository access. If GitHub
+rejects project access, refresh the login:
+
+```bash
+gh auth refresh -h github.com -s project
+hj repo features --github-default-project --yes
+```
+
+Setup links the project and adds every missing repository issue, including
+closed issues. New projects start on a `Board` view and include a `Work` table.
+Setup converts GitHub's untouched `View 1` into Board. It preserves other saved
+views and supplies any missing Board or Work view. Status output links directly
+to Board. GitHub's repository Projects tab still lists linked projects.
+
+The default status order is `Backlog`, `Todo`, `In Progress`, and `Done`. Setup
+adds Backlog before Todo, or moves an existing Backlog before Todo. It preserves
+existing status option IDs, colors, descriptions, and issue assignments. A
+custom status scheme without Todo stays unchanged. Priorities are `P1`, `P2`,
+and `P3`. Newly added open issues enter Todo. Closed issues enter Done. Existing
+item statuses and priorities stay unchanged.
+
+The `Area` text column contains values from `area:*` issue labels. For example,
+`area:cli` and `area:github` produce `cli, github`. Work and Board show Area
+beside Title. Setup updates this derived column when labels change and clears it
+when no area labels remain. It preserves the source labels and other fields.
+Newly auto-added issues receive Area values on the next explicit setup run.
+Repeated setup adds no duplicate project items or views.
+
+Create an issue with its project selected:
+
+```bash
+gh issue create --project <project-title>
+```
+
+To assign new issues automatically, use the optional browser command:
+
+```bash
+hj repo project-auto-add --yes
+```
+
+First, quit Firefox normally and restart it with
+`firefox --remote-debugging-port=9222`. Sign in to GitHub in that Firefox
+session. The command connects to `ws://127.0.0.1:9222/session` and opens a
+temporary tab. It uses the default project and sets the repository filter to
+`is:issue`. Firefox requires the startup flag to
+[enable its automation connection](https://developer.mozilla.org/en-US/docs/Web/WebDriver/How_to/Create_BiDi_connection).
+The command leaves the browser and its other tabs open.
+
+Setup first tries GitHub's undocumented workflow endpoint in the signed-in tab.
+If GitHub removes or rejects that endpoint with HTTP 404, 405, or 410, setup
+uses the visible workflow controls. Select `--method=endpoint` or
+`--method=browser` to use one route directly. Use
+`--browser-url=ws://127.0.0.1:<port>/session` for a different local Firefox
+port. The command does not copy browser credentials or use the `gh` token for
+browser requests.
+
+An enabled matching workflow requires no change. A disabled matching workflow is
+enabled. Custom filters, duplicate workflows, access failures, and uncertain
+writes stop setup for review. Setup reads the saved workflow again before it
+reports success. GitHub can change both the endpoint and the page controls.
+
+The public API does not expose creation of this workflow. Ordinary feature
+checks use the public API and require no browser. The default project feature
+reports missing issues as drift. Run its setup command again to add them.
+GitHub's
+[auto-add workflow](https://docs.github.com/en/issues/planning-and-tracking-with-projects/automating-your-project/adding-items-automatically)
+applies to new or updated items. Existing issues still need the initial project
+setup or `gh issue create --project <project-title>`.
+
+`--no-github-default-project --yes` unlinks the project. It preserves the
+project, its fields, and its items. To disable the Projects setting too, also
+select `--no-github-projects`.
 
 ## JSR preset and package feature
 

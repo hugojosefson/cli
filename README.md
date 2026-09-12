@@ -13,6 +13,11 @@ repository you want to manage.
 | GitHub        | Repository settings, protection rules, and workflows.      |
 | Releases      | Version changes, changelogs, tags, and package publishing. |
 
+To assign new GitHub issues to the default project, run
+`hj repo project-auto-add --yes` with a signed-in Firefox automation session.
+See [project setup](docs/repository-features.md#default-github-project) for the
+browser command and fallback behavior.
+
 ## Install
 
 Install [Deno](https://deno.com/) first. Then install `hj` directly from JSR:
@@ -114,14 +119,15 @@ operations. `hj` uses installed tools and does not install them for you.
 
 ## Documentation
 
-| Guide                                              | Topic                                                         |
-| -------------------------------------------------- | ------------------------------------------------------------- |
-| [Repository features](docs/repository-features.md) | Select, enable, disable, and repair features.                 |
-| [Changelog](CHANGELOG.md)                          | Read release notes and known limits.                          |
-| [Releases](docs/releases.md)                       | Configure release workflows and recover interrupted releases. |
-| [Development](docs/development.md)                 | Run from source, install locally, test, and contribute.       |
-| [Live validation](docs/live-validation.md)         | Read the scratchpad test results and their limits.            |
-| [Planned work](docs/planned.md)                    | Track unimplemented features and remaining validation.        |
+| Guide                                                                | Topic                                                         |
+| -------------------------------------------------------------------- | ------------------------------------------------------------- |
+| [Repository features](docs/repository-features.md)                   | Select, enable, disable, and repair features.                 |
+| [Changelog](CHANGELOG.md)                                            | Read release notes and known limits.                          |
+| [Releases](docs/releases.md)                                         | Configure release workflows and recover interrupted releases. |
+| [Development](docs/development.md)                                   | Run from source, install locally, test, and contribute.       |
+| [Live validation](docs/live-validation.md)                           | Read the scratchpad test results and their limits.            |
+| [Issues](https://github.com/hugojosefson/cli/issues)                 | Track proposed changes, validation, and design decisions.     |
+| [Project](https://github.com/users/hugojosefson/projects/10/views/2) | Browse work, ideas, priorities, and recorded decisions.       |
 
 ## License
 

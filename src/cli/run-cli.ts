@@ -50,6 +50,15 @@ export async function runCli(
       terminalNewline: true,
     };
   }
+  if (command === "repo project-auto-add") {
+    const { parseProjectAutoAdd, runProjectAutoAdd } = await import(
+      "./run-project-auto-add.ts"
+    );
+    return {
+      output: await runProjectAutoAdd(root, parseProjectAutoAdd(args.slice(2))),
+      terminalNewline: true,
+    };
+  }
   const usage = commandDefinitions[command].usage;
   if (command === "readme build") {
     if (args.length > 3) throw new Error(`expected \`${usage}\``);

@@ -213,8 +213,10 @@ repositories. They contain generated fixture projects, not this CLI source.
 
 The local-copy runs test real GitHub events, tokens, checks, rulesets, rebase
 merges, tags, and GitHub Releases. They do not test loading the CLI from JSR.
-JSR credentials, actual package upload, registry installation, module digests,
-and provenance remain in [planned work](planned.md#remaining-live-validation).
+The later JSR runs in this record cover package upload, registry installation,
+module digests, and provenance. Linux is the current live test target. Local
+tests reject conflicting JSR metadata and provenance; no conflicting public
+package version was deliberately uploaded.
 
 ## Member-triggered JSR workflow, 2026-09-12
 
@@ -338,3 +340,72 @@ passed both jobs with the exact `jsr:@hugojosefson/cli@0.2.0` reference. The
 migration also updates all three release workflows through the feature command.
 The final local suite passed 410 tests, with 89.5% line coverage, 89.3% branch
 coverage, and 93.5% function coverage.
+
+## Default GitHub project, 2026-09-12
+
+The local checkout created and linked the public
+[`cli` project](https://github.com/users/hugojosefson/projects/10) through
+`hj repo features --github-default-project --yes`. The project contains all 25
+repository issues created during the documentation migration. GitHub queries
+confirmed project membership for every issue, including closed issues.
+
+Setup created the Priority field and assigned initial statuses. The migration
+then assigned priorities, recorded issue dependencies, and configured Work,
+Board, Ideas, and Decisions views. Issue titles contain at most 26 characters.
+
+GitHub briefly omitted recent writes from its project queries. The adapter now
+waits for those writes to appear before feature validation. A fixture test
+covers this delay without repeating mutations. A repeated live setup reported
+`github-default-project` as enabled and made no changes.
+
+The local `deno task ci` run passed 426 tests and enforced coverage thresholds.
+The feature adds missing issues when explicitly enabled again.
+
+## Project auto-add, 2026-09-12
+
+The optional `hj repo project-auto-add --yes` command connected to the owner's
+signed-in Firefox through WebDriver BiDi, Firefox's automation connection.
+Firefox ran from Snap. The browser reported admin access to project 10.
+
+The endpoint route created workflow 7, `Auto-add to project`, with issue-only
+content and the `is:issue` filter for `hugojosefson/cli`. A fresh page read
+confirmed the saved workflow. The browser route then enabled the same workflow
+through GitHub's visible Edit and Save controls in the signed-in preview. A
+fresh page read and the public GraphQL API confirmed that it remained enabled.
+The setup planner reported no further change and found no duplicate workflow.
+
+The live browser test exposed missing test attributes in GitHub's production UI.
+The fallback now also uses visible button names and accessible repository
+controls. A regression test covers enabling a workflow without test attributes
+and rejecting a concurrent change before Save.
+
+An isolated Firefox session tested a simulated GitHub page. Endpoint creation,
+HTTP 404 fallback, and direct browser creation each saved one workflow. A repeat
+run reported no change for each route.
+
+The browser route also created an issue-only workflow in a temporary private
+GitHub project through the signed-in preview. The first attempt exposed a page
+transition race. The fallback now waits for the selected workflow before it
+clicks Edit. A regression test covers the delay. With the fix, creation passed
+on the first attempt in a fresh project. A fresh page read confirmed one enabled
+workflow with the `is:issue` filter, and repeated planning returned no change.
+Both temporary projects were deleted after validation.
+
+[Issue 33](https://github.com/hugojosefson/cli/issues/33) tracks this
+implementation and its live validation.
+
+## Project views and Area, 2026-09-12
+
+The project root opened on Board after its tab moved before Work. The browser
+confirmed that Backlog preceded Todo. The public API confirmed the status option
+order and the original option IDs. GitHub's browser API moved the existing Board
+tab because the public view API has no tab-order input.
+
+The feature command added Area to Work and Board and populated values for all 25
+issues with `area:*` labels. Issues with multiple area labels received all
+values in alphabetical order. Work displayed the Area header next to Title. The
+original issue labels remained in GitHub.
+
+Fixture tests cover Board as the first view of a new project, preservation of
+custom views and status options, Area updates after label changes, and repeated
+setup without duplicate views or item assignments.

@@ -20,6 +20,7 @@ import {
   githubSettingFeature,
   githubSettings,
 } from "./github-features.ts";
+import { githubDefaultProjectFeature } from "./github-default-project-feature.ts";
 import { githubCiFeature } from "./github-ci-feature.ts";
 import { jsrPackageFeature } from "./jsr-package-feature.ts";
 import {
@@ -46,6 +47,7 @@ export const builtInFeatureRegistry: FeatureRegistry = {
     denoServerFeature,
     gitFeature,
     githubRepoFeature,
+    githubDefaultProjectFeature,
     jsrPackageFeature,
     githubReleasePublishTagFeature,
     githubReleasePublishJsrFeature,
@@ -86,6 +88,7 @@ export const builtInFeatureRegistry: FeatureRegistry = {
     summary: "Apply common GitHub repository settings.",
     changes: [
       { featureId: "github-repo", enabled: true },
+      { featureId: "github-default-project", enabled: true },
       ...githubSettings.map((setting) => ({
         featureId: setting.id,
         enabled: setting.enabled,
