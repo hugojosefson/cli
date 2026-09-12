@@ -157,3 +157,18 @@ test("release insertion preserves titles, arbitrary text and fenced examples", a
     }
   }
 });
+
+test("release insertion ignores headings and fences inside HTML comments", async () => {
+  const { createChangelogInsertion, applyChangelogInsertion } = await import(
+    "./changelog.ts"
+  );
+  const old =
+    "# Changelog\n\n<!--\n## 1.0.0\n```md\n-->\n\n## 0.1.0\n\nExisting history\n";
+  const section = "## 1.0.0\n\n### Features\n\n- New entry\n\n";
+  const insertion = createChangelogInsertion(old, section);
+  assertEquals(insertion.offset, old.indexOf("## 0.1.0"));
+  assertEquals(
+    applyChangelogInsertion(old, insertion),
+    old.replace("## 0.1.0", section + "## 0.1.0"),
+  );
+});
