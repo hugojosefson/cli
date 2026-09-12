@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.7.0
+
+- fix(projects): synchronize areas through additive repair
+- feat(github): create and link repositories during setup
+- feat(github-ci): migrate legacy workflows
+- feat(release): migrate legacy publication workflows and tasks
+- feat(editorconfig): add independent editor defaults
+- test(editorconfig): include feature in registry expectation
+- chore(editorconfig): enable feature
+- fix(editorconfig): preserve unowned empty files on removal
+- feat(deno-lib): teach starter assertions
+- feat(release): publish npm packages after release tags
+- fix(release): preserve formatted npm workflow detection
+- docs: record repository feature examples and validation
+- test(release): guard npm enablement during legacy migration
+- fix(help): describe GitHub repository creation
+- fix(github): accept migrated CI for main protection
+
 ## 0.6.0
 
 - fix(readme): attribute cumulative guide blocks to their features
