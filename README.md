@@ -25,6 +25,12 @@ browser command and fallback behavior.
 
 <!-- /hj:readme -->
 
+<!-- hj:readme github-ci:badge cef2c14f63758c9d69d92ef24b123236225fdf1984e0a9e31519646de6464d00 -->
+
+[![CI](https://github.com/hugojosefson/cli/actions/workflows/hj-ci.yaml/badge.svg)](https://github.com/hugojosefson/cli/actions/workflows/hj-ci.yaml)
+
+<!-- /hj:readme -->
+
 ## Install
 
 Install [Deno](https://deno.com/) first. Then install `hj` directly from JSR:
