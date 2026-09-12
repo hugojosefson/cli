@@ -1,6 +1,8 @@
 /** @module Read-only-token preparation routes for tag publication. */
 import * as fs from "node:fs/promises";
 
+import { commitMessages, releaseTags } from "./release-history.ts";
+import { formatChangelogInsertion } from "./format-changelog.ts";
 import { requiredEnvironment } from "./release-environment.ts";
 import { digestBytes } from "../repository/digest-bytes.ts";
 import { LocalFileReader } from "../repository/local-file-reader.ts";
@@ -9,7 +11,10 @@ import { inspectDenoConfig } from "../features/deno-config.ts";
 import { githubReleasePublisherFeatures } from "../features/github-release-publish-feature.ts";
 import {
   applyChangelogInsertion,
-  createChangelogInsertion,
+  type ChangelogInsertion,
+  changelogRepositoryUrl,
+  createLegacyChangelogInsertion,
+  createLegacyReleaseSection,
   createReleaseSection,
 } from "./changelog.ts";
 import { validateConventionalCommits } from "./conventional-commit.ts";
@@ -54,20 +59,31 @@ export async function publishTagPrepare(
     return { output: "Source commits are valid.\n", releaseNeeded: false };
   }
   if (route === "recovery") {
-    return await prepareRecovery(root, environment, process);
+    return await prepareRecovery(
+      root,
+      environment,
+      process,
+      releaseRepository(environment),
+    );
   }
   if (route !== "usual") {
     throw new Error(
       "HJ_RELEASE_ROUTE must be source-validation, usual, or recovery.",
     );
   }
-  return await prepareUsual(root, environment, process);
+  return await prepareUsual(
+    root,
+    environment,
+    process,
+    releaseRepository(environment),
+  );
 }
 
 async function prepareUsual(
   root: URL,
   environment: ReleaseEnvironment,
   process: ReleaseProcess,
+  repository: string,
 ): Promise<PublishTagPrepareResult> {
   await requireClean(process);
   await runOrThrow(process, "git", [
@@ -91,7 +107,7 @@ async function prepareUsual(
     config.kind !== "config" || typeof config.value.version !== "string"
   ) throw new Error("One Deno config with a string version is required.");
   const tags = await releaseTags(process, selectedSha);
-  await requireNoUntaggedRelease(root, process, selectedSha, tags);
+  await requireNoUntaggedRelease(root, process, selectedSha, tags, repository);
   await runOrThrow(process, "git", ["switch", "--detach", selectedSha]);
   const previous = selectPreviousRelease(tags, config.value.version);
   if (previous.kind === "conflict") {
@@ -131,11 +147,13 @@ async function prepareUsual(
     version,
   );
   const changelog = await observeOptionalFile(files, changelogPath);
-  const releaseSection = createReleaseSection(
+  const releaseSection = await createReleaseSection(
     version,
-    conventional.map((commit) => commit.subject),
+    commits.map((hash, index) => ({ hash, message: messages[index] })),
+    repository,
   );
-  const insertion = createChangelogInsertion(
+  const insertion = await formatChangelogInsertion(
+    process,
     changelog?.content ?? "",
     releaseSection,
   );
@@ -144,7 +162,7 @@ async function prepareUsual(
     new URL(changelogPath, root),
     applyChangelogInsertion(changelog?.content ?? "", insertion),
   );
-  await runOrThrow(process, "deno", ["fmt", config.path, changelogPath]);
+  await runOrThrow(process, "deno", ["fmt", config.path]);
   const formattedVersion = await fs.readFile(
     new URL(config.path, root),
     "utf8",
@@ -251,6 +269,7 @@ async function prepareRecovery(
   root: URL,
   environment: ReleaseEnvironment,
   process: ReleaseProcess,
+  repository: string,
 ): Promise<PublishTagPrepareResult> {
   const version = requiredEnvironment(environment, "HJ_RELEASE_TAG");
   if (!parseSemver(version)) {
@@ -292,7 +311,13 @@ async function prepareRecovery(
     }
     let bundle: ReleaseBundle;
     try {
-      bundle = await rebuildRelease(root, process, parents[1], commit);
+      bundle = await rebuildRelease(
+        root,
+        process,
+        parents[1],
+        commit,
+        repository,
+      );
     } finally {
       await restoreRecoveryWorktree(process, main, changelogPath);
     }
@@ -332,6 +357,7 @@ async function requireNoUntaggedRelease(
   process: ReleaseProcess,
   selectedSha: string,
   tags: readonly ReleaseTag[],
+  repository: string,
 ): Promise<void> {
   const commits = lines(
     await runOrThrow(process, "git", ["rev-list", "--reverse", selectedSha]),
@@ -358,7 +384,13 @@ async function requireNoUntaggedRelease(
     }
     let bundle: ReleaseBundle;
     try {
-      bundle = await rebuildRelease(root, process, parents[1], commit);
+      bundle = await rebuildRelease(
+        root,
+        process,
+        parents[1],
+        commit,
+        repository,
+      );
     } finally {
       await restoreRecoveryWorktree(process, selectedSha, changelogPath);
     }
@@ -390,6 +422,7 @@ async function rebuildRelease(
   process: ReleaseProcess,
   parent: string,
   release: string,
+  repository: string,
 ): Promise<ReleaseBundle> {
   await runOrThrow(process, "git", ["switch", "--detach", parent]);
   const files = new LocalFileReader(root, false);
@@ -415,9 +448,8 @@ async function rebuildRelease(
   const commitIds = lines(
     await runOrThrow(process, "git", ["rev-list", "--reverse", range]),
   );
-  const conventional = validateConventionalCommits(
-    await commitMessages(process, commitIds),
-  );
+  const messages = await commitMessages(process, commitIds);
+  const conventional = validateConventionalCommits(messages);
   const releaseType = selectReleaseType(conventional);
   if (!releaseType) throw new Error("Recovery release range is empty.");
   const version = await nextVersion(previousVersion, releaseType);
@@ -427,45 +459,95 @@ async function rebuildRelease(
     config.text,
     version,
   );
-  const insertion = createChangelogInsertion(
-    oldChangelog?.content ?? "",
-    createReleaseSection(version, conventional.map((item) => item.subject)),
-  );
-  await fs.writeFile(new URL(config.path, root), versionText);
-  await fs.writeFile(
-    new URL(changelogPath, root),
-    applyChangelogInsertion(oldChangelog?.content ?? "", insertion),
-  );
-  await runOrThrow(process, "deno", ["fmt", config.path, changelogPath]);
-  const formattedVersion = await fs.readFile(
-    new URL(config.path, root),
-    "utf8",
-  );
-  const formattedChangelog = await fs.readFile(
-    new URL(changelogPath, root),
-    "utf8",
-  );
-  const formattedInsertion = retainedInsertion(
-    oldChangelog?.content ?? "",
-    formattedChangelog,
-    insertion.offset,
-  );
-  const paths = await worktreeChangedPaths(process);
+  const sections = [
+    await createReleaseSection(
+      version,
+      commitIds.map((hash, index) => ({
+        hash,
+        message: messages[index],
+      })),
+      repository,
+    ),
+    createLegacyReleaseSection(
+      version,
+      conventional.map((item) => item.subject),
+    ),
+  ];
   const expectedPaths = [config.path, changelogPath];
-  if (
-    paths.length !== 2 || !expectedPaths.every((path) => paths.includes(path))
-  ) throw new Error("Recovery candidate changed an unexpected path.");
-  const candidateDigest = await candidateTreeDigest(
-    process,
-    parent,
-    expectedPaths,
-  );
   const releaseDigest = await releaseTreeIndexDigest(process, release);
-  if (candidateDigest !== releaseDigest) {
+  let candidate: {
+    insertion: ChangelogInsertion;
+    formattedVersion: string;
+    formattedChangelog: string;
+    formattedInsertion: string;
+    candidateDigest: string;
+  } | undefined;
+  // Compatibility is exact: neither format may waive the tree or path checks.
+  for (const [index, section] of sections.entries()) {
+    const insertion = index === 0
+      ? await formatChangelogInsertion(
+        process,
+        oldChangelog?.content ?? "",
+        section,
+      )
+      : createLegacyChangelogInsertion(oldChangelog?.content ?? "", section);
+    await fs.writeFile(new URL(config.path, root), versionText);
+    await fs.writeFile(
+      new URL(changelogPath, root),
+      applyChangelogInsertion(oldChangelog?.content ?? "", insertion),
+    );
+    await runOrThrow(process, "deno", [
+      "fmt",
+      config.path,
+      ...(index === 1 ? [changelogPath] : []),
+    ]);
+    const formattedVersion = await fs.readFile(
+      new URL(config.path, root),
+      "utf8",
+    );
+    const formattedChangelog = await fs.readFile(
+      new URL(changelogPath, root),
+      "utf8",
+    );
+    const formattedInsertion = retainedInsertion(
+      oldChangelog?.content ?? "",
+      formattedChangelog,
+      insertion.offset,
+    );
+    const paths = await worktreeChangedPaths(process);
+    if (
+      paths.length !== 2 || !expectedPaths.every((path) => paths.includes(path))
+    ) {
+      throw new Error("Recovery candidate changed an unexpected path.");
+    }
+    const candidateDigest = await candidateTreeDigest(
+      process,
+      parent,
+      expectedPaths,
+    );
+    if (candidateDigest === releaseDigest) {
+      candidate = {
+        insertion,
+        formattedVersion,
+        formattedChangelog,
+        formattedInsertion,
+        candidateDigest,
+      };
+      break;
+    }
+  }
+  if (!candidate) {
     throw new Error(
       "Recovery release tree differs from its expected candidate.",
     );
   }
+  const {
+    insertion,
+    formattedVersion,
+    formattedChangelog,
+    formattedInsertion,
+    candidateDigest,
+  } = candidate;
   const releasePaths = (await runOrThrow(process, "git", [
     "diff-tree",
     "--no-commit-id",
@@ -506,63 +588,6 @@ async function rebuildRelease(
     changedPaths: expectedPaths,
     treeDigest: candidateDigest,
   };
-}
-
-async function releaseTags(
-  process: ReleaseProcess,
-  selectedSha: string,
-): Promise<readonly ReleaseTag[]> {
-  const text = await runOrThrow(process, "git", [
-    "for-each-ref",
-    "--format=%(refname:strip=2)%00%(objecttype)%00%(objectname)%00%(*objectname)%00",
-    "refs/tags",
-  ]);
-  const fields = text.split("\0");
-  const tags: ReleaseTag[] = [];
-  for (let index = 0; index + 3 < fields.length; index += 4) {
-    const name = fields[index].replace(/^\n+/, "");
-    const objectType = fields[index + 1];
-    const objectName = fields[index + 2];
-    const peeled = fields[index + 3];
-    if (!name) continue;
-    const target = objectType === "commit" ? objectName : peeled;
-    if (!sha.test(target)) continue;
-    const ancestor = await process.run("git", [
-      "merge-base",
-      "--is-ancestor",
-      target,
-      selectedSha,
-    ]);
-    if (ancestor.code !== 0 && ancestor.code !== 1) {
-      throw new Error("Could not determine release-tag ancestry.");
-    }
-    tags.push({
-      name,
-      target,
-      lightweight: objectType === "commit",
-      targetIsAncestor: ancestor.code === 0,
-    });
-  }
-  return tags;
-}
-
-async function commitMessages(
-  process: ReleaseProcess,
-  commits: readonly string[],
-): Promise<readonly string[]> {
-  const messages: string[] = [];
-  for (const commit of commits) {
-    if (!sha.test(commit)) {
-      throw new Error("Git returned an invalid commit SHA.");
-    }
-    messages.push((await runOrThrow(process, "git", [
-      "show",
-      "--no-patch",
-      "--format=%B",
-      commit,
-    ])).replace(/\n+$/, ""));
-  }
-  return messages;
 }
 
 async function requireClean(process: ReleaseProcess): Promise<void> {
@@ -677,4 +702,10 @@ function lines(value: string): readonly string[] {
 
 async function digestText(text: string): Promise<string> {
   return await digestBytes(new TextEncoder().encode(text));
+}
+
+function releaseRepository(environment: ReleaseEnvironment): string {
+  const repository = requiredEnvironment(environment, "GITHUB_REPOSITORY");
+  changelogRepositoryUrl(repository);
+  return repository;
 }

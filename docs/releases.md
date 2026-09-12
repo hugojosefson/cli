@@ -92,6 +92,54 @@ does not change README build tasks or fetch the source during generation. Before
 merging generated workflows, make sure that the pinned source is public and
 runnable. CI and release preparation still run the project checks.
 
+## Changelog choices
+
+The `changelog` feature accepts `CHANGELOG.md` in any existing format. The tag
+publisher selects this feature when it creates a release workflow. If the file
+is absent, the feature creates an empty `# Changelog` heading. Existing flat,
+grouped, mixed, and custom content stays valid.
+
+Normal releases add one grouped section and preserve every previous byte.
+Entries use `BREAKING CHANGE`, `Features`, `Fixes`, and `Other` headings, then
+scope headings where a commit has a scope. Each commit link uses its full Git
+SHA, the commit identifier, with a short label. Issue references in headers,
+bodies, and footers link to their GitHub repository. Breaking-change notes
+appear below their entries.
+
+You can keep extending the current changelog without migration. Migration is
+optional and changes only supported existing release sections. To preview a
+migration without writing files, run:
+
+```bash
+hj changelog migrate
+```
+
+Review the printed document. To apply the migration, run:
+
+```bash
+hj changelog migrate --write
+```
+
+The command uses the GitHub `origin` remote for links. If that remote uses a
+local path, supply `--repository=owner/repo`. The command needs complete Git
+history and the original lightweight release tags. A lightweight tag points
+directly to a commit without an annotation object. Migration accepts exact
+`## <SemVer>` sections from `hj` releases. It reconstructs each section from its
+original commit range before replacing it.
+
+Existing grouped sections remain stable. Non-release sections and separating
+whitespace stay unchanged. Custom edits inside a release section stop migration
+with an explanation. You can keep extending that file or reconcile the named
+section with Git history before retrying. A second migration makes no changes.
+The command does not alter Git tags, published packages, or GitHub Releases.
+
+The parser and writer use exact Conventional Changelog dependency versions. They
+need no environment permissions. Preparation reads `GITHUB_REPOSITORY` to use
+the canonical Actions repository for links. Its workflow grants that one
+additional variable. Version calculation continues to use `fork-version@5.2.0`.
+Recovery accepts either the grouped format or the original flat format only when
+the complete reconstructed release tree matches the committed tree.
+
 ## JSR scope security
 
 A scope is a group of packages, such as `@hugojosefson`. The actor is the
@@ -392,20 +440,20 @@ and permissions. `GITHUB_OUTPUT` and `GITHUB_STEP_SUMMARY` are optional paths.
 | Publisher success event                         | `event`             |
 | Manual publisher                                | `user`              |
 
-| Variable                   | Used by                                           |
-| -------------------------- | ------------------------------------------------- |
-| `HJ_SOURCE_BASE_SHA`       | Source validation                                 |
-| `HJ_SOURCE_HEAD_SHA`       | Source validation                                 |
-| `HJ_RELEASE_TAG`           | Recovery preparation and both publisher routes    |
-| `HJ_RELEASE_BUNDLE`        | Both application routes                           |
-| `HJ_RELEASE_BUNDLE_DIGEST` | Both application routes                           |
-| `GITHUB_REPOSITORY`        | Both application routes and both publisher routes |
-| `GITHUB_SERVER_URL`        | Usual application                                 |
-| `GITHUB_RUN_ID`            | Usual application                                 |
-| `GITHUB_RUN_ATTEMPT`       | Usual application                                 |
-| `HJ_RELEASE_SCHEMA`        | Publisher event                                   |
-| `HJ_RELEASE_VERSION`       | Publisher event                                   |
-| `HJ_RELEASE_SHA`           | Publisher event                                   |
+| Variable                   | Used by                                        |
+| -------------------------- | ---------------------------------------------- |
+| `HJ_SOURCE_BASE_SHA`       | Source validation                              |
+| `HJ_SOURCE_HEAD_SHA`       | Source validation                              |
+| `HJ_RELEASE_TAG`           | Recovery preparation and both publisher routes |
+| `HJ_RELEASE_BUNDLE`        | Both application routes                        |
+| `HJ_RELEASE_BUNDLE_DIGEST` | Both application routes                        |
+| `GITHUB_REPOSITORY`        | Preparation, application, and publisher routes |
+| `GITHUB_SERVER_URL`        | Usual application                              |
+| `GITHUB_RUN_ID`            | Usual application                              |
+| `GITHUB_RUN_ATTEMPT`       | Usual application                              |
+| `HJ_RELEASE_SCHEMA`        | Publisher event                                |
+| `HJ_RELEASE_VERSION`       | Publisher event                                |
+| `HJ_RELEASE_SHA`           | Publisher event                                |
 
 The [template source](../src/features/github-release-publish-artifacts.ts)
 provides the exact commands. CLI help owns command usage. Input validation and

@@ -104,6 +104,10 @@ export const githubReleasePublishTagFeature = releaseFeature(
   [
     { featureId: "git", reason: "Release publication requires Git." },
     {
+      featureId: "changelog",
+      reason: "Release publication records changes in CHANGELOG.md.",
+    },
+    {
       featureId: "github-repo",
       reason: "Release publication requires GitHub.",
     },

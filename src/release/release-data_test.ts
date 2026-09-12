@@ -5,7 +5,7 @@ import { assertEquals, assertRejects, assertThrows } from "@std/assert";
 import {
   applyChangelogInsertion,
   createChangelogInsertion,
-  createReleaseSection,
+  createLegacyReleaseSection,
 } from "./changelog.ts";
 import {
   parseConventionalCommit,
@@ -73,7 +73,7 @@ test("changelog inserts after its preamble without changing prior text", () => {
   const oldText = "# Changelog\n\nProject notes.\n\n## 1.0.0\n\n- First\n";
   const insertion = createChangelogInsertion(
     oldText,
-    createReleaseSection("1.1.0", ["feat: add item"]),
+    createLegacyReleaseSection("1.1.0", ["feat: add item"]),
   );
   assertEquals(insertion.offset, "# Changelog\n\nProject notes.\n\n".length);
   assertEquals(

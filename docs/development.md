@@ -342,6 +342,7 @@ ignore detection fix, and local examples.
 
 | Feature                         | Expected state | Why this matches the project                                                                              |
 | ------------------------------- | -------------- | --------------------------------------------------------------------------------------------------------- |
+| `changelog`                     | Enabled        | CHANGELOG.md preserves release history and supports optional grouped migration.                           |
 | `deno-cli`                      | Enabled        | The package exports an executable CLI, including `./cli`.                                                 |
 | `deno-config-version`           | Enabled        | The package declares an exact release version.                                                            |
 | `deno-fmt`                      | Enabled        | Source formatting and its check are configured.                                                           |

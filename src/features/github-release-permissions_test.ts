@@ -169,3 +169,42 @@ console.log(describeFileRepair("workflow.yaml", "permissions: read\\n", "permiss
     await remove(path, { recursive: true });
   }
 });
+
+test("changelog imports and renders with no environment permissions", async () => {
+  const path = await makeTempDir({
+    dir: "/tmp/opencode",
+    prefix: "hj-changelog-permissions-",
+  });
+  try {
+    const script = `${path}/changelog.ts`;
+    await writeTextFile(
+      script,
+      `import { createReleaseSection } from ${
+        JSON.stringify(sourceFile("src/release/changelog.ts").href)
+      };
+console.log(await createReleaseSection("1.0.0", [{ hash: "${
+        "a".repeat(40)
+      }", message: "feat: render #36" }], "owner/repo"));`,
+    );
+    const output = await runCommand("deno", {
+      args: [
+        "run",
+        "--frozen",
+        "--no-prompt",
+        `--config=${sourceFile("deno.json").pathname}`,
+        script,
+      ],
+    });
+    assertEquals(output.success, true, new TextDecoder().decode(output.stderr));
+    assertEquals(
+      new TextDecoder().decode(output.stdout).includes(
+        "[#36](https://github.com/owner/repo/issues/36)",
+      ),
+      true,
+    );
+    const permission = publishTagArtifact.content.match(/--allow-env=\S+/)![0];
+    assertEquals(permission.includes("GITHUB_REPOSITORY,"), true);
+  } finally {
+    await remove(path, { recursive: true });
+  }
+});

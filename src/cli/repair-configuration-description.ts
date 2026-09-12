@@ -149,5 +149,45 @@ export function describeConfiguration(
       ) => `remove ${path ? `${path}.` : ""}${key}`),
     ];
   }
+  if (
+    path.endsWith(".run") && typeof value === "string" &&
+    typeof expected === "string"
+  ) {
+    const changes = environmentPermissionChanges(value, expected, path);
+    if (changes) return changes;
+  }
   return [`${path} = ${JSON.stringify(safeValue(value))}`];
+}
+
+/** Describe a single finite env grant change only when the rest of the command is exact. */
+function environmentPermissionChanges(
+  after: string,
+  before: string,
+  path: string,
+): string[] | undefined {
+  const pattern =
+    /(?<!\S)--allow-env=([A-Za-z_][A-Za-z0-9_]*(?:,[A-Za-z_][A-Za-z0-9_]*)*)(?=\s|$)/g;
+  const old = [...before.matchAll(pattern)];
+  const next = [...after.matchAll(pattern)];
+  if (
+    old.length !== 1 || next.length !== 1 ||
+    before.replace(pattern, "--allow-env=<names>") !==
+      after.replace(pattern, "--allow-env=<names>")
+  ) return undefined;
+  const previous = old[0][1].split(",");
+  const desired = next[0][1].split(",");
+  if (
+    new Set(previous).size !== previous.length ||
+    new Set(desired).size !== desired.length
+  ) return undefined;
+  const removed = previous.filter((name) => !desired.includes(name));
+  const added = desired.filter((name) => !previous.includes(name));
+  const retainedBefore = previous.filter((name) => desired.includes(name));
+  const retainedAfter = desired.filter((name) => previous.includes(name));
+  // Changed ordering still needs the complete replacement to describe every effect.
+  if (retainedBefore.join(",") !== retainedAfter.join(",")) return undefined;
+  return [
+    ...added.map((name) => `${path}: add ${name} to --allow-env`),
+    ...removed.map((name) => `${path}: remove ${name} from --allow-env`),
+  ];
 }

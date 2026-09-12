@@ -196,3 +196,36 @@ test("workflow repair retains duplicate occurrences and reports reordered edited
   );
   assert(!anonymous.includes("preserved private command"));
 });
+test("workflow env-only repair names exact permission additions and removals once", () => {
+  const before =
+    "jobs:\n  prepare:\n    steps:\n      - run: deno run --allow-env=PATH,OLD --allow-run=git https://example.com/pinned.ts\n";
+  const after = before.replace("PATH,OLD", "PATH,GITHUB_REPOSITORY");
+  const details = describeFileRepair(
+    ".github/workflows/release.yaml",
+    before,
+    after,
+  ).join("\n");
+  assertStringIncludes(
+    details,
+    "jobs.prepare.steps[0].run: add GITHUB_REPOSITORY to --allow-env",
+  );
+  assertStringIncludes(
+    details,
+    "jobs.prepare.steps[0].run: remove OLD from --allow-env",
+  );
+  assert(!details.includes("https://example.com"));
+  assert(!details.includes("--allow-run"));
+  for (
+    const changed of [
+      after.replace("pinned.ts", "other.ts"),
+      before.replace("PATH,OLD", "OLD,PATH"),
+      before.replace("PATH,OLD", "PATH,PATH"),
+      before.replace("--allow-env=PATH,OLD", "--allow-env"),
+    ]
+  ) {
+    assertStringIncludes(
+      describeFileRepair("workflow.yaml", before, changed).join("\n"),
+      "run =",
+    );
+  }
+});

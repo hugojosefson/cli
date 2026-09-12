@@ -1,6 +1,7 @@
 /** @module Complete built-in feature and capability registry. */
 
 import type { FeatureRegistry } from "./feature-registry.ts";
+import { changelogFeature } from "./changelog-feature.ts";
 import { denoCliFeature } from "./deno-cli-feature.ts";
 import { denoFmtFeature } from "./deno-fmt-feature.ts";
 import { denoConfigVersionFeature } from "./deno-config-version-feature.ts";
@@ -40,6 +41,7 @@ import {
 /** Features available without repository-specific configuration. */
 export const builtInFeatureRegistry: FeatureRegistry = {
   features: [
+    changelogFeature,
     denoCliFeature,
     denoFmtFeature,
     denoConfigVersionFeature,

@@ -123,7 +123,7 @@ test("usual preparation creates and outputs a validated candidate bundle", async
           );
           assertStringIncludes(
             await readTextFile(new URL("CHANGELOG.md", root)),
-            "feat: initial release",
+            "### Features\n\n- initial release",
           );
         }
         return command === "deno" &&
@@ -145,7 +145,11 @@ test("usual preparation creates and outputs a validated candidate bundle", async
     };
     const result = await publishTagPrepare(
       root,
-      { get: (name) => values.get(name) },
+      {
+        get: (
+          name,
+        ) => (name === "GITHUB_REPOSITORY" ? "owner/repo" : values.get(name)),
+      },
       recordingProcess,
     );
     assertEquals(result.releaseNeeded, true);
@@ -164,7 +168,7 @@ test("usual preparation creates and outputs a validated candidate bundle", async
     assertEquals(bundle.previousVersion, "0.0.0");
     assertEquals(bundle.nextVersion, "0.1.0");
     assertEquals(bundle.releaseType, "minor");
-    assertStringIncludes(bundle.changelog.insertion, "feat: initial release");
+    assertStringIncludes(bundle.changelog.insertion, "initial release");
     assertStringIncludes(await readTextFile(summaryPath), "Release 0.1.0");
     const all = calls.flatMap((call, index) =>
       call === "deno task all" ? [index] : []
@@ -173,7 +177,7 @@ test("usual preparation creates and outputs a validated candidate bundle", async
       "deno publish --dry-run --allow-dirty --check=all",
     );
     assertEquals(all.length, 1);
-    assert(all[0] > calls.indexOf("deno fmt deno.json CHANGELOG.md"));
+    assert(all[0] > calls.indexOf("deno fmt deno.json"));
     assert(contribution > all[0]);
     assert(contribution < calls.indexOf("git diff --name-only -z"));
   } finally {
@@ -195,7 +199,9 @@ test("recovery rebuilds a first release with or without its lightweight tag", as
         ["GITHUB_OUTPUT", output],
       ]);
       const result = await publishTagPrepare(root, {
-        get: (name) => values.get(name),
+        get: (
+          name,
+        ) => (name === "GITHUB_REPOSITORY" ? "owner/repo" : values.get(name)),
       }, process);
       assertEquals(result.releaseNeeded, true);
       const entries = Object.fromEntries(
@@ -249,6 +255,8 @@ test("candidate validation failures and mutations cannot produce a release bundl
                 ? "usual"
                 : name === "GITHUB_OUTPUT"
                 ? output
+                : name === "GITHUB_REPOSITORY"
+                ? "owner/repo"
                 : undefined,
           }, guardedProcess),
         Error,
@@ -269,7 +277,11 @@ test("usual preparation directs an untagged correct release to tag recovery", as
     const values = new Map([["HJ_RELEASE_ROUTE", "usual"]]);
     await assertRejects(
       () =>
-        publishTagPrepare(root, { get: (name) => values.get(name) }, process),
+        publishTagPrepare(root, {
+          get: (
+            name,
+          ) => (name === "GITHUB_REPOSITORY" ? "owner/repo" : values.get(name)),
+        }, process),
       Error,
       "start the tag workflow with 0.1.0",
     );
@@ -324,13 +336,21 @@ test("usual history scan restores between tagged and untagged releases", async (
     await runOrThrow(process, "git", ["commit", "-m", "feat: next"]);
     await runOrThrow(process, "git", ["push", "origin", "HEAD:main"]);
     await publishTagPrepare(root, {
-      get: (name) => name === "HJ_RELEASE_ROUTE" ? "usual" : undefined,
+      get: (name) =>
+        name === "HJ_RELEASE_ROUTE"
+          ? "usual"
+          : name === "GITHUB_REPOSITORY"
+          ? "owner/repo"
+          : undefined,
     }, process);
     await runOrThrow(process, "git", ["add", "deno.json", "CHANGELOG.md"]);
     await runOrThrow(process, "git", ["commit", "-m", "chore(release): 0.2.0"]);
     await runOrThrow(process, "git", ["push", "origin", "HEAD:main"]);
     await assertRejects(
-      () => publishTagPrepare(root, { get: () => "usual" }, process),
+      () =>
+        publishTagPrepare(root, {
+          get: (name) => name === "GITHUB_REPOSITORY" ? "owner/repo" : "usual",
+        }, process),
       Error,
       "start the tag workflow with 0.2.0",
     );
@@ -349,6 +369,8 @@ async function recovery(
           ? "recovery"
           : name === "HJ_RELEASE_TAG"
           ? "0.1.0"
+          : name === "GITHUB_REPOSITORY"
+          ? "owner/repo"
           : undefined,
     },
     process,
@@ -361,11 +383,23 @@ async function withPreparedRelease(
     process: ReturnType<typeof localReleaseProcess>,
     parent: string,
   ) => Promise<void>,
+  legacy = false,
 ): Promise<void> {
   await withReleaseSource(async (root, process, parent) => {
     await publishTagPrepare(root, {
-      get: (name) => name === "HJ_RELEASE_ROUTE" ? "usual" : undefined,
+      get: (name) =>
+        name === "HJ_RELEASE_ROUTE"
+          ? "usual"
+          : name === "GITHUB_REPOSITORY"
+          ? "owner/repo"
+          : undefined,
     }, process);
+    if (legacy) {
+      await writeTextFile(
+        new URL("CHANGELOG.md", root),
+        "# Changelog\n\n## 0.1.0\n\n- feat: initial release\n",
+      );
+    }
     await runOrThrow(process, "git", ["add", "deno.json", "CHANGELOG.md"]);
     await runOrThrow(process, "git", ["commit", "-m", "chore(release): 0.1.0"]);
     await runOrThrow(process, "git", ["push", "origin", "HEAD:main"]);
@@ -439,3 +473,72 @@ async function withRepository(
     await remove(path, { recursive: true });
   }
 }
+
+test("recovery preserves exact legacy flat release trees", async () => {
+  await withPreparedRelease(async (root, process) => {
+    const before = await readTextFile(new URL("CHANGELOG.md", root));
+    await recovery(root, process);
+    assertEquals(await readTextFile(new URL("CHANGELOG.md", root)), before);
+  }, true);
+});
+
+test("preparation rejects missing or malformed GitHub repository before mutations", async () => {
+  await withRepository(async (root, process) => {
+    for (const repository of [undefined, "../repo", "owner/repo/more"]) {
+      await assertRejects(() =>
+        publishTagPrepare(root, {
+          get: (name) =>
+            name === "HJ_RELEASE_ROUTE"
+              ? "usual"
+              : name === "GITHUB_REPOSITORY"
+              ? repository
+              : undefined,
+        }, process)
+      );
+    }
+  });
+});
+
+test("usual preparation extends custom Markdown verbatim and recovers its exact tree", async () => {
+  await withPreparedRelease(async (root, process) => {
+    await runOrThrow(process, "git", ["tag", "0.1.0"]);
+    await runOrThrow(process, "git", ["push", "origin", "0.1.0"]);
+    const existing =
+      "# Project History\n\nPreserve   spacing and [custom](https://example.com).\n\n```md\n## example\n```\n\n## Earlier changes\n\n* A manual entry\n";
+    await writeTextFile(new URL("CHANGELOG.md", root), existing);
+    await runOrThrow(process, "git", ["add", "CHANGELOG.md"]);
+    await runOrThrow(process, "git", [
+      "commit",
+      "-m",
+      "feat: preserve old format",
+    ]);
+    await runOrThrow(process, "git", ["push", "origin", "HEAD:main"]);
+    const environment = {
+      get: (name: string) =>
+        name === "GITHUB_REPOSITORY"
+          ? "owner/repo"
+          : name === "HJ_RELEASE_ROUTE"
+          ? "usual"
+          : undefined,
+    };
+    await publishTagPrepare(root, environment, process);
+    const next = await readTextFile(new URL("CHANGELOG.md", root));
+    const begin = next.indexOf("## 0.2.0");
+    const end = next.indexOf("## Earlier changes");
+    assertEquals(next.slice(0, begin) + next.slice(end), existing);
+    await runOrThrow(process, "git", ["add", "deno.json", "CHANGELOG.md"]);
+    await runOrThrow(process, "git", ["commit", "-m", "chore(release): 0.2.0"]);
+    await runOrThrow(process, "git", ["push", "origin", "HEAD:main"]);
+    await publishTagPrepare(root, {
+      get: (name) =>
+        name === "GITHUB_REPOSITORY"
+          ? "owner/repo"
+          : name === "HJ_RELEASE_ROUTE"
+          ? "recovery"
+          : name === "HJ_RELEASE_TAG"
+          ? "0.2.0"
+          : undefined,
+    }, process);
+    assertEquals(await readTextFile(new URL("CHANGELOG.md", root)), next);
+  });
+});

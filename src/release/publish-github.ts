@@ -1,4 +1,5 @@
 /** Idempotent GitHub Release publication. */
+import { changelogHeadings } from "./changelog-markdown.ts";
 import type { ReleaseEnvironment } from "./release-environment.ts";
 import type { ReleaseProcess } from "./release-process.ts";
 import { processText } from "./release-process.ts";
@@ -61,19 +62,20 @@ export async function publishGithub(
 }
 
 export function changelogSection(text: string, version: string): string {
-  const escaped = version.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const matches = [...text.matchAll(
-    new RegExp(
-      `^## ${escaped}\\r?\\n[\\s\\S]*?(?=^## |(?![\\s\\S]))`,
-      "gm",
-    ),
-  )];
+  const headings = changelogHeadings(text).filter((heading) =>
+    heading.level === 2
+  );
+  const matches = headings.flatMap((heading, index) =>
+    heading.title === version
+      ? [{ start: heading.offset, end: headings[index + 1]?.offset }]
+      : []
+  );
   if (matches.length !== 1) {
     throw new TypeError(
       "Applicable changelog section is missing or ambiguous.",
     );
   }
-  return matches[0][0];
+  return text.slice(matches[0].start, matches[0].end);
 }
 export function githubReleaseApi(
   process: ReleaseProcess,
