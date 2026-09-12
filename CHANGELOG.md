@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.8.3
+
+- fix(cli): keep feature repair output concise
+
 ## 0.8.2
 
 - fix(release): skip duplicate CI for validated release commits
