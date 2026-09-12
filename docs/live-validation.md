@@ -432,3 +432,9 @@ Live publication remains unverified until npm authentication is configured.
 Issue #12 must remain open until that publication succeeds. See
 [npm publication](npm-publication.md) for the exact workflow and authentication
 contract.
+
+The
+[scratchpad fixture branch](https://github.com/hugojosefson/scratchpad/tree/test/npm-publisher)
+contains the build and workflow. GitHub must first load the workflow on the
+default branch before a manual workflow dispatch can run it. The fixture does
+not change the scratchpad default branch or publish a package.
