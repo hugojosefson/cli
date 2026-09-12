@@ -19,6 +19,15 @@ if (
     "Use --runtime node24|node26|bun, --reuse-deno, or --compare-only",
   );
 }
+async function deno(args: string[]) {
+  const code = await runDeno(args);
+  if (code) {
+    throw new Error(
+      `Test matrix command failed (${code}): deno ${args.join(" ")}`,
+    );
+  }
+}
+
 if (!compareOnly) {
   const tools = await prepareTestDirectory(root, "test-tools");
   for (const file of ["package.json", "package-lock.json"]) {
@@ -35,14 +44,6 @@ if (!compareOnly) {
   }).spawn().status;
   if (!installed.success) {
     throw new Error("Frozen test runtime installation failed");
-  }
-  async function deno(args: string[]) {
-    const code = await runDeno(args);
-    if (code) {
-      throw new Error(
-        `Test matrix command failed (${code}): deno ${args.join(" ")}`,
-      );
-    }
   }
   const runner = fileURLToPath(new URL("scripts/run-tests.ts", root));
   if (!selection && !Deno.args.includes("--reuse-deno")) {
