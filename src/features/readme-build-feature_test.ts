@@ -9,7 +9,56 @@ import { runFeatureOperation } from "../cli/run-features.ts";
 import { parseFeatures } from "../cli/parse-features.ts";
 import { builtInFeatureRegistry } from "../features/built-in-feature-registry.ts";
 import { LocalFileReader } from "../repository/local-file-reader.ts";
-import { denoTaskDefinitions, readmeTaskDefinition } from "./deno-tasks.ts";
+import {
+  denoTaskDefinitions,
+  isReadmeTask,
+  readmeTaskDefinition,
+} from "./deno-tasks.ts";
+import { hjPackageReference } from "./hj-package.ts";
+
+Deno.test("readme-build retains an exact older CLI pin across releases", async () => {
+  const oldTask = {
+    ...readmeTaskDefinition,
+    command: (readmeTaskDefinition.command as string).replace(
+      hjPackageReference,
+      "jsr:@hugojosefson/cli@0.1.0",
+    ),
+  };
+  assert(isReadmeTask(oldTask));
+  for (
+    const command of [
+      oldTask.command.replace("@0.1.0", "@^0.1.0"),
+      oldTask.command.replace("@0.1.0", "@latest"),
+      oldTask.command.replace("@hugojosefson/cli", "@other/cli"),
+      oldTask.command.replace("chmod 444", "chmod 644"),
+      `${oldTask.command} && echo changed`,
+    ]
+  ) assert(!isReadmeTask({ ...oldTask, command }));
+  assert(!isReadmeTask(undefined));
+  assert(!isReadmeTask("deno task readme"));
+  assert(!isReadmeTask({ command: 42 }));
+  assert(!isReadmeTask({ ...oldTask, description: "custom" }));
+
+  await withRepository(async (root) => {
+    await runCli(root, ["repo", "features", "--readme-build"]);
+    const config = JSON.parse(await read(root, "deno.jsonc"));
+    config.tasks.readme = oldTask;
+    await write(root, "deno.jsonc", JSON.stringify(config));
+    const status = (await runCli(root, ["repo", "features"])).output;
+    assertStringIncludes(status.replace(/ +/g, " "), "readme-build enabled");
+    const repeat = await runCli(root, ["repo", "features", "--readme-build"]);
+    assertStringIncludes(repeat.output, "No changes.");
+    assertEquals(
+      JSON.parse(await read(root, "deno.jsonc")).tasks.readme,
+      oldTask,
+    );
+    await runCli(root, ["repo", "features", "--no-readme-build", "--yes"]);
+    assertEquals(
+      JSON.parse(await read(root, "deno.jsonc")).tasks.readme,
+      undefined,
+    );
+  });
+});
 
 Deno.test("readme-build converts static content and reverses it", async () => {
   await withRepository(async (root) => {

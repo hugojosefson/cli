@@ -186,7 +186,7 @@ export async function planDisableReadmeBuild(
       kind: "remove-json",
       path: state.configPath,
       jsonPath: ["tasks", "readme"],
-      expected: readmeTaskDefinition,
+      expected: state.taskValue!,
     });
   }
   if (await context.files.exists(".hj/readme.json")) {
