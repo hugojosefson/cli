@@ -172,6 +172,7 @@ async function assemble(label) {
   await checked(tar, [
     "--sort=name",
     "--mtime=@0",
+    "--mode=u+rwX,go+rX,go-w",
     "--owner=0",
     "--group=0",
     "--numeric-owner",
