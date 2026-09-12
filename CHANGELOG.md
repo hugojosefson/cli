@@ -1,5 +1,27 @@
 # Changelog
 
+## 0.11.0
+
+- feat(runtime): resolve and cache external Deno for project tasks
+- fix(runtime): clean up closed input and preserve configured formatting
+- fix(runtime): preserve empty-input exits and narrow acquisition permissions
+- chore(github-release-publish-jsr): enable feature
+- chore(github-release-publish-tag): enable feature
+- fix(license): recognize equivalent copyright markers and line breaks
+- feat(package): build reproducible native npm archives
+- test(package): isolate native consumer home caches
+- fix(package): normalize archive permissions across build umasks
+- test(runtime): run shared node tests across supported runtimes
+- test(runtime): integrate shared tests for external Deno resolution
+- test(runtime): exercise lazy dependency imports on native hosts
+- test(runtime): integrate package tests and reject native skips
+- fix(release): refresh tag publisher for native workflows
+- fix(files): check current-user access instead of exact modes
+- docs: require pull requests and verified JSR releases
+- fix(files): keep metadata and operation guards permission-neutral
+- fix(files): preserve content-only workflow inspection
+- docs: record shared runtime matrix validation
+
 ## 0.10.0
 
 - fix(cli): show setup guidance when commands need it
