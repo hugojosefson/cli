@@ -147,6 +147,7 @@ and explains how to set it.
 
 | Feature               | Managed configuration                                                      | Requirement                                    |
 | --------------------- | -------------------------------------------------------------------------- | ---------------------------------------------- |
+| `git-ignore`          | Ignore editor swap files and configured generated directories.             | Independent of Git and Deno features.          |
 | `git`                 | Initialize Git and create the first commit.                                | Cannot be removed after commit history exists. |
 | `deno-fmt`            | Formatting tasks and minimal configuration; create `deno.jsonc` if needed. | None.                                          |
 | `deno-lint`           | A `lint` task that fixes locally and checks without fixes in CI.           | `deno-fmt`.                                    |
@@ -169,6 +170,18 @@ features can coexist. With no enabled features, `hj` creates nothing.
 Generated tests live under `test/`. When the CLI and server coexist, the server
 contributes a `serve` command to the CLI registry. Neither feature patches the
 other's custom source.
+
+`git-ignore` adds `.*.swp` to `.gitignore`. It adds `/coverage/` when a task
+collects coverage in `coverage`, and `/node_modules/` when configuration uses
+that directory. Deno `nodeModulesDir` values `true`, `auto`, and `manual` select
+the directory. A `package.json` also selects it, except with Deno `false` or
+`none`, or an explicit `installConfig.pnp: true` setting.
+
+The feature marks each owned entry with a comment. It preserves custom lines and
+removes only unchanged owned entries. Related feature changes recompute the
+conditional entries from the resulting configuration. You can select or remove
+`git-ignore` independently. It adds no blanket editor-directory or log
+exclusions.
 
 ## Package names in generated files
 

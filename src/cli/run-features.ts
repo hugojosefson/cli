@@ -5,6 +5,7 @@ import { formatTable } from "./format-table.ts";
 import type { ChangePlan, PlannedValidation } from "../api/change-plan.ts";
 import type { OperationContext } from "../api/repository-context.ts";
 import { builtInFeatureRegistry } from "../features/built-in-feature-registry.ts";
+import { reconcileGitIgnorePlans } from "../features/git-ignore-feature.ts";
 import { licenseCatalog } from "../features/license-catalog.ts";
 import type { FeatureRegistry } from "../features/feature-registry.ts";
 import { resolveFeatureChanges } from "../features/resolve-feature-changes.ts";
@@ -181,12 +182,17 @@ export async function runFeatureOperation(
           : {}),
       },
     };
-    const plans = await plansFor(
+    let plans = await plansFor(
       context,
       changes,
       registry,
       services.colors?.stderr,
     );
+    if (
+      registry.features.some((feature) => feature.metadata.id === "git-ignore")
+    ) {
+      plans = await reconcileGitIgnorePlans(context, plans);
+    }
     requireConfirmation(plans, args.confirmation);
     rejectUnsupportedValidations(plans);
     await Promise.all(
