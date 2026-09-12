@@ -88,6 +88,9 @@ export async function runFeatureOperation(
     new LocalGithubIdentityReader(root);
   const github = services.github ?? new LocalGithubClient(root);
   try {
+    // All feature operations inspect Git state before planning file commits.
+    // Report this prerequisite before starting optional GitHub reads.
+    await git.isRepository();
     const detections = await detect(root, files, git, github, registry);
     if (args.kind === "status") {
       return formatFeatureStatus(registry, detections, services.colors?.stdout);

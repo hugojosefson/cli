@@ -2,6 +2,32 @@ import { assert, assertEquals, assertRejects, assertThrows } from "@std/assert";
 import { LocalFileReader } from "./local-file-reader.ts";
 import { LocalGitReader } from "./local-git-reader.ts";
 
+Deno.test("repository commands explain missing Git before optional GitHub checks", async () => {
+  await withRepository(async (root) => {
+    const output = await new Deno.Command(Deno.execPath(), {
+      args: [
+        "run",
+        "--allow-all",
+        "--cached-only",
+        `--config=${new URL("../../deno.json", import.meta.url).pathname}`,
+        new URL("../cli/cli.ts", import.meta.url).pathname,
+        "repo",
+        "features",
+        "--deno-fmt",
+        "--yes",
+      ],
+      cwd: root,
+      env: { PATH: "" },
+    }).output();
+    assertEquals(output.success, false);
+    assertEquals(
+      new TextDecoder().decode(output.stderr).trim(),
+      "Git is required to inspect repositories. Install Git and retry.",
+    );
+    assertEquals(await new LocalFileReader(root).exists("deno.json"), false);
+  });
+});
+
 Deno.test("LocalFileReader reads regular files and observes exact artifact kinds", async () => {
   await withRepository(async (root) => {
     await Deno.writeTextFile(new URL("plain.txt", root), "hello\n");
