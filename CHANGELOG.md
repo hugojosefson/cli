@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.7.4
+
+- fix(github): detect repository features during GraphQL outages
+
 ## 0.7.3
 
 - docs: require repository feature detection and repair checks
