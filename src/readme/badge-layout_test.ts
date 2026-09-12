@@ -158,3 +158,23 @@ test("moving badges preserves deliberate blank lines in unrelated prose and code
   const source = `# Title\n\n${badge("custom")}\n\nIntro.\n\n${suffix}`;
   assertStringIncludes(layoutBadges(source), suffix);
 });
+
+test("README without an introduction never nests badges inside owned guide sections", async () => {
+  const section = {
+    id: "readme:requirements",
+    position: "section" as const,
+    content: "## Requirements\n\nRequires Deno.",
+  };
+  const before = await reconcileBlocks("# Project\n", [section]);
+  const desired = item("jsr-package");
+  const result = await reconcileBlocks(before, [desired], "jsr-package");
+  assert(result.indexOf("[![") < result.indexOf("## Requirements"));
+  assertEquals(
+    await unchangedBlocks(result),
+    new Set([section.id, desired.id]),
+  );
+  const inline = { ...section, content: "Introductory prose." };
+  const wrapped = await reconcileBlocks("# Project\n", [inline]);
+  const after = await reconcileBlocks(wrapped, [desired], "jsr-package");
+  assertEquals(await unchangedBlocks(after), new Set([inline.id, desired.id]));
+});
