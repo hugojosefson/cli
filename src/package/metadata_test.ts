@@ -50,6 +50,10 @@ test("package metadata reads JSONC and validates a single command override", asy
     await assertRejects(() => projectMetadata(root), Error, "Both deno.json");
     await remove(new URL("deno.json", root));
     await writeTextFile(path, '{"name":');
-    await assertRejects(() => projectMetadata(root), Error, "valid JSON");
+    await assertRejects(
+      () => projectMetadata(root),
+      Error,
+      "Found ValueExpected at line 1, offset 8",
+    );
   });
 });

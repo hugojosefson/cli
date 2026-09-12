@@ -1,6 +1,11 @@
 /** @module Built-in Deno CLI feature declaration and detection. */
 
 import {
+  fileDifference,
+  modulePathDifference,
+  valueDifference,
+} from "./detection-differences.ts";
+import {
   configuredDenoCli,
   localModulePath,
 } from "./configured-deno-export.ts";
@@ -27,7 +32,15 @@ async function detectDenoCli(context: DetectionContext) {
   if (!isObject(config.value.exports)) {
     return config.value.exports === undefined
       ? simple("disabled", "The managed ./cli export is absent.")
-      : issue("ambiguous", "The Deno exports entry is not an object.");
+      : issue(
+        "ambiguous",
+        valueDifference(
+          config.path,
+          "exports",
+          "an object",
+          config.value.exports,
+        ),
+      );
   }
   if (config.value.exports["./cli"] === undefined) {
     return simple("disabled", "The managed ./cli export is absent.");
@@ -40,12 +53,17 @@ async function detectDenoCli(context: DetectionContext) {
   }
   const path = localModulePath(config.value.exports["./cli"]);
   if (path === undefined) {
-    return issue("ambiguous", "The CLI export is not a local module path.");
+    return issue(
+      "ambiguous",
+      modulePathDifference(config.path, config.value.exports["./cli"]),
+    );
   }
   const file = await context.files.observe(path);
   return issue(
     file.kind === "file" || file.kind === "absent" ? "drifted" : "ambiguous",
-    `CLI entry point ${path} is missing, empty, or unreadable.`,
+    file.kind === "file"
+      ? `${path}: expected a nonempty CLI entry point. Found an empty file.`
+      : fileDifference(path, file),
   );
 }
 
@@ -69,7 +87,7 @@ function issue(state: "drifted" | "ambiguous", observation: string) {
     observation,
     resolution: state === "drifted"
       ? "Use --repair to restore exact contributed content and mode."
-      : "Resolve the conflicting path or configuration, then retry.",
+      : "Correct the named configuration entry or file type. Preserve custom source files.",
   };
   return {
     state,

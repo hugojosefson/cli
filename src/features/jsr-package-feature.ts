@@ -65,7 +65,7 @@ export const jsrPackageFeature: Feature = {
         observation: state.observation,
         resolution: state.state === "drifted"
           ? "Use --repair to restore owned values."
-          : "Resolve the conflicting configuration.",
+          : "Correct the named package configuration field. Preserve the intended package name and version.",
       }],
     };
   },

@@ -1,4 +1,6 @@
 /** @module Per-entry ownership and conditional generated-file exclusions. */
+
+import { fileDifference, valueType } from "./detection-differences.ts";
 import { applyEdits, modify, parse, type ParseError } from "jsonc-parser";
 import type { Precondition } from "../api/change-plan.ts";
 import type { PlannedChange } from "../api/planned-change.ts";
@@ -68,7 +70,7 @@ export async function gitIgnoreRequirements(
   for (const path of ["deno.json", "deno.jsonc", "package.json"]) {
     const observation = await context.files.observe(path);
     if (observation.kind !== "file" && observation.kind !== "absent") {
-      throw new Error(`Cannot inspect ${path}: expected a regular file.`);
+      throw new Error(fileDifference(path, observation));
     }
     preconditions.push({
       kind: "file-digest",
@@ -100,14 +102,18 @@ export async function gitIgnoreRequirements(
     }) as unknown;
     if (errors.length || !isObject(value)) {
       throw new Error(
-        `Cannot inspect ${path}: expected a configuration object.`,
+        `${path}: expected a configuration object. Found ${
+          errors.length
+            ? `a JSON syntax error at offset ${errors[0].offset}`
+            : valueType(value)
+        }.`,
       );
     }
     configs.set(path, value);
   }
   if (configs.has("deno.json") && configs.has("deno.jsonc")) {
     throw new Error(
-      "Both deno.json and deno.jsonc exist. Select one configuration.",
+      "Expected one Deno configuration. Found both deno.json and deno.jsonc. Select one configuration.",
     );
   }
   const deno = configs.get("deno.json") ?? configs.get("deno.jsonc");

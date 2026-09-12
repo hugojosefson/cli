@@ -1,5 +1,6 @@
 /** @module Generated README paths and read-only state inspection. */
 
+import { readmeBuildError } from "./readme-build-error.ts";
 import { fileAccess } from "../repository/file-access.ts";
 import { inspectLegacyReadme, legacyDefaultTask } from "./legacy-readme.ts";
 import type { ArtifactObservation } from "../api/artifact-inspection.ts";
@@ -55,17 +56,21 @@ export async function inspectReadmeBuild(context: DetectionContext) {
       ? "# {{package.name}}\n"
       : initialSource;
   const legacy = await inspectLegacyReadme(context, taskValue, source);
-  const output = legacy.kind === "recognized"
-    ? legacy.output
+  const generated = legacy.kind === "recognized"
+    ? { output: legacy.output }
     : await generatedOutput(context, source, initialSource);
+  const output = generated.output;
   return {
+    outputError: "error" in generated ? generated.error : undefined,
     root,
     source,
     legacy,
     directory,
+    config,
     configKind: config.kind,
     configPath: config.kind === "config" ? config.path : undefined,
     taskValue,
+    tasksValue: config.kind === "config" ? config.value.tasks : undefined,
     defaultValue,
     taskIds,
     taskPresent,
@@ -90,16 +95,16 @@ async function generatedOutput(
   context: DetectionContext,
   source: ArtifactObservation,
   initialSource: string,
-): Promise<string | undefined> {
+): Promise<{ output?: string; error?: string }> {
   if (source.kind === "absent") {
-    return initialSource;
+    return { output: initialSource };
   }
   if (source.kind !== "file") {
-    return undefined;
+    return {};
   }
   try {
-    return await buildReadme(context.repositoryRoot);
-  } catch {
-    return undefined;
+    return { output: await buildReadme(context.repositoryRoot) };
+  } catch (error) {
+    return { error: readmeBuildError(error, context.repositoryRoot) };
   }
 }

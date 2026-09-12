@@ -1,4 +1,9 @@
 /** @module A linked default project and a place for every repository issue. */
+
+import {
+  githubReadDifference,
+  githubReadResolution,
+} from "./github-read-difference.ts";
 import type { Feature } from "../api/feature.ts";
 import type { ChangePlan } from "../api/change-plan.ts";
 import type {
@@ -30,15 +35,25 @@ async function detect(context: DetectionContext) {
   if (!resource) {
     return state(
       "ambiguous",
-      "Cannot read GitHub projects.",
-      projectAccessResolution,
+      githubReadDifference(
+        context,
+        "GitHub default project",
+        "one open repository-named or linked project",
+      ),
+      githubReadResolution(context),
     );
   }
   const value = resource.definition;
   if (value.candidates as number > 1 || value.fieldConflict || value.closed) {
     return state(
       "ambiguous",
-      "The default project is ambiguous, closed, or has conflicting fields.",
+      Array.isArray(value.conflictDetails) && value.conflictDetails.length
+        ? value.conflictDetails.join("\n")
+        : `Expected one open default project with compatible fields. Found candidates=${
+          value.candidates ?? "unknown"
+        }, closed=${value.closed ?? "unknown"}, fieldConflict=${
+          value.fieldConflict ?? "unknown"
+        }.`,
       "Keep one open repository-named or linked project with single-select Status and Priority fields.",
     );
   }

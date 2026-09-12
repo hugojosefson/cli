@@ -1,5 +1,6 @@
 /** @module Inspection and detection for independent Deno tasks. */
 
+import { valueDifference } from "./detection-differences.ts";
 import { denoTestTasks, hasServer } from "./deno-test-tasks.ts";
 import { configuredDenoTask } from "./configured-deno-task.ts";
 import type { DetectionContext } from "../api/repository-context.ts";
@@ -39,14 +40,24 @@ export async function inspectDenoTask(
   if (!isObject(tasks)) {
     return {
       kind: "ambiguous" as const,
-      message: "The Deno tasks entry is not an object.",
+      message: valueDifference(
+        config.path,
+        "tasks",
+        "an object",
+        config.value.tasks,
+      ),
     };
   }
   const actual = tasks[leafTaskNames[id]];
   if (actual !== undefined && typeof actual !== "string" && !isObject(actual)) {
     return {
       kind: "ambiguous" as const,
-      message: `Deno task ${leafTaskNames[id]} is not an object.`,
+      message: valueDifference(
+        config.path,
+        `tasks.${leafTaskNames[id]}`,
+        "a command string or task object",
+        actual,
+      ),
     };
   }
   const exact = sameJson(actual, leafTaskDefinitions[id]);
@@ -108,7 +119,8 @@ export function taskDetection(
       kind: id,
       subject,
       observation,
-      resolution: "Resolve the conflict or use --repair.",
+      resolution:
+        "Correct the named Deno task entry. Preserve custom commands when changing its type.",
     }],
   };
 }

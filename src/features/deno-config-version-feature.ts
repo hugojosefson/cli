@@ -1,5 +1,6 @@
 /** @module Exact Deno-config SemVer version provider. */
 
+import { versionDifference } from "./detection-differences.ts";
 import type { Feature } from "../api/feature.ts";
 import type { OperationCheck } from "../api/feature-operation.ts";
 import { inspectDenoConfig } from "./deno-config.ts";
@@ -118,7 +119,7 @@ async function inspectVersion(
   ) {
     return {
       kind: "ambiguous",
-      observation: "Deno config version is not exact SemVer.",
+      observation: versionDifference(config.path, config.value.version),
     };
   }
   return { kind: "enabled", version: config.value.version };

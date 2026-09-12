@@ -1,4 +1,5 @@
 /** Optional changelog lifecycle that preserves existing release history. */
+import { fileDifference } from "./detection-differences.ts";
 import { parseSemver } from "../release/semver.ts";
 import {
   changelogHeadings,
@@ -33,7 +34,17 @@ async function inspect(context: DetectionContext) {
 
 async function detect(context: DetectionContext): Promise<FeatureDetection> {
   try {
-    const file = await inspect(context);
+    const file = await context.files.observe(path);
+    if (file.kind !== "file" && file.kind !== "absent") {
+      const issue = {
+        code: "changelog-unreadable",
+        kind: id,
+        subject,
+        observation: fileDifference(path, file),
+        resolution,
+      };
+      return { state: "ambiguous", evidence: [issue], issues: [issue] };
+    }
     let observation =
       "CHANGELOG.md is absent. Enable --changelog to create it with # Changelog.";
     if (file.kind === "file") {
@@ -78,7 +89,8 @@ async function detect(context: DetectionContext): Promise<FeatureDetection> {
       code: "changelog-unreadable",
       kind: id,
       subject,
-      observation: "CHANGELOG.md could not be read as a regular file.",
+      observation:
+        "CHANGELOG.md: expected a readable regular file. Found an unavailable filesystem response.",
       resolution,
     };
     return { state: "ambiguous", evidence: [issue], issues: [issue] };

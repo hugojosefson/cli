@@ -117,8 +117,8 @@ export async function inspectLegacyRelease(context: DetectionContext) {
       /^ *deno --allow-all npm:fork-version@([^ ]+) --inspect-version$/,
     )?.[1]
     : undefined;
-  const expected = legacyReleaseTasks(version ?? "");
-  const referenced = Object.entries(tasks).some(([name, value]) =>
+  const expected = legacyReleaseTasks(version ?? "<exact-version>");
+  const referencingTasks = Object.entries(tasks).filter(([name, value]) =>
     !(name in expected) &&
     Object.keys(expected).some((legacyName) =>
       typeof value === "string"
@@ -132,6 +132,7 @@ export async function inspectLegacyRelease(context: DetectionContext) {
               value.dependencies.includes(legacyName))
     )
   );
+  const referenced = referencingTasks.length > 0;
   const exact = !referenced && version && parseSemver(version) &&
     entries.length === Object.keys(expected).length &&
     entries.every(([name, value]) =>
@@ -145,5 +146,8 @@ export async function inspectLegacyRelease(context: DetectionContext) {
     workflow,
     config,
     entries,
+    expected,
+    referenced,
+    referencingTasks: referencingTasks.map(([name]) => name),
   };
 }

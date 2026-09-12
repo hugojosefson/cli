@@ -1,5 +1,6 @@
 /** @module Detection for Deno formatting configuration. */
 
+import { valueDifference } from "./detection-differences.ts";
 import type { DetectionIssue } from "../api/feature-detection.ts";
 import type { DetectionContext } from "../api/repository-context.ts";
 import {
@@ -24,15 +25,32 @@ export async function detectDenoFmt(context: DetectionContext) {
   if (state.config.kind === "ambiguous") {
     return ambiguous(state.config.observation);
   }
+  const config = state.config;
   const tasks = state.tasks!;
   if (tasks.kind === "missing-tasks") {
     return simple("disabled", "Deno tasks are absent.");
   }
   if (tasks.kind === "ambiguous-tasks") {
-    return ambiguous("The Deno tasks entry is not an object.");
+    return ambiguous(
+      valueDifference(
+        config.path,
+        "tasks",
+        "an object",
+        config.value.tasks,
+      ),
+    );
   }
   if (tasks.ambiguous.length > 0) {
-    return ambiguous(`Deno task ${tasks.ambiguous[0]} is not an object.`);
+    return ambiguous(
+      tasks.ambiguous.map((name) =>
+        valueDifference(
+          config.path,
+          `tasks.${name}`,
+          "a task object",
+          tasks.values[name],
+        )
+      ).join("\n"),
+    );
   }
   if (tasks.missing.length === denoTaskNames.length) {
     return simple("disabled", "Contributed Deno tasks are absent.");
@@ -69,7 +87,7 @@ function ambiguous(observation: string) {
     "ambiguous",
     "deno-fmt-ambiguous",
     observation,
-    "Resolve the Deno configuration conflict, then retry.",
+    "Correct the named Deno configuration entry. Preserve custom task commands.",
   );
 }
 

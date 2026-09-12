@@ -939,7 +939,8 @@ test("GitHub plan restrictions do not suggest that valid credentials are missing
   });
   assertEquals(await client.repository(), undefined);
   assertEquals(client.diagnostics, [
-    "GitHub rejected a feature because of the repository's plan or visibility. Use a public repository or a GitHub plan that supports this feature.",
+    "GitHub rejected the repository lookup (HTTP 403). The repository's plan or visibility does not support this resource. Use a public repository or a GitHub plan that supports this resource.",
+    "GitHub rejected the repository API request (HTTP 403). The repository's plan or visibility does not support this resource. Use a public repository or a GitHub plan that supports this resource.",
   ]);
 });
 

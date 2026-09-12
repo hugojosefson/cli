@@ -1,5 +1,5 @@
 /** @module Deno configuration selection without generated task dependencies. */
-import { parse, type ParseError } from "jsonc-parser";
+import { parse, type ParseError, printParseErrorCode } from "jsonc-parser";
 import type { JsonObject, JsonValue } from "../api/json.ts";
 import type { DetectionContext } from "../api/repository-context.ts";
 
@@ -32,7 +32,8 @@ export async function readDenoConfig(
   if (present.length > 1) {
     return {
       kind: "ambiguous",
-      observation: "Both deno.json and deno.jsonc exist.",
+      observation:
+        "Both deno.json and deno.jsonc exist. Expected one Deno configuration file. Found two.",
     };
   }
   const item = present[0];
@@ -40,7 +41,7 @@ export async function readDenoConfig(
     return {
       kind: "ambiguous",
       observation:
-        `${item.path} is a ${item.observation.kind}, not a regular file.`,
+        `${item.path}: expected a readable regular file. Found ${item.observation.kind}.`,
     };
   }
   const errors: ParseError[] = [];
@@ -54,7 +55,18 @@ export async function readDenoConfig(
   ) {
     return {
       kind: "ambiguous",
-      observation: `${item.path} is not a valid JSON or JSONC object.`,
+      observation: `${item.path}: expected a JSON or JSONC object. Found ${
+        errors.length
+          ? `${printParseErrorCode(errors[0].error)} at line ${
+            item.observation.content.slice(0, errors[0].offset).split("\n")
+              .length
+          }, offset ${errors[0].offset}`
+          : Array.isArray(value)
+          ? "an array"
+          : value === null
+          ? "null"
+          : typeof value
+      }.`,
     };
   }
   return {

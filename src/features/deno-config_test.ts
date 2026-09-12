@@ -36,7 +36,8 @@ test("plain config reading preserves JSONC bytes and rejects ambiguous or non-ob
     await writeFile(new URL("deno.json", root), "{}");
     assertEquals(await readDenoConfig({ files }), {
       kind: "ambiguous",
-      observation: "Both deno.json and deno.jsonc exist.",
+      observation:
+        "Both deno.json and deno.jsonc exist. Expected one Deno configuration file. Found two.",
     });
     await rm(new URL("deno.jsonc", root));
     await rm(new URL("deno.json", root));

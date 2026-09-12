@@ -1,4 +1,5 @@
 /** @module Independent, guarded management of generated-file Git exclusions. */
+import { fileDifference } from "./detection-differences.ts";
 import type { ChangePlan } from "../api/change-plan.ts";
 import type { FeatureDetection } from "../api/feature-detection.ts";
 import type {
@@ -22,7 +23,7 @@ const subject = { kind: "file", identifier: ".gitignore" };
 async function inspect(context: DetectionContext) {
   const observation = await context.files.observe(".gitignore");
   if (observation.kind !== "file" && observation.kind !== "absent") {
-    throw new Error(".gitignore must be a regular file.");
+    throw new Error(fileDifference(".gitignore", observation));
   }
   return {
     content: observation.kind === "file" ? observation.content : "",
@@ -45,7 +46,8 @@ function detection(
     evidence,
     issues: [{
       ...evidence[0]!,
-      resolution: "Review the configuration and enable or repair git-ignore.",
+      resolution:
+        "Correct the named file type or configuration entry. Preserve custom Git exclusions.",
     }],
   };
 }

@@ -136,6 +136,12 @@ preserves custom exclusions.
 | `ambiguous` | Data is custom, conflicting, unreadable, or unsupported. Automatic changes are blocked. |
 | `unknown`   | No detection result is available.                                                       |
 
+Ambiguous results name the expected configuration and the observed difference.
+Messages identify file types, JSON fields, workflow markers, and GitHub
+resources. An unavailable API response differs from a missing resource. The
+message includes the classified GitHub failure when the adapter supplies it.
+Inspection preserves custom files and settings.
+
 A disabled feature is not a failed check. This CLI repository intentionally
 omits server and library entry points and uses one license and one README
 provider. See the
@@ -470,6 +476,22 @@ license text is preserved. License terms must still match, and each attribution
 value must remain valid and on one line. A custom README license section can
 prevent adoption. Recognition is a file-management check, not a legal
 assessment.
+
+README providers own README permissions and generated output. License detection
+does not require specific README modes or current generated output. License
+content edits preserve existing README permissions.
+
+A README conflict does not change the detected `LICENSE` identity. Other license
+providers stay disabled. The selected provider names the editable README path,
+section lines, and required SPDX markup. Custom or duplicate license sections
+prevent automatic replacement. Template access errors have different messages
+from content differences.
+
+The `readme-build` feature requires Deno tasks. Inspection names missing Deno
+configuration, incorrect task types, and conflicting file types. If
+`package.json` has `scripts.readme`, the message identifies the custom builder
+and states that automatic migration is unavailable. Inspection does not start
+custom builders.
 
 | README transition                                   | Result                                                                                         |
 | --------------------------------------------------- | ---------------------------------------------------------------------------------------------- |

@@ -1,4 +1,5 @@
 /** @module Independently selectable, guarded EditorConfig defaults. */
+import { fileDifference } from "./detection-differences.ts";
 import type { ChangePlan } from "../api/change-plan.ts";
 import type { FeatureDetection } from "../api/feature-detection.ts";
 import type {
@@ -25,7 +26,7 @@ async function inspect(context: DetectionContext) {
     [editorconfigPath, editorconfigOwnershipPath].map(async (path) => {
       const file = await context.files.observe(path);
       if (file.kind !== "file" && file.kind !== "absent") {
-        throw new Error(`${path} must be a regular file.`);
+        throw new Error(fileDifference(path, file));
       }
       return {
         path,
@@ -53,7 +54,8 @@ function detection(
     evidence,
     issues: [{
       ...evidence[0]!,
-      resolution: "Review the file and enable or repair editorconfig.",
+      resolution:
+        "Correct the named file type or EditorConfig entry. Preserve custom settings.",
     }],
   };
 }

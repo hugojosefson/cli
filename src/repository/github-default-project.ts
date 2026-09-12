@@ -90,6 +90,47 @@ export class GithubDefaultProjectClient {
     } catch {
       statusConflict = true;
     }
+    const conflictDetails = [
+      ...(snapshot.projects.length > 1
+        ? [
+          `Expected one default project. Found ${snapshot.projects.length}: ${
+            snapshot.projects.map((item) => item.url).join(", ")
+          }.`,
+        ]
+        : []),
+      ...(project?.closed
+        ? [`${project.url}: expected an open project. Found closed=true.`]
+        : []),
+      ...["Status", "Priority"].flatMap((name) => {
+        const fields = snapshot.fields.filter((field) => field.name === name);
+        return fields.length > 1
+          ? [
+            `Project ${name}: expected one single-select field. Found ${fields.length} fields.`,
+          ]
+          : fields.length === 1 && !fields[0].options
+          ? [
+            `Project ${name}: expected a single-select field with options. Found a field without single-select options.`,
+          ]
+          : [];
+      }),
+      ...(statusConflict
+        ? [
+          `Project Status: expected unique Backlog and Todo options. Found Backlog=${
+            status?.options?.filter((item) => item.name === "Backlog").length ??
+              0
+          }, Todo=${
+            status?.options?.filter((item) => item.name === "Todo").length ?? 0
+          }.`,
+        ]
+        : []),
+      ...(boards.length > 1
+        ? [`Project Board: expected one view. Found ${boards.length} views.`]
+        : []),
+      ...boards.filter((view) => view.layout !== "BOARD_LAYOUT").map((view) =>
+        `Project Board view ${view.number}: expected layout=BOARD_LAYOUT. Found layout=${view.layout}.`
+      ),
+      ...(snapshot.area?.conflictDetails ?? []),
+    ];
     const definition = {
       candidates: snapshot.projects.length,
       projectId: project?.id ?? null,
@@ -142,7 +183,7 @@ export class GithubDefaultProjectClient {
     return {
       kind: defaultProjectResource,
       name: defaultProjectName,
-      definition: { ...definition, repairDetails },
+      definition: { ...definition, repairDetails, conflictDetails },
       stateDigest: await digestBytes(
         new TextEncoder().encode(JSON.stringify(snapshot)),
       ),

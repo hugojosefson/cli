@@ -1,5 +1,7 @@
 /** @module Safe, resumable lifecycle for layered GitHub tag rulesets. */
 
+import { tagRulesetIssues } from "./tag-ruleset-issues.ts";
+import type { DetectionIssue } from "../api/feature-detection.ts";
 import { canonical } from "../repository/canonical-ruleset.ts";
 import type { ChangePlan } from "../api/change-plan.ts";
 import type { Feature } from "../api/feature.ts";
@@ -34,6 +36,7 @@ import {
 
 type TagState = "absent" | "final" | "guard" | "release" | "invalid";
 type Snapshot = {
+  readonly issues?: readonly DetectionIssue[];
   readonly general: TagState;
   readonly release: TagState;
   readonly digests: readonly (string | undefined)[];
@@ -265,11 +268,17 @@ async function snapshot(context: DetectionContext): Promise<Snapshot> {
   if (!context.github || !await context.github.repository()) {
     const unavailable = await unavailableGithubRepository(context);
     const state = unavailable.state === "disabled" ? "absent" : "invalid";
-    return { general: state, release: state, digests: [undefined, undefined] };
+    return {
+      general: state,
+      release: state,
+      digests: [undefined, undefined],
+      issues: state === "invalid" ? tagRulesetIssues(context) : [],
+    };
   }
   const rulesets = await context.github.rulesets();
   if (!rulesets) {
     return {
+      issues: tagRulesetIssues(context),
       general: "invalid",
       release: "invalid",
       digests: [undefined, undefined],
@@ -306,7 +315,12 @@ async function snapshot(context: DetectionContext): Promise<Snapshot> {
     releaseTagsDefinition.name as string,
     [[releaseTagsDefinition, "release"]],
   );
-  return { general, release, digests: [generalDigest, releaseDigest] };
+  return {
+    general,
+    release,
+    digests: [generalDigest, releaseDigest],
+    issues: tagRulesetIssues(context, rulesets),
+  };
 }
 
 function safe(state: Snapshot, enable: boolean): boolean {
@@ -354,7 +368,7 @@ function detection(
   return {
     state: status,
     evidence,
-    issues: [{
+    issues: state.issues?.length ? state.issues : [{
       ...evidence[0],
       resolution: githubAccessResolution +
         " Inspect GitHub tag rulesets before changing protection.",
