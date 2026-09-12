@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.4.0
+
+- feat(package): resolve identity across generated content
+- feat(deno-test): report fresh coverage after every test run
+- feat: manage generated-file Git exclusions
+- test(features): validate combined Todo changes and record issue workflow
+
 ## 0.3.0
 
 - feat: add default GitHub projects
