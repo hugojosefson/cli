@@ -8,6 +8,8 @@ import {
   denoLibFeatureId,
   denoLibSubject,
   inspectDenoLibArtifacts,
+  isPreservedDenoLibTest,
+  needsDenoLibAssert,
 } from "./deno-lib-artifacts.ts";
 import { isObject } from "./deno-tasks.ts";
 
@@ -29,6 +31,19 @@ export async function checkEnableDenoLib(
       "The library export differs. Re-run with --repair to replace it.",
     );
   }
+  const needsAssert = await needsDenoLibAssert(context);
+  if (
+    needsAssert && config.kind === "config" &&
+    config.value.imports !== undefined &&
+    !isObject(config.value.imports)
+  ) return blocked("The Deno imports entry is not an object.");
+  if (
+    needsAssert && config.kind === "config" && isObject(config.value.imports) &&
+    config.value.imports["@std/assert"] !== undefined &&
+    typeof config.value.imports["@std/assert"] !== "string"
+  ) {
+    return blocked("The @std/assert import must be a string.");
+  }
   const artifacts = await inspectDenoLibArtifacts(context);
   for (const path of ["src", "src/lib", "test"]) {
     const entry = await context.files.observe(path);
@@ -45,14 +60,23 @@ export async function checkEnableDenoLib(
       `Starter path ${conflict.schema.path} is not a regular file.`,
     );
   }
-  if (artifacts.some((item) => item.result === "differs") && !repair(context)) {
+  if (
+    artifacts.some((item) =>
+      item.result === "differs" && !isPreservedDenoLibTest(item)
+    ) && !repair(context)
+  ) {
     return blocked(
       "Starter files differ. Re-run with --repair to replace them.",
     );
   }
   const adopted = config.kind === "config" && isObject(config.value.exports) &&
     config.value.exports["."] === denoLibExport &&
-    artifacts.every((item) => item.result === "matches");
+    artifacts.every((item) =>
+      item.result === "matches" || isPreservedDenoLibTest(item)
+    ) &&
+    (!needsAssert ||
+      isObject(config.value.imports) &&
+        typeof config.value.imports["@std/assert"] === "string");
   return adopted
     ? {
       result: "no-op",

@@ -135,10 +135,11 @@ The command changes only selected features and their required dependencies. It
 stores no installation reason and has no automatic dependency removal. Disable
 dependent features explicitly before removing their dependency.
 
-Repair can restore starter code and tests. It does not adopt ambiguous files.
-When Git is enabled, `hj` records one commit for each changed feature after the
-final project task and validation succeed. Subjects identify the feature, such
-as `chore(deno-test): enable feature` or `chore(readme-build): disable feature`.
+Repair can restore starter code and CLI or server tests. Existing library tests
+stay unchanged. Repair does not adopt ambiguous files. When Git is enabled, `hj`
+records one commit for each changed feature after the final project task and
+validation succeed. Subjects identify the feature, such as
+`chore(deno-test): enable feature` or `chore(readme-build): disable feature`.
 Repairs use the enable subject. Changes to shared files remain separated in
 history. Unchanged features do not create commits.
 
@@ -209,9 +210,16 @@ features can coexist. With no enabled features, `hj` creates nothing.
 | `deno-cli`    | `src/cli/cli.ts`       | `./cli`    |
 | `deno-server` | `src/server/server.ts` | `./server` |
 
-Generated tests live under `test/`. When the CLI and server coexist, the server
-contributes a `serve` command to the CLI registry. Neither feature patches the
-other's custom source.
+Generated tests live under `test/`. The library starter imports `assertEquals`
+from `@std/assert`. Its named steps show how to call the placeholder and assert
+that its result is `undefined`. Creating this test adds an `@std/assert` import
+mapping to the Deno configuration. Existing mappings stay unchanged. Later
+operations preserve existing library tests and their file modes, including
+`--repair` and disable. Disabling the library keeps the assertion dependency
+because the tests remain.
+
+When the CLI and server coexist, the server contributes a `serve` command to the
+CLI registry. Neither feature patches the other's custom source.
 
 `git-ignore` adds `.*.swp` to `.gitignore`. It adds `/coverage/` when a task
 collects coverage in `coverage`, and `/node_modules/` when configuration uses

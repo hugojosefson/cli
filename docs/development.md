@@ -240,6 +240,14 @@ features. The existing lockfile stays outside automatic replacement. README
 migration does not apply because this checkout has no legacy generator or README
 source file.
 
+The repository already uses `@std/assert` and named test steps. For example,
+`src/features/deno-task-features_real_test.ts` groups task-conflict cases with
+`await t.step(...)` and asserts each result. Run that example with
+`deno task test src/features/deno-task-features_real_test.ts --filter "classifies task conflicts"`.
+This self-check passed with one test and four named steps. The starter test
+checks also run the generated library test and verify its two named steps. This
+CLI keeps its existing tests and public exports.
+
 ## First public release
 
 The first public release is `0.2.0`. The [release record](first-release.md)

@@ -11,9 +11,12 @@ import {
 } from "./deno-initial-config.ts";
 import {
   denoLibArtifacts,
+  denoLibAssertImport,
   denoLibExport,
   denoLibFeatureId,
   inspectDenoLibArtifacts,
+  isPreservedDenoLibTest,
+  needsDenoLibAssert,
 } from "./deno-lib-artifacts.ts";
 import { isObject } from "./deno-tasks.ts";
 
@@ -56,13 +59,26 @@ export async function planEnableDenoLib(
         : undefined,
     });
   }
+  if (
+    config.kind === "config" && await needsDenoLibAssert(context) &&
+    (!isObject(config.value.imports) ||
+      config.value.imports["@std/assert"] === undefined)
+  ) {
+    changes.push({
+      kind: "set-json",
+      path: config.path,
+      jsonPath: ["imports", "@std/assert"],
+      value: denoLibAssertImport,
+      expected: undefined,
+    });
+  }
   for (const path of ["src", "src/lib", "test"]) {
     if ((await context.files.observe(path)).kind === "absent") {
       changes.push({ kind: "create-directory", path });
     }
   }
   for (const [index, item] of artifacts.entries()) {
-    if (item.result === "matches") continue;
+    if (item.result === "matches" || isPreservedDenoLibTest(item)) continue;
     const needsWrite = item.result === "absent" ||
       item.result === "differs" && item.observation.kind === "file" &&
         item.differences.some((difference) => difference.kind === "content");

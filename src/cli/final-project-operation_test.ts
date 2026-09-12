@@ -69,12 +69,57 @@ Deno.test("initial library checks pass before separate configuration contributio
       JSON.parse(await git(root, "show", `${lib}:deno.jsonc`)).exports["."],
       "./src/lib/mod.ts",
     );
+    assertEquals(
+      JSON.parse(await git(root, "show", `${fmt}:deno.jsonc`)).imports,
+      undefined,
+    );
+    assertEquals(
+      JSON.parse(await git(root, "show", `${lib}:deno.jsonc`))
+        .imports["@std/assert"],
+      "jsr:@std/assert@^1.0.19",
+    );
+    assertEquals(
+      JSON.parse(await Deno.readTextFile(new URL("deno.jsonc", root))).lock,
+      false,
+    );
     assertEquals(await git(root, "diff", "HEAD", "--"), "");
     assert(
       !(await git(root, "ls-tree", "-r", "--name-only", "HEAD")).includes(
         "coverage/",
       ),
     );
+  });
+});
+
+Deno.test("library assertion imports enter an application lock before frozen checks", async () => {
+  await fixture(async (root) => {
+    const result = await runFeatureOperation(
+      root,
+      parseFeatures([
+        "repo",
+        "features",
+        "--deno-lib",
+        "--deno-server",
+        "--deno-typecheck",
+        "--deno-test",
+      ], builtInFeatureRegistry),
+      builtInFeatureRegistry,
+    );
+    assertStringIncludes(result, "deno task default passed.");
+    const config = JSON.parse(
+      await Deno.readTextFile(new URL("deno.jsonc", root)),
+    );
+    assertEquals(config.lock, true);
+    const lock = JSON.parse(
+      await Deno.readTextFile(new URL("deno.lock", root)),
+    );
+    assert(lock.specifiers["jsr:@std/assert@^1.0.19"]);
+    assertEquals(await git(root, "diff", "HEAD", "--"), "");
+    const check = await new Deno.Command("deno", {
+      args: ["test", "--frozen", "test/lib_test.ts"],
+      cwd: root,
+    }).output();
+    assert(check.success, new TextDecoder().decode(check.stderr));
   });
 });
 

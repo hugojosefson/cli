@@ -10,7 +10,10 @@ import {
   leafTaskNames,
   taskFeatureIds,
 } from "./deno-tasks.ts";
-import { denoLibInitialConfigContribution } from "./deno-lib-artifacts.ts";
+import {
+  denoLibInitialConfigContribution,
+  needsDenoLibAssert,
+} from "./deno-lib-artifacts.ts";
 import { denoServerInitialConfigContribution } from "./deno-server-artifacts.ts";
 import { denoTestTasks, hasServer } from "./deno-test-tasks.ts";
 import { jsrPackageIdentity } from "./jsr-package-identity.ts";
@@ -31,7 +34,15 @@ export async function initialDenoConfig(
   base: JsonObject,
   fallbackFeatureId?: string,
 ): Promise<JsonObject> {
-  const result = contributions.reduce(
+  const includeLibAssert = await needsDenoLibAssert(context);
+  const result = contributions.map((contribution) =>
+    contribution.featureId === "deno-lib" && !includeLibAssert
+      ? {
+        ...contribution,
+        value: { exports: denoLibInitialConfigContribution.value.exports },
+      }
+      : contribution
+  ).reduce(
     (value, contribution) =>
       context.resolvedChanges.some((change) =>
           change.featureId === contribution.featureId && change.enabled
