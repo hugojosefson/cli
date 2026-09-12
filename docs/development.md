@@ -90,14 +90,16 @@ requests. That task runs `ci`, including coverage limits. A separate job checks
 release commits. The workflow has read-only repository access and does not
 publish anything. Actions use exact commit references.
 
-The same toolchain file supplies Deno versions for newly generated CI and
-release workflows. Generated workflows and README build tasks use the exact `hj`
-package reference from `name` and `version` in `deno.json`, so a version change
-also updates new workflow output. The legacy release template stays unchanged
-because migration recognizes its exact bytes. To update Deno, edit the toolchain
-file, install that version, and run `deno task ci`. A toolchain change can make
-an existing generated workflow drifted. Repair remains an explicit feature
-operation.
+The same toolchain file supplies the fallback Deno version for newly generated
+CI and release workflows. [Global configuration](configuration.md) and
+`--deno-version` can select another version. Generated workflows and README
+build tasks use the exact `hj` package reference from `name` and `version` in
+`deno.json`, so a version change also updates new workflow output. The legacy
+release template stays unchanged because migration recognizes its exact bytes.
+To update Deno, edit the toolchain file, install that version, and run
+`deno task ci`. Existing exact workflows keep their recorded Deno version. To
+change that version, select the workflow feature with `--deno-version` and
+`--repair`.
 
 To run this repository's workflow locally with Docker and `act`, use:
 

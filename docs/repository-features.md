@@ -2,8 +2,9 @@
 
 A feature is one part of repository configuration. Use the
 [installed CLI](../README.md#install) in the directory you want to manage. A
-preset selects a group of features with one flag. Use `--defaults` for Git and
-README:
+preset selects a group of features with one flag. Use `--defaults` for your
+[configured selections](configuration.md), or Git and README when none are
+saved:
 
 ```bash
 hj repo features --defaults
@@ -118,7 +119,7 @@ removal. For this repository's results, read the
 | `--<feature>`           | Enable one feature and its required dependencies.           |
 | `--no-<feature>`        | Disable one feature, if no enabled feature depends on it.   |
 | `--interactive` or `-i` | Select actions in a terminal checklist.                     |
-| `--defaults`            | Select Git and the README capability.                       |
+| `--defaults`            | Select configured features, or Git and README.              |
 | `--github`              | Apply common GitHub settings, including private visibility. |
 | `--github-protection`   | Select default-branch protection and protected tags.        |
 | `--github-public`       | Select public visibility; overrides `--github` visibility.  |

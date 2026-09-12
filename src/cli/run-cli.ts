@@ -11,7 +11,10 @@ import {
 export async function runCli(
   root: URL,
   args: readonly string[],
-  services: ReleaseServices & { readonly colors?: OutputColors } = {},
+  services: ReleaseServices & {
+    readonly colors?: OutputColors;
+    readonly globalConfigFile?: URL;
+  } = {},
 ): Promise<CliResult> {
   if (!args.length || (args.length === 1 && isHelp(args[0]))) {
     return {
@@ -34,16 +37,44 @@ export async function runCli(
       terminalNewline: true,
     };
   }
+  if (
+    command === "config get" || command === "config set" ||
+    command === "config list" || command === "config unset"
+  ) {
+    const { globalConfigFile, runConfig } = await import("./global-config.ts");
+    const { builtInFeatureRegistry } = await import(
+      "../features/built-in-feature-registry.ts"
+    );
+    return {
+      output: await runConfig(
+        args.slice(1),
+        services.globalConfigFile ?? globalConfigFile(),
+        builtInFeatureRegistry,
+      ),
+      terminalNewline: true,
+    };
+  }
   if (command === "repo features") {
     const { builtInFeatureRegistry } = await import(
       "../features/built-in-feature-registry.ts"
     );
     const { parseFeatures } = await import("./parse-features.ts");
     const { runFeatures } = await import("./run-features.ts");
+    let parsed = parseFeatures(args, builtInFeatureRegistry);
+    if (parsed.kind !== "status") {
+      const { globalConfigFile, readGlobalConfig } = await import(
+        "./global-config.ts"
+      );
+      const defaults = await readGlobalConfig(
+        services.globalConfigFile ?? globalConfigFile(),
+        builtInFeatureRegistry,
+      );
+      parsed = parseFeatures(args, builtInFeatureRegistry, defaults);
+    }
     return {
       output: await runFeatures(
         root,
-        parseFeatures(args, builtInFeatureRegistry),
+        parsed,
         undefined,
         services.colors,
       ),
