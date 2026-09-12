@@ -1,4 +1,7 @@
 /** @module File snapshots for attributing feature changes without staging user files. */
+import { runCommand } from "../runtime/command.ts";
+import { isNotFound } from "../runtime/errors.ts";
+import * as fs from "node:fs/promises";
 import {
   repositoryRoot,
   repositoryUrl,
@@ -21,10 +24,10 @@ export async function snapshotFiles(
   root: URL,
   retainedPaths: Iterable<string> = [],
 ): Promise<FileSnapshot> {
-  const result = await new Deno.Command("git", {
+  const result = await runCommand("git", {
     args: ["ls-files", "--cached", "--others", "--exclude-standard", "-z"],
     cwd: root,
-  }).output();
+  });
   const paths = result.success
     ? [
       ...new Set(
@@ -36,20 +39,20 @@ export async function snapshotFiles(
   for (const path of new Set([...paths, ...retainedPaths])) {
     const url = repositoryUrl(repositoryRoot(root), path);
     try {
-      const stat = await Deno.lstat(url);
-      if (stat.isSymlink) {
+      const stat = await fs.lstat(url);
+      if (stat.isSymbolicLink()) {
         files.set(path, {
-          bytes: new TextEncoder().encode(await Deno.readLink(url)),
+          bytes: new TextEncoder().encode(await fs.readlink(url)),
           mode: "120000",
         });
-      } else if (stat.isFile) {
+      } else if (stat.isFile()) {
         files.set(path, {
-          bytes: await Deno.readFile(url),
+          bytes: await fs.readFile(url),
           mode: stat.mode !== null && (stat.mode & 0o111) ? "100755" : "100644",
         });
       }
     } catch (error) {
-      if (!(error instanceof Deno.errors.NotFound)) throw error;
+      if (!(isNotFound(error))) throw error;
     }
   }
   return files;
@@ -57,10 +60,10 @@ export async function snapshotFiles(
 
 async function walk(root: URL, prefix = ""): Promise<string[]> {
   const paths: string[] = [];
-  for await (const entry of Deno.readDir(root)) {
+  for await (const entry of await fs.readdir(root, { withFileTypes: true })) {
     if (entry.name === ".git") continue;
     const path = prefix + entry.name;
-    if (entry.isDirectory) {
+    if (entry.isDirectory()) {
       paths.push(
         ...await walk(
           new URL(`${encodeURIComponent(entry.name)}/`, root),

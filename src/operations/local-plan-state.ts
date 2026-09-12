@@ -1,4 +1,6 @@
 /** @module Contained local state checks used by the plan applicator. */
+import { isNotFound } from "../runtime/errors.ts";
+import * as fs from "node:fs/promises";
 
 import type { JsonValue, RepositoryPath } from "../api/json.ts";
 import {
@@ -16,11 +18,11 @@ export async function containedUrl(
   for (const part of parts.slice(0, -1)) {
     parent = new URL(`${encodeURIComponent(part)}/`, parent);
     try {
-      if ((await Deno.lstat(parent)).isSymlink) {
+      if ((await fs.lstat(parent)).isSymbolicLink()) {
         throw new TypeError("Repository path traverses a symlink.");
       }
     } catch (error) {
-      if (error instanceof Deno.errors.NotFound) {
+      if (isNotFound(error)) {
         return url;
       }
       throw error;
@@ -31,10 +33,10 @@ export async function containedUrl(
 
 export async function linkTarget(url: URL): Promise<string | undefined> {
   try {
-    const info = await Deno.lstat(url);
-    return info.isSymlink ? await Deno.readLink(url) : undefined;
+    const info = await fs.lstat(url);
+    return info.isSymbolicLink() ? await fs.readlink(url) : undefined;
   } catch (error) {
-    if (error instanceof Deno.errors.NotFound) return undefined;
+    if (isNotFound(error)) return undefined;
     throw error;
   }
 }

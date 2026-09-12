@@ -1,11 +1,12 @@
 /** Environment reads injected into release commands. */
+import process from "node:process";
 
 export type ReleaseEnvironment = {
   get(name: string): string | undefined;
 };
 
 export const denoReleaseEnvironment: ReleaseEnvironment = {
-  get: (name) => Deno.env.get(name),
+  get: (name) => process.env[name],
 };
 
 export function requiredEnvironment(

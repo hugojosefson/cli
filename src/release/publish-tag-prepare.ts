@@ -1,4 +1,5 @@
 /** @module Read-only-token preparation routes for tag publication. */
+import * as fs from "node:fs/promises";
 
 import { requiredEnvironment } from "./release-environment.ts";
 import { digestBytes } from "../repository/digest-bytes.ts";
@@ -139,15 +140,19 @@ async function prepareUsual(
     changelog?.content ?? "",
     releaseSection,
   );
-  await Deno.writeTextFile(new URL(config.path, root), versionText);
-  await Deno.writeTextFile(
+  await fs.writeFile(new URL(config.path, root), versionText);
+  await fs.writeFile(
     new URL(changelogPath, root),
     applyChangelogInsertion(changelog?.content ?? "", insertion),
   );
   await runOrThrow(process, "deno", ["fmt", config.path, changelogPath]);
-  const formattedVersion = await Deno.readTextFile(new URL(config.path, root));
-  const formattedChangelog = await Deno.readTextFile(
+  const formattedVersion = await fs.readFile(
+    new URL(config.path, root),
+    "utf8",
+  );
+  const formattedChangelog = await fs.readFile(
     new URL(changelogPath, root),
+    "utf8",
   );
   const formattedInsertion = retainedInsertion(
     changelog?.content ?? "",
@@ -156,8 +161,10 @@ async function prepareUsual(
   );
   await runOrThrow(process, "deno", ["task", "all"]);
   if (
-    await Deno.readTextFile(new URL(config.path, root)) !== formattedVersion ||
-    await Deno.readTextFile(new URL(changelogPath, root)) !== formattedChangelog
+    await fs.readFile(new URL(config.path, root), "utf8") !==
+      formattedVersion ||
+    await fs.readFile(new URL(changelogPath, root), "utf8") !==
+      formattedChangelog
   ) throw new Error("Candidate validation changed release data.");
   await runReleaseContributions(root, files, process);
   const changedPaths = await worktreeChangedPaths(process);
@@ -425,15 +432,19 @@ async function rebuildRelease(
     oldChangelog?.content ?? "",
     createReleaseSection(version, conventional.map((item) => item.subject)),
   );
-  await Deno.writeTextFile(new URL(config.path, root), versionText);
-  await Deno.writeTextFile(
+  await fs.writeFile(new URL(config.path, root), versionText);
+  await fs.writeFile(
     new URL(changelogPath, root),
     applyChangelogInsertion(oldChangelog?.content ?? "", insertion),
   );
   await runOrThrow(process, "deno", ["fmt", config.path, changelogPath]);
-  const formattedVersion = await Deno.readTextFile(new URL(config.path, root));
-  const formattedChangelog = await Deno.readTextFile(
+  const formattedVersion = await fs.readFile(
+    new URL(config.path, root),
+    "utf8",
+  );
+  const formattedChangelog = await fs.readFile(
     new URL(changelogPath, root),
+    "utf8",
   );
   const formattedInsertion = retainedInsertion(
     oldChangelog?.content ?? "",
@@ -602,7 +613,7 @@ async function candidateTreeDigest(
     }
     return await digestBytes(result.stdout);
   } finally {
-    await Deno.remove(directory, { recursive: true });
+    await fs.rm(directory, { recursive: true });
   }
 }
 
@@ -644,7 +655,7 @@ async function writeOutputs(
     `${name}=${value}\n`
   )
     .join("");
-  await Deno.writeTextFile(path, text, { append: true });
+  await fs.writeFile(path, text, { flag: "a" });
 }
 
 async function writeSummary(
@@ -652,7 +663,7 @@ async function writeSummary(
   text: string,
 ): Promise<void> {
   const path = environment.get("GITHUB_STEP_SUMMARY");
-  if (path) await Deno.writeTextFile(path, text, { append: true });
+  if (path) await fs.writeFile(path, text, { flag: "a" });
 }
 
 function singleLine(value: string): string {

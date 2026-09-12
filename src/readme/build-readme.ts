@@ -1,4 +1,5 @@
 /** @module Builds README Markdown from local source files. */
+import { isNotFound } from "../runtime/errors.ts";
 
 import {
   type PackageMetadata,
@@ -108,7 +109,7 @@ async function buildFile(
             };
           }
         } catch (error) {
-          if (!(error instanceof Deno.errors.NotFound)) throw error;
+          if (!(isNotFound(error))) throw error;
         }
       }
       if (file.text === undefined) {

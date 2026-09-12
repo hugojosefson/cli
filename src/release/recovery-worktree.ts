@@ -1,4 +1,5 @@
 /** @module Isolated temporary-index and restoration operations for recovery. */
+import * as fs from "node:fs/promises";
 
 import { digestBytes } from "../repository/digest-bytes.ts";
 import type { ReleaseProcess } from "./release-process.ts";
@@ -23,7 +24,7 @@ export async function releaseTreeIndexDigest(
     }
     return await digestBytes(staged.stdout);
   } finally {
-    await Deno.remove(directory, { recursive: true });
+    await fs.rm(directory, { recursive: true });
   }
 }
 

@@ -1,4 +1,5 @@
 /** @module Guarded local Git changes executed with fixed argument arrays. */
+import { type CommandResult, runCommand } from "../runtime/command.ts";
 
 import type { PlannedChange } from "../api/planned-change.ts";
 import { LocalGitReader } from "../repository/local-git-reader.ts";
@@ -98,6 +99,6 @@ async function git(
 function result(
   root: RepositoryRoot,
   args: readonly string[],
-): Promise<Deno.CommandOutput> {
-  return new Deno.Command("git", { args: [...args], cwd: root.path }).output();
+): Promise<CommandResult> {
+  return runCommand("git", { args: [...args], cwd: root.path });
 }

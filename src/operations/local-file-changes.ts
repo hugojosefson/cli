@@ -1,4 +1,5 @@
 /** @module Guarded filesystem changes beneath a repository root. */
+import * as fs from "node:fs/promises";
 
 import type { PlannedChange } from "../api/planned-change.ts";
 import { LocalFileReader } from "../repository/local-file-reader.ts";
@@ -91,7 +92,7 @@ async function writeFile(
     ? observed.kind === "absent"
     : observed.kind === "file" && observed.digest === expected;
   if (!matches) throw new ChangePlanError("expected-state", path);
-  await Deno.writeTextFile(
+  await fs.writeFile(
     url,
     content,
     mode === undefined || observed.kind === "file" ? undefined : { mode },
@@ -104,7 +105,7 @@ async function createLink(
   path: string,
 ): Promise<void> {
   if (await pathExists(url)) throw new ChangePlanError("expected-state", path);
-  await Deno.symlink(target, url);
+  await fs.symlink(target, url);
 }
 
 async function removeLink(
@@ -115,7 +116,7 @@ async function removeLink(
   if (await linkTarget(url) !== expected) {
     throw new ChangePlanError("expected-state", path);
   }
-  await Deno.remove(url);
+  await fs.rm(url);
 }
 
 async function removeFile(
@@ -127,7 +128,7 @@ async function removeFile(
   if (await new LocalFileReader(root.url).digest(path) !== expected) {
     throw new ChangePlanError("expected-state", path);
   }
-  await Deno.remove(url);
+  await fs.rm(url);
 }
 
 async function removeDirectory(
@@ -139,7 +140,7 @@ async function removeDirectory(
   if (
     await new LocalFileReader(root.url).directoryStateDigest(path) !== expected
   ) throw new ChangePlanError("expected-state", path);
-  await Deno.remove(url, { recursive: true });
+  await fs.rm(url, { recursive: true });
 }
 
 async function setMode(
@@ -154,5 +155,5 @@ async function setMode(
     ? observed.kind === "absent"
     : observed.kind === "file" && observed.mode === expected;
   if (!matches) throw new ChangePlanError("expected-state", path);
-  await Deno.chmod(url, mode);
+  await fs.chmod(url, mode);
 }

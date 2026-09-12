@@ -1,4 +1,5 @@
 /** @module Run the resulting project's default task before feature commits. */
+import { runCommand } from "../runtime/command.ts";
 
 import type { ChangePlan } from "../api/change-plan.ts";
 import { inspectDenoConfig } from "../features/deno-config.ts";
@@ -28,14 +29,14 @@ export async function runFinalProjectTask(
   ) {
     return "No final default task remains.";
   }
-  const child = new Deno.Command("deno", {
+  const result = await runCommand("deno", {
     args: ["task", "--config", config.path, "default"],
     cwd: repositoryRoot(root).path,
     stdin: "inherit",
     stdout: "inherit",
     stderr: "inherit",
-  }).spawn();
-  const status = await child.status;
+  });
+  const status = result;
   if (!status.success) {
     throw new CommandFailure(
       `deno task default failed (exit ${status.code}).\n` +

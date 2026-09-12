@@ -1,4 +1,5 @@
 /** @module Deterministic complete directory-state digests. */
+import * as fs from "node:fs/promises";
 
 import type { DirectoryStateDigest, FileMode } from "../api/json.ts";
 import { digestBytes } from "./digest-bytes.ts";
@@ -33,7 +34,7 @@ async function collectDirectory(
     directory.href.endsWith("/") ? directory.href : `${directory.href}/`,
   );
   const children: { name: string; url: URL }[] = [];
-  for await (const entry of Deno.readDir(base)) {
+  for await (const entry of await fs.readdir(base, { withFileTypes: true })) {
     children.push({
       name: entry.name,
       url: new URL(encodeURIComponent(entry.name), base),
@@ -42,26 +43,26 @@ async function collectDirectory(
   children.sort((left, right) => compareText(left.name, right.name));
   for (const child of children) {
     const path = relative ? `${relative}/${child.name}` : child.name;
-    const info = await Deno.lstat(child.url);
-    if (info.isDirectory) {
+    const info = await fs.lstat(child.url);
+    if (info.isDirectory()) {
       entries.push({ path, kind: "directory" });
       await collectDirectory(
         new URL(`${encodeURIComponent(child.name)}/`, base),
         path,
         entries,
       );
-    } else if (info.isSymlink) {
+    } else if (info.isSymbolicLink()) {
       entries.push({
         path,
         kind: "symlink",
-        target: await Deno.readLink(child.url),
+        target: await fs.readlink(child.url),
       });
-    } else if (info.isFile) {
+    } else if (info.isFile()) {
       entries.push({
         path,
         kind: "file",
         mode: fileMode(info),
-        content: await digestBytes(await Deno.readFile(child.url)),
+        content: await digestBytes(await fs.readFile(child.url)),
       });
     } else {
       entries.push({ path, kind: "other" });

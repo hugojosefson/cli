@@ -1,4 +1,7 @@
 /** @module Automatic Git commit planning for local feature operations. */
+import { runCommand } from "../runtime/command.ts";
+import { makeTempDirectory } from "../runtime/temp.ts";
+import * as fs from "node:fs/promises";
 
 import type { ChangePlan } from "../api/change-plan.ts";
 import { repositoryRoot } from "../repository/repository-path.ts";
@@ -24,10 +27,10 @@ export function plannedCommitPaths(
 /** Git can resolve both commit identities before a repository exists. */
 export async function requireGitIdentity(root: URL): Promise<void> {
   for (const role of ["AUTHOR", "COMMITTER"] as const) {
-    const result = await new Deno.Command("git", {
+    const result = await runCommand("git", {
       args: ["var", `GIT_${role}_IDENT`],
       cwd: repositoryRoot(root).path,
-    }).output();
+    });
     if (!result.success) {
       throw new Error(
         `Git ${role.toLowerCase()} identity is required.\n` +
@@ -187,7 +190,7 @@ export class FeatureCommitSession {
         );
       }
     }
-    const directory = await Deno.makeTempDir({
+    const directory = await makeTempDirectory({
       dir: await this.#git(["rev-parse", "--absolute-git-dir"]),
       prefix: "hj-feature-index-",
     });
@@ -232,7 +235,7 @@ export class FeatureCommitSession {
       }
       return true;
     } finally {
-      await Deno.remove(directory, { recursive: true });
+      await fs.rm(directory, { recursive: true });
     }
   }
 
@@ -294,15 +297,14 @@ export class FeatureCommitSession {
     for (const owner of owners) {
       const file = owner.files.get(path);
       if (!file || file.mode === "120000") return false;
-      const child = new Deno.Command("deno", {
+      const result = await runCommand("deno", {
         args: ["fmt", "--quiet", `--ext=${extension}`, "-"],
         cwd: this.root,
-        stdin: "piped",
+        input: file.bytes,
         stdout: "piped",
         stderr: "piped",
-      }).spawn();
-      await new Response(new Uint8Array(file.bytes)).body!.pipeTo(child.stdin);
-      const result = await child.output();
+      });
+
       if (!result.success) return false;
       formatted.push({ ...file, bytes: result.stdout });
     }
@@ -339,16 +341,15 @@ export class FeatureCommitSession {
     input?: Uint8Array,
     env?: Record<string, string>,
   ): Promise<string> {
-    const child = new Deno.Command("git", {
+    const result = await runCommand("git", {
       args,
       cwd: this.root,
       env,
-      stdin: "piped",
+      input: input ?? new Uint8Array(),
       stdout: "piped",
       stderr: "piped",
-    }).spawn();
-    await new Response(new Uint8Array(input ?? [])).body!.pipeTo(child.stdin);
-    const result = await child.output();
+    });
+
     if (!result.success) {
       throw new Error(
         `Git ${args[0]} failed while preparing feature commits: ${
