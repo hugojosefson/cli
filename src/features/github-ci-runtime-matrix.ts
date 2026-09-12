@@ -16,6 +16,7 @@ export function githubCiRuntimeMatrix(content: string): string {
           include-hidden-files: true
           if-no-files-found: error
           retention-days: 1
+          overwrite: true
 `;
   const jobs = `  deno:
     runs-on: ubuntu-latest
