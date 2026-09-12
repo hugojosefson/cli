@@ -116,13 +116,19 @@ function paragraphEnd(text: string): number {
       continue;
     }
     const body = block.trim();
+    // A section body is not the README introduction. With no introduction,
+    // place badges after the title instead of nesting them inside an owned guide.
+    if (/^#{2,6}\s/.test(body)) break;
     if (
       !body ||
       /^(?:#{1,6}\s|[>|]|[-*+]\s|\d+[.)]\s|@@include\(|<|\[[^\]]+\]:)/.test(
         body,
       ) || /\n[=-]+\s*$/.test(body)
     ) continue;
-    return offset;
+    const containing = [...text.matchAll(contributionPattern)].find((match) =>
+      match.index! < offset && offset < match.index! + match[0].length
+    );
+    return containing ? containing.index! + containing[0].length : offset;
   }
   const title = /^# .*(?:\n|$)/m.exec(visible);
   return title ? title.index! + title[0].trimEnd().length : 0;

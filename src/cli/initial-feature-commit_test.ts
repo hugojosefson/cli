@@ -135,7 +135,7 @@ test("package README sections belong to the CLI, library, and JSR commits", asyn
       const before = (await git(root, "ls-tree", `${commit}^`, "README.md"))
         ? await git(root, "show", `${commit}^:README.md`)
         : "";
-      assertEquals(before.includes(marker), false);
+      assertEquals(before.includes(marker), false, `${owner}: ${before}`);
       assertStringIncludes(
         await git(root, "show", `${commit}:README.md`),
         marker,
