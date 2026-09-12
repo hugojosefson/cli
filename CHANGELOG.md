@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.0
+
+- feat: add default GitHub projects
+
 ## 0.2.4
 
 - chore: update dependencies
