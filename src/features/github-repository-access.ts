@@ -1,4 +1,8 @@
 /** Distinguish an unlinked repository from a failed GitHub read. */
+import {
+  githubReadDifference,
+  githubReadResolution,
+} from "./github-read-difference.ts";
 import type { DetectionContext } from "../api/repository-context.ts";
 
 export const githubAccessResolution =
@@ -14,14 +18,18 @@ export async function unavailableGithubRepository(
     kind: "github-repository",
     subject: { kind: "repository", identifier: context.repositoryRoot.href },
     observation: linked
-      ? "A Git remote is configured, but authenticated GitHub repository access could not be confirmed."
+      ? githubReadDifference(
+        context,
+        "GitHub repository",
+        "repository metadata for the configured Git remote",
+      )
       : "No Git remote links this repository to GitHub.",
   };
   return linked
     ? {
       state: "ambiguous" as const,
       evidence: [evidence],
-      issues: [{ ...evidence, resolution: githubAccessResolution }],
+      issues: [{ ...evidence, resolution: githubReadResolution(context) }],
     }
     : { state: "disabled" as const, evidence: [evidence] };
 }

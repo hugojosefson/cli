@@ -1,5 +1,7 @@
 /** @module Recognition and previews for the git-hj-init README migration. */
 
+import { fileDifference } from "./detection-differences.ts";
+import { readmeBuildError } from "./readme-build-error.ts";
 import type { ArtifactObservation } from "../api/artifact-inspection.ts";
 import type { DetectionContext } from "../api/repository-context.ts";
 import { buildReadmeText } from "../readme/build-readme.ts";
@@ -33,16 +35,28 @@ export async function inspectLegacyReadme(
 ): Promise<LegacyReadme> {
   if (!isLegacyReadmeTask(task)) return { kind: "absent" };
   if (source.kind !== "file") {
-    return conflict("Legacy README source must be a regular file.");
+    return conflict(fileDifference("readme/README.md", source));
   }
   const generator = await context.files.observe("readme/generate-readme.ts");
-  if (generator.kind !== "file" || !await knownGenerator(generator.content)) {
-    return conflict("The legacy README generator is custom or unavailable.");
+  if (generator.kind !== "file") {
+    return conflict(fileDifference("readme/generate-readme.ts", generator));
+  }
+  if (!await knownGenerator(generator.content)) {
+    return conflict(
+      "readme/generate-readme.ts: expected the unmodified git-hj-init generator template. Found a different source digest.",
+    );
   }
   const converted = convertLegacyIncludes(source.content);
   if (converted === undefined) {
     return conflict(
-      "The legacy README contains an unsupported quoted include.",
+      `readme/README.md: expected quoted includes for ./install.sh or ./example-usage.ts. Found an unsupported quoted include at line ${
+        source.content.split("\n").findIndex((line) =>
+          /^\s*["']@@include\(/.test(line) &&
+          !/^\s*"@@include\(\.\/(install\.sh|example-usage\.ts)\)";\s*$/.test(
+            line,
+          )
+        ) + 1
+      }.`,
     );
   }
   try {
@@ -51,10 +65,8 @@ export async function inspectLegacyReadme(
       source: converted,
       output: await buildReadmeText(context.repositoryRoot, converted),
     };
-  } catch {
-    return conflict(
-      "The legacy README includes a missing or unsafe source file.",
-    );
+  } catch (error) {
+    return conflict(readmeBuildError(error, context.repositoryRoot));
   }
 }
 

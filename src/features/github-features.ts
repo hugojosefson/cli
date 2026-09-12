@@ -1,5 +1,9 @@
 /** @module GitHub repository access and independently managed boolean settings. */
 
+import {
+  githubReadDifference,
+  githubReadResolution,
+} from "./github-read-difference.ts";
 import type { ChangePlan } from "../api/change-plan.ts";
 import type { Feature } from "../api/feature.ts";
 import type {
@@ -11,10 +15,7 @@ import type {
   OperationContext,
 } from "../api/repository-context.ts";
 
-import {
-  githubAccessResolution,
-  unavailableGithubRepository,
-} from "./github-repository-access.ts";
+import { unavailableGithubRepository } from "./github-repository-access.ts";
 
 const repositorySubject = (context: DetectionContext) => ({
   kind: "repository",
@@ -150,8 +151,13 @@ export function githubSettingFeature(setting: GithubSetting): Feature {
           code: "github-setting-unavailable",
           kind: "github-repository-setting",
           subject: repositorySubject(context),
-          observation: `Cannot read ${setting.field}.`,
-          resolution: githubAccessResolution,
+          observation: githubReadDifference(
+            context,
+            setting.field,
+            "a boolean repository setting",
+            value,
+          ),
+          resolution: githubReadResolution(context),
         }],
       };
   };

@@ -1,5 +1,7 @@
 /** @module Lifecycle declarations for generated release publication workflows. */
 
+import { workflowDetectionIssue } from "./workflow-detection-issue.ts";
+import { legacyReleaseDifferences } from "./legacy-release-differences.ts";
 import { withNpmReadmeBadge } from "./npm-readme-badge.ts";
 import { inspectLegacyRelease } from "./github-release-legacy.ts";
 import {
@@ -182,6 +184,13 @@ async function detect(
   const current = await inspectReleaseArtifact(context, artifact);
   if (!legacy) return artifactDetection(current, artifact.path);
   const bundle = await inspectLegacyRelease(context);
+  if (bundle.kind === "custom") {
+    return {
+      state: "ambiguous" as const,
+      evidence: [],
+      issues: legacyReleaseDifferences(bundle),
+    };
+  }
   if (bundle.kind !== "absent") {
     return issue(
       bundle.kind === "exact" ? "drifted" : "ambiguous",
@@ -196,7 +205,18 @@ async function detect(
     isUnknown(current, releaseWorkflowMarker) ||
     isUnknown(old, jsrReleaseMarker)
   ) {
-    return issue("ambiguous", artifact.path, "A release workflow is custom.");
+    return {
+      state: "ambiguous" as const,
+      evidence: [],
+      issues: [
+        ...(isUnknown(current, releaseWorkflowMarker)
+          ? [workflowDetectionIssue(current, releaseWorkflowMarker)]
+          : []),
+        ...(isUnknown(old, jsrReleaseMarker)
+          ? [workflowDetectionIssue(old, jsrReleaseMarker)]
+          : []),
+      ],
+    };
   }
   if (current.result === "absent" && old.result === "absent") {
     return state("disabled", artifact.path);
@@ -218,7 +238,11 @@ function artifactDetection(
   if (inspection.result === "absent") return state("disabled", path);
   if (inspection.result === "matches") return state("enabled", path);
   return isUnknown(inspection)
-    ? issue("ambiguous", path, "The release workflow is custom.")
+    ? {
+      state: "ambiguous" as const,
+      evidence: [],
+      issues: [workflowDetectionIssue(inspection, releaseWorkflowMarker)],
+    }
     : issue("drifted", path, "The generated release workflow differs.");
 }
 function state(state: "enabled" | "disabled", path: string) {

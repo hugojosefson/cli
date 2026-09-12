@@ -7,6 +7,7 @@ type Pages = (
   read: (cursor: string | null) => Promise<unknown>,
 ) => Promise<unknown[]>;
 export interface ProjectAreaSnapshot {
+  readonly conflictDetails?: readonly string[];
   readonly fieldId?: string;
   readonly conflict: boolean;
   readonly items: readonly {
@@ -77,7 +78,19 @@ export class GithubProjectArea {
     const areas = fields.map(object).filter((field) => field?.name === "Area");
     if (
       areas.length > 1 || areas.length === 1 && areas[0]?.dataType !== "TEXT"
-    ) return { conflict: true, items: [] };
+    ) {
+      return {
+        conflict: true,
+        items: [],
+        conflictDetails: [
+          areas.length > 1
+            ? `Project Area: expected one text field. Found ${areas.length} fields.`
+            : `Project Area: expected dataType=TEXT. Found dataType=${
+              areas[0]?.dataType ?? "missing"
+            }.`,
+        ],
+      };
+    }
     const fieldId = areas.length ? string(areas[0]?.id) : undefined;
     const nodes = await this.pages(async (cursor) => {
       const data = await this.query(

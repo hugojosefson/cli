@@ -1,5 +1,6 @@
 /** @module Exact starter README declaration and inspection. */
 
+import { artifactDifference } from "./detection-differences.ts";
 import { readPackageMetadata } from "../package/metadata.ts";
 import { basename } from "@std/path";
 import type {
@@ -53,7 +54,7 @@ export function readmeStaticIssue(
       code: "readme-static-unreadable",
       kind: "readme-static",
       subject: readmeStaticSubject(),
-      observation: inspection.observation,
+      observation: artifactDifference(inspection),
       resolution: ambiguousResolution(),
     };
   }
@@ -64,8 +65,7 @@ export function readmeStaticIssue(
       code: "readme-static-ambiguous-kind",
       kind: "readme-static",
       subject: readmeStaticSubject(),
-      observation:
-        `README.md is a ${inspection.observation.kind}, not a regular file.`,
+      observation: artifactDifference(inspection),
       resolution: ambiguousResolution(),
     };
   }
@@ -100,5 +100,5 @@ function directoryName(repositoryUrl: URL): string {
 }
 
 function ambiguousResolution(): string {
-  return "Replace the ambiguous README.md entry with the exact regular starter README file, then retry.";
+  return "Make README.md a readable regular file. Preserve its custom content.";
 }

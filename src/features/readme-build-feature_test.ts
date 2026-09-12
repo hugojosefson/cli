@@ -450,3 +450,54 @@ test("readme-build reports badge drift and repairs source and generated output",
     assertStringIncludes(repeat.output, "No changes.");
   });
 });
+
+test("custom package README builds report the missing Deno configuration without writes", async () => {
+  await withRepository(async (root) => {
+    await mkdir(new URL("readme", root));
+    const source = "# Project\n\n## License\n\nMIT\n";
+    await write(root, "readme/README.md", source);
+    await write(root, "README.md", source);
+    await chmod(new URL("README.md", root), 0o444);
+    const config = JSON.stringify({
+      scripts: { readme: "bun readme/custom.ts" },
+    });
+    await write(root, "package.json", config);
+    const status = (await runCli(root, ["repo", "features"])).output.replace(
+      /\s+/g,
+      " ",
+    );
+    assertStringIncludes(status, "deno.json and deno.jsonc are missing");
+    assertStringIncludes(status, "package.json defines scripts.readme");
+    assertStringIncludes(
+      status,
+      "Automatic migration from package.json scripts.readme is unavailable",
+    );
+    assertStringIncludes(status, "Keep the custom builder");
+    assertEquals(status.includes("tasks are ambiguous"), false);
+    assertEquals(await read(root, "package.json"), config);
+    assertEquals(await read(root, "readme/README.md"), source);
+    assertEquals(await new LocalFileReader(root).exists("deno.json"), false);
+    await assertReadOnly(root);
+  });
+});
+
+test("README task conflicts name each configuration key and the required type", async () => {
+  await withRepository(async (root) => {
+    await runCli(root, ["repo", "features", "--readme-build"]);
+    const config = JSON.parse(await read(root, "deno.jsonc"));
+    config.tasks.readme = "private-command";
+    config.tasks.default = 42;
+    const content = JSON.stringify(config);
+    await write(root, "deno.jsonc", content);
+    const status = (await runCli(root, ["repo", "features"])).output.replace(
+      /\s+/g,
+      " ",
+    );
+    assertStringIncludes(status, "tasks.readme has type string");
+    assertStringIncludes(status, "tasks.default has type number");
+    assertStringIncludes(status, "deno.jsonc: Manually change tasks.readme");
+    assertStringIncludes(status, "deno.jsonc: Manually change tasks.default");
+    assertEquals(status.includes("private-command"), false);
+    assertEquals(await read(root, "deno.jsonc"), content);
+  });
+});

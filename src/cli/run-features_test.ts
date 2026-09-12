@@ -452,7 +452,7 @@ test("replaces an injected MIT license in a generated README without partial cha
     );
     assertEquals(
       (await fixtureStat(new URL("readme/README.md", root))).mode! & 0o777,
-      0o644,
+      0o444,
     );
 
     await remove(new URL("README.md", root));

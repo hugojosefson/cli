@@ -1,5 +1,9 @@
 /** @module Built-in Deno library feature declaration and detection. */
 
+import {
+  artifactDifference,
+  valueDifference,
+} from "./detection-differences.ts";
 import { denoCliExport } from "./deno-cli-artifacts.ts";
 import type { DetectionIssue } from "../api/feature-detection.ts";
 import type { DetectionContext } from "../api/repository-context.ts";
@@ -35,7 +39,15 @@ async function detectDenoLib(context: DetectionContext) {
     return simple("disabled", "The library export is absent.");
   }
   if (!isObject(exports)) {
-    return issue("ambiguous", "The Deno exports entry is not an object.");
+    return issue(
+      "ambiguous",
+      valueDifference(
+        config.path,
+        "exports",
+        "an object",
+        config.value.exports,
+      ),
+    );
   }
   if (
     exports["."] === denoCliExport ||
@@ -73,7 +85,7 @@ async function detectDenoLib(context: DetectionContext) {
     (invalid.result === "differs" && invalid.observation.kind !== "file");
   return issue(
     ambiguous ? "ambiguous" : "drifted",
-    `Starter file ${invalid.schema.path} does not exactly match.`,
+    artifactDifference(invalid),
   );
 }
 
@@ -97,7 +109,7 @@ function issue(state: "drifted" | "ambiguous", observation: string) {
     observation,
     resolution: state === "drifted"
       ? "Use --repair to restore exact contributed content."
-      : "Resolve the conflicting path or configuration, then retry.",
+      : "Correct the named configuration entry or file type. Preserve custom source files.",
   };
   return {
     state,

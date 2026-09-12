@@ -1,9 +1,9 @@
 /** @module Generated README feature detection. */
 
+import { readmeBuildIssues } from "./readme-build-issues.ts";
 import { badgeLayoutDetection } from "./readme-badge-layout.ts";
 import { fileAccess } from "../repository/file-access.ts";
 import type {
-  DetectionEvidence,
   DetectionIssue,
   FeatureDetection,
 } from "../api/feature-detection.ts";
@@ -36,17 +36,9 @@ export async function detectReadmeBuild(
       }],
     };
   }
-  if (state.legacy.kind === "conflict") {
-    return ambiguous(evidence, state.legacy.reason);
-  }
-  if (state.source.kind !== "file" || state.output === undefined) {
-    return ambiguous(evidence, "The generated README source is unsafe.");
-  }
-  if (state.root.kind !== "file" && state.root.kind !== "absent") {
-    return ambiguous(evidence, "The generated README output path is unsafe.");
-  }
-  if (!state.taskUsable || !state.defaultUsable) {
-    return ambiguous(evidence, "The generated README tasks are ambiguous.");
+  const issues = await readmeBuildIssues(state, context);
+  if (issues.length) {
+    return { state: "ambiguous", evidence, issues };
   }
   if (
     state.exactTask && state.exactDefault && state.rootMatches &&
@@ -70,17 +62,6 @@ export async function detectReadmeBuild(
     state: "drifted" as const,
     evidence,
     issues: [issue("Generated README task, content, or mode differs.")],
-  };
-}
-
-function ambiguous(
-  evidence: readonly DetectionEvidence[],
-  observation: string,
-): FeatureDetection {
-  return {
-    state: "ambiguous" as const,
-    evidence,
-    issues: [issue(observation)],
   };
 }
 

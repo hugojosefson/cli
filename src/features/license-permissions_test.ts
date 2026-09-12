@@ -74,22 +74,17 @@ test("license and generated README accept access-equivalent modes and preserve t
       assertEquals(await files.mode("readme/README.md"), sourceMode);
       assertEquals(await files.mode("README.md"), rootMode);
     }
-    // Repairing only the source's access must not normalize LICENSE or the output.
     await fs.chmod(new URL("readme/README.md", root), 0o440);
-    assertEquals((await feature.detect(context)).state, "drifted");
-    const allowed = await feature.checkEnable(context);
-    assert(allowed.result === "allowed");
-    const repair = await feature.planEnable(context, allowed);
-    assertEquals(repair.changes, [{
-      kind: "set-file-mode",
-      path: "readme/README.md",
-      mode: 0o640,
-      expectedMode: 0o440,
-    }]);
-    await applyLocalChangePlan(root, repair);
     assertEquals((await feature.detect(context)).state, "enabled");
+    assertEquals((await feature.checkEnable(context)).result, "no-op");
+    assertEquals((await readmeBuildFeature.detect(context)).state, "drifted");
     assertEquals(await files.mode("LICENSE"), 0o660);
     assertEquals(await files.mode("README.md"), 0o464);
+    await fs.chmod(new URL("README.md", root), 0o664);
+    await fs.writeFile(new URL("README.md", root), "# Custom output\n");
+    assertEquals((await feature.detect(context)).state, "enabled");
+    assertEquals((await feature.checkEnable(context)).result, "no-op");
+    await fs.chmod(new URL("README.md", root), 0o464);
     // Removal must use the observed 0464 mode in its stale-state guard.
     const remove = await feature.checkDisable(context);
     assert(remove.result === "allowed");
@@ -99,7 +94,7 @@ test("license and generated README accept access-equivalent modes and preserve t
     );
     assertEquals((await feature.detect(context)).state, "disabled");
     assertEquals(await files.mode("README.md"), 0o464);
-    assertEquals(await files.mode("readme/README.md"), 0o640);
+    assertEquals(await files.mode("readme/README.md"), 0o440);
   } finally {
     await fs.rm(root, { recursive: true });
   }

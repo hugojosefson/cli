@@ -1,5 +1,10 @@
 /** @module GitHub pull-request CI and dependency-update workflow feature. */
 
+import { workflowDetectionIssue } from "./workflow-detection-issue.ts";
+import {
+  githubReadDifference,
+  githubReadResolution,
+} from "./github-read-difference.ts";
 import { inspectLegacyReleaseWorkflow } from "./github-release-legacy.ts";
 import { legacyCiCheckCompatibility } from "./github-ci-legacy.ts";
 import { inspectLegacyGithubCi } from "./github-ci-legacy.ts";
@@ -26,11 +31,14 @@ async function detectGithubCi(context: DetectionContext) {
   if (
     legacy.some((item) => item.result !== "absent" && item.result !== "matches")
   ) {
-    return issue(
-      "ambiguous",
-      "A legacy CI workflow is custom or unavailable.",
-      "Review deno.yaml and bump-deps.yaml manually before enabling GitHub CI.",
-    );
+    return {
+      state: "ambiguous" as const,
+      evidence: [],
+      issues: legacy.filter((item) =>
+        item.result !== "absent" && item.result !== "matches"
+      )
+        .map((item) => workflowDetectionIssue(item)),
+    };
   }
   if (legacy.some((item) => item.result === "matches")) {
     return issue(
@@ -48,7 +56,13 @@ async function detectGithubCi(context: DetectionContext) {
       (item.observation.kind !== "file" ||
         !item.observation.content.startsWith(githubCiMarker))
   );
-  if (custom) return issue("ambiguous", "A GitHub workflow is custom.");
+  if (custom) {
+    return {
+      state: "ambiguous" as const,
+      evidence: [],
+      issues: [workflowDetectionIssue(custom, githubCiMarker)],
+    };
+  }
   if (!artifacts.every((item) => item.result === "matches")) {
     return issue(
       "drifted",
@@ -76,8 +90,14 @@ async function detectGithubCi(context: DetectionContext) {
     permission === false ? "drifted" : "ambiguous",
     permission === false
       ? "GitHub Actions cannot create and approve pull requests."
-      : "Cannot read whether GitHub Actions can create and approve pull requests.",
-    actionsPermissionResolution,
+      : githubReadDifference(
+        context,
+        "Actions can-approve-pull-request-reviews",
+        "a boolean workflow permission",
+      ),
+    permission === false
+      ? actionsPermissionResolution
+      : githubReadResolution(context),
   );
 }
 

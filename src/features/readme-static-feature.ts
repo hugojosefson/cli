@@ -59,7 +59,8 @@ async function detectReadmeStatic(context: DetectionContext) {
         code: "readme-static-not-writable",
         kind: "readme-static",
         subject: readmeStaticSubject(),
-        observation: "README.md is not writable.",
+        observation:
+          "README.md is read-only. readme-static requires write access.",
       }],
     };
   }

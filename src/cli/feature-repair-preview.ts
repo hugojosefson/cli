@@ -24,11 +24,11 @@ export function repairStateDescription(
         ),
       ),
     ];
-    return "Repair is blocked until the ambiguous state is resolved manually. " +
-      (resolutions.join(" ") ||
-        "Inspect the reported artifacts and resolve their conflicting state.");
+    return resolutions.join("\n") || undefined;
   }
-  return "Repair could not be determined. Rerun feature inspection and resolve the reported artifacts.";
+  return detection
+    ? undefined
+    : "Expected a feature detection result. Found no result.";
 }
 
 /** Calls only reader/check/planner contracts: no prompts, preflight or application. */

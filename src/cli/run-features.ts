@@ -145,11 +145,18 @@ export async function runFeatureOperation(
           },
         }, registry),
       );
-      return github instanceof LocalGithubClient && github.diagnostics.length &&
+      const diagnostics = github instanceof LocalGithubClient
+        ? github.diagnostics.filter((message) =>
+          !formatFeatureStatus(registry, results).replace(/\s+/g, " ").includes(
+            message.replace(/\s+/g, " "),
+          )
+        )
+        : [];
+      return diagnostics.length &&
           [...results].some(([id, result]) =>
             id.startsWith("github-") && result.state === "ambiguous"
           )
-        ? `${table}\n\n${github.diagnostics.join("\n")}`
+        ? `${table}\n\n${diagnostics.join("\n")}`
         : table;
     };
     if (args.kind === "status") {

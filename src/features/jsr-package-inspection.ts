@@ -1,5 +1,10 @@
 /** @module Read-only inspection of JSR package configuration. */
 
+import {
+  packageNameDifference,
+  valueDifference,
+  versionDifference,
+} from "./detection-differences.ts";
 import { validJsrName } from "../package/metadata.ts";
 import { localModulePath } from "./configured-deno-export.ts";
 import { configuredDenoTask } from "./configured-deno-task.ts";
@@ -49,7 +54,10 @@ export async function inspectJsrPackage(
   }
   const tasks = config.value.tasks;
   if (tasks !== undefined && !isObject(tasks)) {
-    return simple("ambiguous", "The Deno tasks entry is not an object.");
+    return simple(
+      "ambiguous",
+      valueDifference(config.path, "tasks", "an object", config.value.tasks),
+    );
   }
   if (
     (!tasks || tasks[publishCheckName] === undefined) &&
@@ -64,14 +72,19 @@ export async function inspectJsrPackage(
   ) {
     return simple(
       "ambiguous",
-      "The package name is not a valid scoped JSR name.",
+      packageNameDifference(config.path, config.value.name),
     );
   }
   if (
     config.value.version !== undefined &&
     (typeof config.value.version !== "string" ||
       !semver.test(config.value.version))
-  ) return simple("ambiguous", "The package version is not exact SemVer.");
+  ) {
+    return simple(
+      "ambiguous",
+      versionDifference(config.path, config.value.version),
+    );
+  }
   if (!tasks || tasks[publishCheckName] === undefined) {
     return simple("disabled", "The publish-check task is absent.");
   }

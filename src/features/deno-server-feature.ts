@@ -1,5 +1,9 @@
 /** @module Built-in Deno server feature declaration and detection. */
 
+import {
+  artifactDifference,
+  valueDifference,
+} from "./detection-differences.ts";
 import { inspectDenoServerTasks } from "./deno-server-tasks.ts";
 import {
   denoCliExport,
@@ -37,7 +41,15 @@ async function detectDenoServer(context: DetectionContext) {
   if (!isObject(config.value.exports)) {
     return config.value.exports === undefined
       ? simple("disabled", "The managed ./server export is absent.")
-      : issue("ambiguous", "The Deno exports entry is not an object.");
+      : issue(
+        "ambiguous",
+        valueDifference(
+          config.path,
+          "exports",
+          "an object",
+          config.value.exports,
+        ),
+      );
   }
   if (config.value.exports["./server"] === undefined) {
     return simple("disabled", "The managed ./server export is absent.");
@@ -47,7 +59,10 @@ async function detectDenoServer(context: DetectionContext) {
   }
   const tasks = inspectDenoServerTasks(config.value);
   if (tasks.kind === "ambiguous") {
-    return issue("ambiguous", "The Deno tasks entry is not an object.");
+    return issue(
+      "ambiguous",
+      valueDifference(config.path, "tasks", "an object", config.value.tasks),
+    );
   }
   if (tasks.missing.length || tasks.different.length) {
     return issue(
@@ -76,7 +91,7 @@ async function detectDenoServer(context: DetectionContext) {
     invalid.result === "differs" && invalid.observation.kind !== "file";
   return issue(
     ambiguous ? "ambiguous" : "drifted",
-    `Starter file ${invalid.schema.path} does not exactly match.`,
+    artifactDifference(invalid),
   );
 }
 
@@ -100,7 +115,7 @@ function issue(state: "drifted" | "ambiguous", observation: string) {
     observation,
     resolution: state === "drifted"
       ? "Use --repair to restore exact contributed content and mode."
-      : "Resolve the conflicting path or configuration, then retry.",
+      : "Correct the named configuration entry or file type. Preserve custom source files.",
   };
   return {
     state,

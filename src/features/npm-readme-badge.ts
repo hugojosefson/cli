@@ -1,4 +1,5 @@
 /** @module npm publication's contribution to either managed README provider. */
+import { fileDifference, valueDifference } from "./detection-differences.ts";
 import type { Feature } from "../api/feature.ts";
 import type { FeatureDetection } from "../api/feature-detection.ts";
 import type { OperationCheck } from "../api/feature-operation.ts";
@@ -64,6 +65,9 @@ async function inspect(context: DetectionContext) {
     path,
     name,
     text,
+    entry,
+    config,
+    imageCount: npmImages.length,
     kind,
     owned,
     compatibleCustom,
@@ -120,7 +124,16 @@ export function withNpmReadmeBadge(workflow: Feature): Feature {
         return finding(
           "ambiguous",
           "deno.json|deno.jsonc",
-          "Cannot resolve the npm badge target from one explicit scoped Deno package name.",
+          badge.config.kind === "ambiguous"
+            ? badge.config.observation
+            : badge.config.kind === "absent"
+            ? "Expected one Deno configuration with the npm package name. Found no Deno configuration."
+            : valueDifference(
+              badge.config.path,
+              "name",
+              "the npm package name used by npm-build",
+              badge.config.value.name,
+            ),
           "Set name in exactly one valid deno.json or deno.jsonc to the npm package published by npm-build. The built archive must use the same name.",
         );
       }
@@ -128,9 +141,11 @@ export function withNpmReadmeBadge(workflow: Feature): Feature {
         return finding(
           "ambiguous",
           badge.path,
-          `${badge.path} contains ${
-            badge.kind === "duplicate" ? "duplicate" : "custom or conflicting"
-          } npm badge content.`,
+          badge.entry.kind !== "file"
+            ? fileDifference(badge.path, badge.entry)
+            : `${badge.path}: expected one npm badge with ${
+              npmBadge(badge.name).content
+            }. Found ${badge.imageCount} npm images and ${badge.owned} ownership markers.`,
           `Preserve custom text, then replace the conflicting badge with ${
             npmBadge(badge.name).content
           }, or remove it before enabling npm publication.`,

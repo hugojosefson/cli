@@ -1,7 +1,7 @@
 import { test as nativeTest } from "node:test";
 import { trackTests } from "../testing/inventory-test-fixtures.ts";
 const test = trackTests(import.meta.url, nativeTest);
-import { assertEquals, assertRejects } from "@std/assert";
+import { assertEquals, assertRejects, assertStringIncludes } from "@std/assert";
 import type { FeatureDetection } from "../api/feature-detection.ts";
 import type { JsonObject } from "../api/json.ts";
 import type {
@@ -693,4 +693,40 @@ test("linked but inaccessible GitHub features remain unknown instead of disabled
       }
     }
   }
+});
+
+test("protection diagnostics distinguish duplicate, inherited, modified, and unavailable rulesets", async () => {
+  const definition = mainProtectionDefinition;
+  const resource: GithubResource = {
+    kind: "repository-ruleset",
+    name: String(definition.name),
+    definition,
+    stateDigest: "digest",
+    sourceType: "Repository",
+  };
+  for (
+    const [rulesets, expected] of [
+      [[resource, resource], "Found 2 rulesets"],
+      [
+        [{ ...resource, sourceType: "Organization" }],
+        "Found sourceType=Organization",
+      ],
+      [undefined, "Found no usable API response"],
+    ] as const
+  ) {
+    const detection = await githubMainProtectionFeature.detect(
+      context(rulesets),
+    );
+    assertEquals(detection.state, "ambiguous");
+    assertStringIncludes(JSON.stringify(detection), expected);
+  }
+  const tag = {
+    ...resource,
+    name: String(protectedTagsDefinition.name),
+    definition: { ...protectedTagsDefinition, enforcement: "disabled" },
+  };
+  const detection = await githubProtectedTagsFeature.detect(context([tag]));
+  assertEquals(detection.state, "ambiguous");
+  assertStringIncludes(JSON.stringify(detection), "enforcement: expected");
+  assertStringIncludes(JSON.stringify(detection), "disabled");
 });

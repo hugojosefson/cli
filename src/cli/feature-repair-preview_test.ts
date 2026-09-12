@@ -342,7 +342,7 @@ test("repair previews preserve manual blockers and do not leak unexpected planne
       undefined,
     );
     assertEquals(repairStateDescription(disabled), undefined);
-    assertStringIncludes(repairStateDescription()!, "could not be determined");
+    assertStringIncludes(repairStateDescription()!, "Found no result");
     assertStringIncludes(
       repairStateDescription({
         state: "ambiguous",

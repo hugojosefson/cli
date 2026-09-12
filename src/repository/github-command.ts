@@ -85,8 +85,9 @@ export function githubCommandFailure(
         body.message ===
           "Upgrade to GitHub Pro or make this repository public to enable this feature."
       ) {
-        return "GitHub rejected a feature because of the repository's plan or visibility. " +
-          "Use a public repository or a GitHub plan that supports this feature.";
+        return `GitHub rejected ${restrictedResource(args)} (HTTP 403). ` +
+          "The repository's plan or visibility does not support this resource. " +
+          "Use a public repository or a GitHub plan that supports this resource.";
       }
     } catch { /* Unknown response bodies remain private. */ }
   }
@@ -95,4 +96,21 @@ export function githubCommandFailure(
       details.length ? ` (${details.join(", ")})` : ""
     }. Run \`gh auth status\` to check access.`
     : "Could not start the GitHub CLI. Make sure that `gh` can run and the repository directory exists. Install or repair `gh` from https://cli.github.com/, then retry.";
+}
+
+function restrictedResource(args: readonly string[]): string {
+  if (args[0] !== "api") {
+    return "the repository lookup";
+  }
+  // Use fixed resource names because raw arguments can contain credentials.
+  const endpoint = args[1] ?? "";
+  if (
+    /^repos\/[^/]+\/[^/]+\/branches\/[^?]+\/protection(?:\?|$)/.test(endpoint)
+  ) {
+    return "branch protection";
+  }
+  if (/^repos\/[^/]+\/[^/]+\/rulesets(?:[/?]|$)/.test(endpoint)) {
+    return "repository rulesets";
+  }
+  return "the repository API request";
 }

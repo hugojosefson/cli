@@ -126,6 +126,8 @@ export type GithubCommit = {
 
 /** Read-only GitHub access, present only when GitHub can be queried. */
 export interface GithubReader {
+  /** Classified diagnostics without credentials or raw response bodies. */
+  readonly diagnostics?: readonly string[];
   /** Authenticated viewer identity, when the adapter supports it. */
   viewer?(): Promise<{ readonly name: string } | undefined>;
   repository(): Promise<GithubRepository | undefined>;

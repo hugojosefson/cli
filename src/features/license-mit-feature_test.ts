@@ -1,7 +1,7 @@
 import { test as nativeTest } from "node:test";
 import { testStep, trackTests } from "../testing/inventory-test-fixtures.ts";
 const test = trackTests(import.meta.url, nativeTest);
-import { assertEquals } from "@std/assert";
+import { assertEquals, assertStringIncludes } from "@std/assert";
 import type { ArtifactObservation } from "../api/artifact-inspection.ts";
 import type { OperationContext } from "../api/repository-context.ts";
 import { createLicenseApache20Feature } from "./license-apache-2.0-feature.ts";
@@ -362,4 +362,103 @@ test("alternate providers recognize equivalent MIT text and guard replacement wi
     )).state,
     "ambiguous",
   );
+});
+
+test("recognized MIT text reports the README conflict and keeps alternate licenses disabled", async () => {
+  const mit = createLicenseMitFeature(source(template), source(apacheTemplate));
+  const apache = createLicenseApache20Feature(
+    source(apacheTemplate),
+    source(template),
+  );
+  for (
+    const content of [
+      "# Project\n\n## License\n\nMIT\n",
+      "# Project\n\n## License\n\n[MIT](./LICENSE)\n\n## License\n\nMIT\n",
+    ]
+  ) {
+    const base = context(file("Copyright 2026 Ada\nterms\n"));
+    const current = {
+      ...base,
+      files: {
+        ...base.files,
+        observe: (path: string) =>
+          path === "README.md"
+            ? Promise.resolve(file(content))
+            : base.files.observe(path),
+      },
+    };
+    const detected = await mit.detect(current);
+    assertEquals(detected.state, "ambiguous");
+    if (detected.state !== "ambiguous") {
+      throw new Error("expected README conflict");
+    }
+    assertEquals(detected.issues[0].subject.identifier, "README.md");
+    assertStringIncludes(
+      detected.issues[0].observation,
+      "LICENSE matches MIT.",
+    );
+    assertStringIncludes(detected.issues[0].observation, "line");
+    assertStringIncludes(detected.issues[0].resolution, "[MIT](./LICENSE)");
+    assertEquals((await apache.detect(current)).state, "disabled");
+    assertEquals((await apache.checkEnable(current)).result, "blocked");
+    assertEquals((await mit.checkEnable(current)).result, "blocked");
+  }
+});
+
+test("license template failures do not report a LICENSE content mismatch", async () => {
+  const feature = createLicenseMitFeature(() =>
+    Promise.reject(new Error("private-token"))
+  );
+  const detected = await feature.detect(
+    context(file("Copyright 2026 Ada\nterms\n")),
+  );
+  if (detected.state !== "ambiguous") {
+    throw new Error("expected unavailable template");
+  }
+  assertStringIncludes(
+    detected.issues[0].observation,
+    "template inspection is unavailable",
+  );
+  assertStringIncludes(
+    detected.issues[0].resolution,
+    "raw.githubusercontent.com",
+  );
+  assertEquals(JSON.stringify(detected).includes("private-token"), false);
+});
+
+test("license findings name the editable generated README source and exact duplicate lines", async () => {
+  const mit = createLicenseMitFeature(source(template), source(apacheTemplate));
+  const base = context(file("Copyright 2026 Ada\nterms\n"));
+  const content = "# Project\n\n## License\n\nMIT\n\n## License\n\nMIT\n";
+  const current = {
+    ...base,
+    files: {
+      ...base.files,
+      observe: (path: string) => {
+        if (path === "readme") {
+          return Promise.resolve({
+            kind: "directory" as const,
+            stateDigest: "directory",
+          });
+        }
+        if (path === "readme/README.md") {
+          return Promise.resolve(
+            file(content),
+          );
+        }
+        if (path === "README.md") return Promise.resolve(file(content, 0o444));
+        return base.files.observe(path);
+      },
+    },
+  };
+  const detected = await mit.detect(current);
+  if (detected.state !== "ambiguous") {
+    throw new Error("expected README conflict");
+  }
+  assertEquals(detected.issues[0].subject.identifier, "readme/README.md");
+  assertStringIncludes(
+    detected.issues[0].observation,
+    "duplicate ## License headings at lines 3, 7",
+  );
+  assertStringIncludes(detected.issues[0].resolution, "[MIT](../LICENSE)");
 });

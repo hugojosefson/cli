@@ -1,5 +1,6 @@
 /** @module JSR OIDC release workflow feature declaration. */
 
+import { workflowDetectionIssue } from "./workflow-detection-issue.ts";
 import type { DetectionIssue } from "../api/feature-detection.ts";
 import type { DetectionContext } from "../api/repository-context.ts";
 import type { Feature } from "../api/feature.ts";
@@ -29,6 +30,13 @@ async function detectJsrRelease(context: DetectionContext) {
   const custom = artifact.result === "unreadable" ||
     artifact.observation.kind !== "file" ||
     !artifact.observation.content.startsWith(jsrReleaseMarker);
+  if (custom) {
+    return {
+      state: "ambiguous" as const,
+      evidence: [],
+      issues: [workflowDetectionIssue(artifact, jsrReleaseMarker)],
+    };
+  }
   return issue(
     custom ? "ambiguous" : "drifted",
     custom

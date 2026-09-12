@@ -31,13 +31,15 @@ interface Line {
 
 function parse(content: string): Line[] {
   let section = "";
-  return (content.match(/[^\n]*\n|[^\n]+$/g) ?? []).map((text) => {
+  return (content.match(/[^\n]*\n|[^\n]+$/g) ?? []).map((text, index) => {
     const value = text.trim();
     if (value.startsWith("[") && value.endsWith("]")) {
       section = value.slice(1, -1);
     } else if (value && !/^[#;]/.test(value) && !value.includes("=")) {
       throw new Error(
-        ".editorconfig contains an invalid line. Preserve or correct it before retrying.",
+        `.editorconfig:${
+          index + 1
+        }: expected a section heading, comment, or key=value entry. Found a line without a section marker or equals sign.`,
       );
     }
     const key = value && !/^[#;[]/.test(value) && value.includes("=")
@@ -51,7 +53,7 @@ export function readEditorconfigOwnership(
   text: string | undefined,
 ): EditorconfigOwnership | undefined {
   if (text === undefined) return undefined;
-  const value = JSON.parse(text);
+  const value = parseOwnership(text);
   if (
     !value || value.version !== 1 || !Array.isArray(value.keys) ||
     value.keys.some((key: unknown) =>
@@ -64,7 +66,8 @@ export function readEditorconfigOwnership(
     )
   ) {
     throw new Error(
-      ".hj/editorconfig.json has unknown ownership data. Review it before retrying.",
+      ".hj/editorconfig.json: expected version=1, unique supported keys, and boolean heading and section fields. Found " +
+        ownershipDifferences(value).join("; ") + ".",
     );
   }
   return value;
@@ -176,4 +179,47 @@ export function updateEditorconfig(
       }
       : undefined,
   };
+}
+
+function parseOwnership(text: string) {
+  try {
+    return JSON.parse(text);
+  } catch {
+    throw new Error(
+      ".hj/editorconfig.json: expected a JSON object. Found invalid JSON syntax.",
+    );
+  }
+}
+
+function ownershipDifferences(value: Record<string, unknown> | null): string[] {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return ["a non-object value"];
+  }
+  return [
+    ...(value.version !== 1
+      ? [
+        `version=${
+          typeof value.version === "number"
+            ? value.version
+            : typeof value.version
+        }`,
+      ]
+      : []),
+    ...(!Array.isArray(value.keys)
+      ? ["keys is not an array"]
+      : value.keys.some((key) =>
+          typeof key !== "string" || !Object.hasOwn(defaults, key)
+        )
+      ? ["keys contains unsupported entries"]
+      : new Set(value.keys).size !== value.keys.length
+      ? ["keys contains duplicate entries"]
+      : []),
+    ...(typeof value.heading !== "boolean" ? ["heading is not a boolean"] : []),
+    ...(typeof value.section !== "boolean" ? ["section is not a boolean"] : []),
+    ...(Object.keys(value).some((key) =>
+        !["version", "keys", "heading", "section"].includes(key)
+      )
+      ? ["unexpected fields"]
+      : []),
+  ];
 }
