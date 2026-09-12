@@ -118,6 +118,21 @@ Deno.test("GitHub public preset overlays GitHub but yields to private flag", asy
 
 Deno.test("pure GitHub preset blocks inaccessible repositories before mutation", async () => {
   await withRoot(async (root) => {
+    await new Deno.Command("git", {
+      cwd: root,
+      args: ["init"],
+      stdout: "null",
+      stderr: "null",
+    }).output();
+    await new Deno.Command("git", {
+      cwd: root,
+      args: [
+        "remote",
+        "add",
+        "origin",
+        "https://github.com/person/existing.git",
+      ],
+    }).output();
     const github = new FakeGithub({}, false);
     await assertRejects(
       () =>
@@ -132,7 +147,7 @@ Deno.test("pure GitHub preset blocks inaccessible repositories before mutation",
           { github },
         ),
       Error,
-      "GitHub repository access is required",
+      "will not replace it",
     );
     assertEquals(github.patches, []);
   });

@@ -8,6 +8,15 @@ import {
   promptJsrScope,
   resolveJsrScope,
 } from "./jsr-scope.ts";
+import {
+  type GithubRepositorySetup,
+  LocalGithubRepositorySetup,
+} from "../repository/github-repository-setup.ts";
+import {
+  promptGithubVisibility,
+  setupGithubRepository,
+  type VisibilityPrompt,
+} from "./github-repository-setup.ts";
 import type { OutputColors } from "./terminal-colors.ts";
 import { formatTable } from "./format-table.ts";
 
@@ -64,6 +73,9 @@ export type FeatureSelector = (
 
 export interface FeatureOperationServices {
   readonly colors?: OutputColors;
+  readonly githubRepositorySetup?: GithubRepositorySetup;
+  readonly promptGithubVisibility?: VisibilityPrompt;
+  readonly reportGithubPlan?: (plan: string) => void;
   /** Replaces project task execution for isolated operation tests. */
   readonly runFinalTask?: typeof runFinalProjectTask;
   readonly promptAttribution?: AttributionPrompt;
@@ -144,6 +156,45 @@ export async function runFeatureOperation(
           { color: services.colors?.stderr, columns: ["red", "cyan"] },
         ),
       );
+    }
+    if (
+      resolution.changes.some((change) =>
+        change.enabled && change.featureId === "github-repo"
+      ) && !await github.repository()
+    ) {
+      const created = await setupGithubRepository(
+        root,
+        args,
+        request,
+        services.githubRepositorySetup ?? LocalGithubRepositorySetup.at(root),
+        services.promptGithubVisibility ?? promptGithubVisibility,
+        services.reportGithubPlan ?? ((plan) => console.error(plan)),
+      );
+      if (github instanceof LocalGithubClient) github.refreshRepository();
+      try {
+        if (!await github.repository()) {
+          throw new Error(
+            "The new GitHub repository cannot be read. Check gh auth status.",
+          );
+        }
+        const result = await runFeatureOperation(
+          root,
+          { ...args, kind: "change", request },
+          registry,
+          selectActions,
+          { ...services, github },
+        );
+        return `${created}\n${result}`;
+      } catch (cause) {
+        const message = `${created}\nRemaining setup failed: ${
+          cause instanceof Error ? cause.message : "unknown error"
+        }\nKeep the linked repository and rerun the same feature request.`;
+        if (cause instanceof CommandFailure) {
+          cause.message = message;
+          throw cause;
+        }
+        throw new Error(message, { cause });
+      }
     }
     const changes = [
       ...resolution.changes,

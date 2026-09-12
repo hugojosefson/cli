@@ -54,7 +54,7 @@ async function checkRepoEnable(
     }
     : blocked(
       context,
-      "GitHub repository access is required and cannot be created automatically.",
+      "GitHub repository access is required. Run hj repo features --github-repo with --github-public or --github-private and --yes to create and link a repository.",
     );
 }
 function checkRepoDisable(context: OperationContext): Promise<OperationCheck> {
@@ -81,13 +81,12 @@ function impossible(): Promise<ChangePlan> {
   return Promise.reject(new Error("GitHub repository cannot be changed."));
 }
 
-/** Detects access only; this feature never creates or deletes repositories. */
+/** Detection is read-only; CLI setup can create a repository before planning. */
 export const githubRepoFeature: Feature = {
   metadata: {
     id: "github-repo",
     name: "GitHub repository",
-    summary:
-      "Detects authenticated access to the checked-out GitHub repository.",
+    summary: "Detects GitHub access and supports confirmed repository setup.",
   },
   dependencies: { requires: [] },
   capabilities: { provides: [], requires: [] },

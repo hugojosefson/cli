@@ -11,7 +11,13 @@ import { validateDenoVersion } from "../features/workflow-deno.ts";
 import { validScope } from "../package/metadata.ts";
 import { validateWorkflowCli } from "../features/workflow-cli.ts";
 
-interface FeatureRequestArguments {
+export interface GithubSetupArguments {
+  readonly githubOwner?: string;
+  readonly githubName?: string;
+  readonly defaultGithubVisibility?: "public" | "private";
+}
+
+interface FeatureRequestArguments extends GithubSetupArguments {
   readonly request: FeatureChangeRequest;
   readonly confirmation: boolean;
   readonly workflowCli?: string;
@@ -23,12 +29,12 @@ interface FeatureRequestArguments {
 export type FeaturesArguments =
   | ({ readonly kind: "status" } & FeatureRequestArguments)
   | ({ readonly kind: "change" } & FeatureRequestArguments)
-  | {
+  | (GithubSetupArguments & {
     readonly kind: "interactive";
     readonly confirmation: boolean;
     readonly defaultDenoVersion?: string;
     readonly configuredDefaults?: readonly DefaultSelection[];
-  };
+  });
 
 export const featureDefaults = [
   { kind: "feature" as const, featureId: "git" },
@@ -55,10 +61,30 @@ export function parseFeatures(
   let repair = false;
   let interactive = false;
   let confirmation = false;
+  let githubOwner: string | undefined;
+  let githubName: string | undefined;
+  const githubDefaults = defaults["github-visibility"] === undefined
+    ? {}
+    : { defaultGithubVisibility: defaults["github-visibility"] };
   let workflowCli: string | undefined;
   let jsrScope: string | undefined;
   let denoVersion: string | undefined;
   for (const arg of args.slice(2)) {
+    if (arg.startsWith("--github-owner=") || arg.startsWith("--github-name=")) {
+      const owner = arg.startsWith("--github-owner=");
+      const value = arg.slice(arg.indexOf("=") + 1);
+      if (!/^[A-Za-z0-9][A-Za-z0-9_.-]*$/.test(value) || value.length > 100) {
+        throw new Error(
+          "GitHub owner and name must be valid non-empty GitHub identifiers.",
+        );
+      }
+      if (owner ? githubOwner !== undefined : githubName !== undefined) {
+        throw new Error("duplicate GitHub repository option");
+      }
+      if (owner) githubOwner = value;
+      else githubName = value;
+      continue;
+    }
     if (arg.startsWith("--deno-version=")) {
       if (denoVersion !== undefined) {
         throw new Error("duplicate --deno-version");
@@ -137,7 +163,8 @@ export function parseFeatures(
     if (
       applyDefaults || repair || requested.size > 0 ||
       selectedPresets.size > 0 || workflowCli !== undefined ||
-      jsrScope !== undefined || denoVersion !== undefined
+      jsrScope !== undefined || denoVersion !== undefined ||
+      githubOwner !== undefined || githubName !== undefined
     ) {
       throw new Error(
         "`--interactive` cannot be combined with defaults, repair, or feature flags",
@@ -146,6 +173,7 @@ export function parseFeatures(
     return {
       kind: "interactive",
       confirmation,
+      ...githubDefaults,
       ...(configuredDefaults === undefined ? {} : { configuredDefaults }),
       ...(defaults["deno-version"] === undefined
         ? {}
@@ -187,11 +215,22 @@ export function parseFeatures(
   ) {
     throw new Error("--jsr-scope requires --jsr-package or --jsr.");
   }
+  if (
+    (githubOwner !== undefined || githubName !== undefined) &&
+    requested.size === 0 && selectedPresets.size === 0 && !applyDefaults
+  ) {
+    throw new Error(
+      "GitHub repository options require a feature request such as --github-repo.",
+    );
+  }
   return requested.size === 0 && selectedPresets.size === 0 && !applyDefaults &&
       !repair
     ? { kind: "status", request, confirmation }
     : {
       kind: "change",
+      ...githubDefaults,
+      ...(githubOwner === undefined ? {} : { githubOwner }),
+      ...(githubName === undefined ? {} : { githubName }),
       request,
       confirmation,
       ...(denoVersion === undefined ? {} : { denoVersion }),
