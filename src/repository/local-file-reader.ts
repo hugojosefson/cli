@@ -1,4 +1,5 @@
 /** @module Local read-only implementation of the file reader contract. */
+import { inspectFileAccess } from "./file-access.ts";
 import type { Stats } from "node:fs";
 import { isNotFound } from "../runtime/errors.ts";
 import * as fs from "node:fs/promises";
@@ -25,7 +26,8 @@ import { fileMode } from "./file-mode.ts";
 export class LocalFileReader implements FileReader {
   readonly #root: RepositoryRoot;
 
-  constructor(root: URL) {
+  /** Metadata-only callers can omit access checks and their runtime permissions. */
+  constructor(root: URL, readonly inspectAccess = true) {
     this.#root = repositoryRoot(root);
   }
 
@@ -40,6 +42,9 @@ export class LocalFileReader implements FileReader {
       if (info.isDirectory()) {
         return {
           kind: "directory",
+          access: this.inspectAccess
+            ? await inspectFileAccess(url, info)
+            : undefined,
           stateDigest: await this.directoryStateDigest(
             path,
           ) as DirectoryStateDigest,
@@ -52,6 +57,9 @@ export class LocalFileReader implements FileReader {
           content: new TextDecoder().decode(bytes),
           digest: await digestBytes(bytes),
           mode: fileMode(info),
+          access: this.inspectAccess
+            ? await inspectFileAccess(url, info)
+            : undefined,
         };
       }
       return {

@@ -1,4 +1,10 @@
 /** @module Read-only file projection and guarded README contribution writes. */
+import {
+  accessFromMode,
+  fileAccess,
+  matchesFileAccess,
+  repairFileMode,
+} from "../repository/file-access.ts";
 import { applyEdits, modify } from "jsonc-parser";
 import type { ArtifactObservation } from "../api/artifact-inspection.ts";
 import type { Precondition } from "../api/change-plan.ts";
@@ -41,14 +47,19 @@ export class PlannedReadmeFiles implements FileReader {
         value = { kind: "directory", stateDigest: "projected" };
       }
       if (change.kind === "set-file-mode" && value.kind === "file") {
-        value = { ...value, mode: change.mode };
+        value = {
+          ...value,
+          mode: change.mode,
+          access: accessFromMode(change.mode, fileAccess(value).shift),
+        };
       }
       if (change.kind === "write-file") {
         value = {
           kind: "file",
           content: change.content,
           digest: await blockHash(change.content),
-          mode: change.mode ?? (value.kind === "file" ? value.mode : 0o644),
+          mode: value.kind === "file" ? value.mode : change.mode ?? 0o644,
+          access: value.kind === "file" ? value.access : undefined,
         };
       }
       if (
@@ -109,7 +120,10 @@ export class PlannedReadmeFiles implements FileReader {
     if (value.kind !== "absent" && value.kind !== "file") {
       throw new Error(`README contribution needs a regular file: ${path}`);
     }
-    if (value.kind === "file" && value.content === content) return;
+    if (
+      value.kind === "file" && value.content === content &&
+      (mode === undefined || matchesFileAccess(value, mode))
+    ) return;
     if (content === undefined) {
       if (value.kind === "file") {
         this.changes.push({
@@ -133,31 +147,41 @@ export class PlannedReadmeFiles implements FileReader {
         );
       }
     }
-    const locked = value.kind === "file" && !(value.mode & 0o200);
+    const contentChanged = value.kind !== "file" || value.content !== content;
+    const locked = value.kind === "file" && contentChanged &&
+      !fileAccess(value).writable;
+    const writableMode = value.kind === "file"
+      ? repairFileMode(value, 0o644)
+      : 0o644;
+    const finalMode = value.kind === "file"
+      ? mode === undefined ? value.mode : repairFileMode(value, mode)
+      : mode ?? 0o644;
     if (locked) {
       this.changes.push({
         kind: "set-file-mode",
         path,
-        mode: 0o644,
+        mode: writableMode,
         expectedMode: value.mode,
       });
     }
-    this.changes.push({
-      kind: "write-file",
-      path,
-      content,
-      expectedDigest: value.kind === "file" ? value.digest : undefined,
-      mode: mode ?? (value.kind === "file" ? value.mode : 0o644),
-    });
+    if (contentChanged) {
+      this.changes.push({
+        kind: "write-file",
+        path,
+        content,
+        expectedDigest: value.kind === "file" ? value.digest : undefined,
+        mode: mode ?? (value.kind === "file" ? value.mode : 0o644),
+      });
+    }
     if (
       value.kind === "file" &&
-      (locked || mode !== undefined && mode !== value.mode)
+      (locked || mode !== undefined && !matchesFileAccess(value, mode))
     ) {
       this.changes.push({
         kind: "set-file-mode",
         path,
-        mode: mode ?? value.mode,
-        expectedMode: locked ? 0o644 : value.mode,
+        mode: finalMode,
+        expectedMode: locked ? writableMode : value.mode,
       });
     }
   }

@@ -1,4 +1,5 @@
 /** @module Compose feature-owned README guides against the final feature plans. */
+import { fileAccess } from "../repository/file-access.ts";
 import { fromFileUrl } from "@std/path";
 import {
   packageImports,
@@ -40,7 +41,7 @@ export async function reconcileReadmePlans(
     plans.flatMap((plan) => plan.changes),
   );
   const root = await files.observe("README.md");
-  if (!build && !(root.kind === "file" && (root.mode & 0o200) !== 0)) {
+  if (!build && !(root.kind === "file" && fileAccess(root).writable)) {
     return plans;
   }
   const projected = {

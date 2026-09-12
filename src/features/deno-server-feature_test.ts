@@ -11,6 +11,7 @@ import {
   remove,
   writeTextFile,
 } from "../testing/files-test-fixtures.ts";
+import { matchesFileAccess } from "../repository/file-access.ts";
 import { assert, assertEquals, assertRejects } from "@std/assert";
 import type { OperationContext } from "../api/repository-context.ts";
 import { applyLocalChangePlan } from "../operations/local-change-plan.ts";
@@ -129,10 +130,9 @@ test("deno-server repairs selected content and mode drift", async () => {
         await readTextFile(new URL(artifact.path, root)),
         artifact.content,
       );
-      assertEquals(
-        (await fixtureStat(new URL(artifact.path, root))).mode! & 0o777,
-        0o644,
-      );
+      const observed = await new LocalFileReader(root).observe(artifact.path);
+      assert(observed.kind === "file");
+      assert(matchesFileAccess(observed, 0o644));
     }
   });
 });

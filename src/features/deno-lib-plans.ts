@@ -1,5 +1,9 @@
 /** @module Ordered Deno library change plans. */
 
+import {
+  matchesFileAccess,
+  repairFileMode,
+} from "../repository/file-access.ts";
 import type { ChangePlan } from "../api/change-plan.ts";
 import type { AllowedOperation } from "../api/feature-operation.ts";
 import type { PlannedChange } from "../api/planned-change.ts";
@@ -98,12 +102,12 @@ export async function planEnableDenoLib(
     if (
       item.result === "differs" && item.schema.kind === "file" &&
       item.observation.kind === "file" &&
-      item.observation.mode !== item.schema.mode
+      !matchesFileAccess(item.observation, item.schema.mode)
     ) {
       changes.push({
         kind: "set-file-mode",
         path: denoLibArtifacts[index].path,
-        mode: item.schema.mode,
+        mode: repairFileMode(item.observation, item.schema.mode),
         expectedMode: item.observation.mode,
       });
     }

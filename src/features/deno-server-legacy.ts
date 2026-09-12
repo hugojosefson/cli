@@ -1,4 +1,5 @@
 /** Exact legacy server adapter, retained only for guarded migration. */
+import { matchesFileAccess } from "../repository/file-access.ts";
 import type { DetectionContext } from "../api/repository-context.ts";
 import type { PlannedChange } from "../api/planned-change.ts";
 import type { ExactArtifactInspection } from "../api/artifact-inspection.ts";
@@ -30,7 +31,7 @@ export async function removeLegacyServerAdapter(
   context: DetectionContext,
 ): Promise<readonly PlannedChange[]> {
   const file = await context.files.observe(legacyServerAdapter.path);
-  return file.kind === "file" && file.mode === 0o644 &&
+  return file.kind === "file" && matchesFileAccess(file, 0o644) &&
       file.content === legacyServerAdapter.content
     ? [{
       kind: "remove-file",
@@ -48,7 +49,7 @@ export function legacyServerRegistry(
   )!;
   return inspection.result === "differs" &&
     inspection.observation.kind === "file" &&
-    inspection.observation.mode === registry.mode &&
+    matchesFileAccess(inspection.observation, registry.mode) &&
     inspection.observation.content ===
       registry.content.replace(
         '"./serve-command.ts"',

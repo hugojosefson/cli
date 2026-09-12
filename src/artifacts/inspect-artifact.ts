@@ -1,5 +1,6 @@
 /** @module Pure exact artifact inspection. */
 
+import { matchesFileAccess } from "../repository/file-access.ts";
 import type {
   ArtifactObservation,
   ArtifactSchema,
@@ -71,7 +72,7 @@ function differencesFor(
         expected: schema.content,
         actual: observation.content,
       }]),
-      ...(schema.mode === observation.mode ? [] : [{
+      ...(matchesFileAccess(observation, schema.mode) ? [] : [{
         kind: "mode" as const,
         expected: schema.mode,
         actual: observation.mode,

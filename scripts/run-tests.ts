@@ -58,6 +58,7 @@ env.HJ_TEST_INVENTORY = journal;
 env.HJ_TEST_SOURCE_ROOT = root.href;
 env.HJ_TEST_DENO = Deno.execPath();
 const permissions = [
+  "--allow-sys=uid,gid",
   "--allow-read=/tmp/opencode",
   "--allow-write=/tmp/opencode",
   "--allow-run=git,deno,sh",

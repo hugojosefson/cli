@@ -1,5 +1,6 @@
 /** @module Guarded generated README change plans. */
 
+import { fileAccess, repairFileMode } from "../repository/file-access.ts";
 import { legacyReadmePreview } from "./readme-build-checks.ts";
 import type { ChangePlan } from "../api/change-plan.ts";
 import type { AllowedOperation } from "../api/feature-operation.ts";
@@ -29,6 +30,14 @@ export async function planEnableReadmeBuild(
 ): Promise<ChangePlan> {
   const state = await inspectReadmeBuild(context);
   const changes: PlannedChange[] = [];
+  if (state.source.kind === "file" && !fileAccess(state.source).writable) {
+    changes.push({
+      kind: "set-file-mode",
+      path: readmeBuildSourcePath,
+      mode: repairFileMode(state.source, 0o644),
+      expectedMode: state.source.mode,
+    });
+  }
   const initialSource = state.source.kind === "file"
     ? state.source.content
     : state.initialSource;
@@ -172,8 +181,10 @@ export async function planDisableReadmeBuild(
   const changes: PlannedChange[] = [{
     kind: "set-file-mode",
     path: readmeBuildRootPath,
-    mode: 0o644,
-    expectedMode: 0o444,
+    mode: state.root.kind === "file"
+      ? repairFileMode(state.root, 0o644)
+      : 0o644,
+    expectedMode: state.rootMode,
   }];
   if (!denoFmtChanges(context)) {
     changes.push({
@@ -229,12 +240,14 @@ function rootEnableChanges(
     return [];
   }
   const changes: PlannedChange[] = [];
-  const unlock = !state.rootMatches && (state.root.mode & 0o200) === 0;
+  const writableMode = repairFileMode(state.root, 0o644);
+  const readonlyMode = repairFileMode(state.root, 0o444);
+  const unlock = !state.rootMatches && !fileAccess(state.root).writable;
   if (unlock) {
     changes.push({
       kind: "set-file-mode",
       path: readmeBuildRootPath,
-      mode: 0o644,
+      mode: writableMode,
       expectedMode: state.root.mode,
     });
   }
@@ -246,12 +259,12 @@ function rootEnableChanges(
       expectedDigest: state.root.digest,
     });
   }
-  if (unlock || state.root.mode !== 0o444) {
+  if (unlock || fileAccess(state.root).writable) {
     changes.push({
       kind: "set-file-mode",
       path: readmeBuildRootPath,
-      mode: 0o444,
-      expectedMode: unlock ? 0o644 : state.root.mode,
+      mode: readonlyMode,
+      expectedMode: unlock ? writableMode : state.root.mode,
     });
   }
   return changes;

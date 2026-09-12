@@ -57,7 +57,7 @@ test("Apache provider writes attribution, repairs mode, and removes only exact c
   assertEquals((await feature.planEnable(drift, repair)).changes[0], {
     kind: "set-file-mode",
     path: "LICENSE",
-    mode: 0o644,
+    mode: 0o655,
     expectedMode: 0o755,
   });
   const disable = await feature.checkDisable(

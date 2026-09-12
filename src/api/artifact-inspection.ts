@@ -1,5 +1,7 @@
 /** @module Exact repository artifact inspection contracts. */
 
+import type { FileAccess } from "./file-access.ts";
+
 import type {
   DirectoryStateDigest,
   FileDigest,
@@ -57,6 +59,7 @@ export type ArtifactSchema =
     readonly kind: "file";
     readonly path: RepositoryPath;
     readonly content: string;
+    /** Creation mode; owner bits describe required current-user access. */
     readonly mode: FileMode;
   }
   | {
@@ -78,8 +81,13 @@ export type ArtifactObservation =
     readonly content: string;
     readonly digest: FileDigest;
     readonly mode: FileMode;
+    readonly access?: FileAccess;
   }
-  | { readonly kind: "directory"; readonly stateDigest: DirectoryStateDigest }
+  | {
+    readonly kind: "directory";
+    readonly stateDigest: DirectoryStateDigest;
+    readonly access?: FileAccess;
+  }
   | { readonly kind: "symlink"; readonly target: string }
   | { readonly kind: "unreadable"; readonly observation: string };
 

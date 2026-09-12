@@ -1,5 +1,9 @@
 /** @module Ordered Deno CLI change plans. */
 
+import {
+  matchesFileAccess,
+  repairFileMode,
+} from "../repository/file-access.ts";
 import { sameJson } from "../operations/local-plan-state.ts";
 import type { ChangePlan } from "../api/change-plan.ts";
 import type { AllowedOperation } from "../api/feature-operation.ts";
@@ -113,11 +117,13 @@ export async function planEnableDenoCli(
         expectedDigest: file ? item.observation.digest : undefined,
       });
     }
-    if (file && item.observation.mode !== desiredArtifacts[index].mode) {
+    if (
+      file && !matchesFileAccess(item.observation, desiredArtifacts[index].mode)
+    ) {
       changes.push({
         kind: "set-file-mode",
         path: desiredArtifacts[index].path,
-        mode: desiredArtifacts[index].mode,
+        mode: repairFileMode(item.observation, desiredArtifacts[index].mode),
         expectedMode: item.observation.mode,
       });
     }

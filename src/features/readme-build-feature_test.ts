@@ -13,6 +13,7 @@ import {
   writeTextFile,
 } from "../testing/files-test-fixtures.ts";
 import { runRawCommand as runCommand } from "../runtime/command.ts";
+import { fileAccess } from "../repository/file-access.ts";
 import {
   assert,
   assertEquals,
@@ -82,7 +83,9 @@ test("readme-build converts static content and reverses it", async () => {
     const files = new LocalFileReader(root);
     assertStringIncludes(await read(root, "readme/README.md"), "# Kept\n");
     assertStringIncludes(await read(root, "README.md"), "# Kept\n");
-    assertEquals(await files.mode("README.md"), 0o444);
+    const observed = await files.observe("README.md");
+    assert(observed.kind === "file");
+    assertEquals(fileAccess(observed).writable, false);
     const config = JSON.parse(await read(root, "deno.jsonc"));
     assertEquals(config.tasks.readme, readmeTaskDefinition);
     assertEquals(config.tasks.default, denoTaskDefinitions([], true).default);
@@ -100,7 +103,9 @@ test("readme-build converts static content and reverses it", async () => {
       "--yes",
     ]);
     assertStringIncludes(await read(root, "README.md"), "# Kept\n");
-    assertEquals(await files.mode("README.md"), 0o644);
+    const restored = await files.observe("README.md");
+    assert(restored.kind === "file");
+    assertEquals(fileAccess(restored).writable, true);
     assertEquals(await files.exists("readme"), false);
   });
 });
@@ -179,7 +184,9 @@ test("readme-build repairs task, aggregate, output, and mode drift", async () =>
       "--repair",
     ]);
     assertStringIncludes(await read(root, "README.md"), "# Source\n");
-    assertEquals(await new LocalFileReader(root).mode("README.md"), 0o444);
+    const observed = await new LocalFileReader(root).observe("README.md");
+    assert(observed.kind === "file");
+    assertEquals(fileAccess(observed).writable, false);
     const repaired = JSON.parse(await read(root, "deno.jsonc"));
     assertEquals(repaired.tasks.readme, readmeTaskDefinition);
     assertEquals(repaired.tasks.default, denoTaskDefinitions([], true).default);
@@ -285,7 +292,7 @@ test("readme task preserves failures and atomically replaces successes", async (
     });
     assert(!result.success);
     assertStringIncludes(await read(root, "README.md"), "# Preserved\n");
-    assertEquals(await new LocalFileReader(root).mode("README.md"), 0o444);
+    await assertReadOnly(root);
     const names = [];
     for await (const entry of fixtureReadDir(root)) {
       names.push(entry.name);
@@ -306,7 +313,7 @@ test("readme task preserves failures and atomically replaces successes", async (
     });
     assert(success.success);
     assertEquals(await read(root, "README.md"), "# Built\n");
-    assertEquals(await new LocalFileReader(root).mode("README.md"), 0o444);
+    await assertReadOnly(root);
     await git(root, "ls-files", "--error-unmatch", "README.md");
   });
 });
@@ -395,4 +402,10 @@ function runCli(root: URL, args: readonly string[]) {
     undefined,
     { runFinalTask: () => Promise.resolve(undefined) },
   ).then((output) => ({ output, terminalNewline: true }));
+}
+
+async function assertReadOnly(root: URL): Promise<void> {
+  const observed = await new LocalFileReader(root).observe("README.md");
+  assert(observed.kind === "file");
+  assertEquals(fileAccess(observed).writable, false);
 }

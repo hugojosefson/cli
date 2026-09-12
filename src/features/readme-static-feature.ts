@@ -1,5 +1,6 @@
 /** @module Built-in exact starter README feature. */
 
+import { fileAccess } from "../repository/file-access.ts";
 import type { Feature } from "../api/feature.ts";
 import type { DetectionContext } from "../api/repository-context.ts";
 import {
@@ -31,7 +32,7 @@ async function detectReadmeStatic(context: DetectionContext) {
   if (
     inspection.result !== "unreadable" &&
     inspection.observation.kind === "file" &&
-    (inspection.observation.mode & 0o200) !== 0
+    fileAccess(inspection.observation).writable
   ) {
     return {
       state: "enabled" as const,
