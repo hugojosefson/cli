@@ -18,6 +18,7 @@ Deno.test("the complete built-in registry validates", () => {
       "deno-lib",
       "deno-server",
       "git",
+      "git-ignore",
       "github-repo",
       "github-default-project",
       "jsr-package",
