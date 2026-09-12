@@ -98,10 +98,30 @@ requests an OIDC identity. OIDC is a short-lived identity issued by the workflow
 runner.
 
 Use an [npm trusted publisher](https://docs.npmjs.com/trusted-publishers/) when
-the package supports it. Configure the GitHub owner, repository, and exact
-workflow filename on npm. The generated workflow does not select a GitHub
-environment. Leave the npm environment field empty. Trusted publishing requires
-npm 11.5.1 or later and Node.js 22.14.0 or later.
+the package supports it. The npm package and workflow file must exist first.
+Configure the GitHub owner, repository, and exact workflow filename on npm. The
+generated workflow does not select a GitHub environment. Leave that field empty.
+Trusted publication requires npm 11.5.1 or later and Node.js 22.14.0 or later.
+
+The [npm trust command](https://docs.npmjs.com/cli/v11/commands/npm-trust/)
+configures publication from a terminal. It requires npm 11.15.0 or later,
+package write access, and account two-factor authentication. Two-factor
+authentication requires a separate proof of your identity.
+
+```bash
+npm trust github @owner/package --repo=owner/repository \
+  --file=hj-release-publish-npm.yaml --allow-publish
+npm trust list @owner/package
+```
+
+Replace the package and repository names with your own. Enter only the workflow
+filename, without `.github/workflows/`. Complete npm's browser authentication
+when requested. Make sure that the saved relationship names the intended
+repository and workflow. Preserve unrelated existing relationships.
+
+If a release starts before authentication is ready, retry its exact tag after
+configuration. A successful retry of an existing version proves its archive
+matches. A new upload from GitHub Actions proves that trusted publication works.
 
 For token authentication, add a publish-capable granular token as the repository
 secret `NPM_TOKEN`. The workflow passes that secret to npm through
@@ -112,6 +132,26 @@ publisher. See the
 [npm publication instructions](https://docs.npmjs.com/creating-and-publishing-scoped-public-packages/).
 
 ## First publication with a personal login
+
+Use a clean checkout of the exact lightweight remote release tag. Let the
+project's release process choose its version before publication. Make sure that
+the release contains the native build and its completed runtime tests.
+
+Run the guarded publisher from that checkout:
+
+```bash
+HJ_RELEASE_ROUTE=user HJ_RELEASE_TAG=1.2.3 \
+  GITHUB_REPOSITORY=owner/repository hj release publish-npm
+```
+
+Replace the tag and repository with the intended release. The publisher checks
+the remote tag, checkout, package metadata, and archive before an upload. It
+creates the archive through the release's `npm-build` task.
+
+Use a CLI version that supports the `hjNpmArchive` contract described above. A
+checkout does not change the installed `hj` version. When publishing this CLI
+repository, replace `hj` in the command with `deno task hj` to use the
+checkout's publisher.
 
 A personal npm login can require a separate browser approval for publication.
 The automated publisher does not prompt for that approval. If npm requires it,
