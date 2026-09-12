@@ -40,9 +40,11 @@ Deno.test("fresh feature setup commits only generated paths and is safe to repea
     assertEquals(
       await git(root, "ls-tree", "-r", "--name-only", "HEAD"),
       [
+        ".hj/deno-lock.json",
         "LICENSE",
         "README.md",
         "deno.jsonc",
+        "deno.lock",
         "src/cli/cli.ts",
         "src/cli/command.ts",
         "src/cli/commands.ts",

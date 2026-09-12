@@ -151,7 +151,7 @@ Deno.test("commits planned deno-fmt changes through the generic Git path", async
     assert(result.includes("Committed each changed feature"));
     assertEquals(
       await gitText(["show", "--format=", "--name-only", "HEAD"], root),
-      "deno.jsonc",
+      ".hj/deno-lock.json\ndeno.jsonc",
     );
   });
 });
@@ -194,7 +194,7 @@ Deno.test("commits planned deno-cli files through the generic Git path", async (
     assert(result.includes("Committed each changed feature"));
     assertEquals(
       await gitText(["show", "--format=", "--name-only", "HEAD"], root),
-      "deno.jsonc\nsrc/cli/cli.ts\nsrc/cli/command.ts\nsrc/cli/commands.ts\nsrc/cli/package-metadata.json\ntest/cli_test.ts",
+      ".hj/deno-lock.json\ndeno.jsonc\ndeno.lock\nsrc/cli/cli.ts\nsrc/cli/command.ts\nsrc/cli/commands.ts\nsrc/cli/package-metadata.json\ntest/cli_test.ts",
     );
   });
 });

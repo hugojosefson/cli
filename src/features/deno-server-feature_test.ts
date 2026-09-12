@@ -5,7 +5,7 @@ import { LocalFileReader } from "../repository/local-file-reader.ts";
 import { legacyServerAdapter } from "./deno-server-legacy.ts";
 import { denoServerTasks } from "./deno-server-tasks.ts";
 import { parseFeatures } from "../cli/parse-features.ts";
-import { runFeatures } from "../cli/run-features.ts";
+import { runFeatureOperation } from "../cli/run-features.ts";
 import { builtInFeatureRegistry } from "./built-in-feature-registry.ts";
 import { denoCliFeature } from "./deno-cli-feature.ts";
 import { denoServerArtifacts } from "./deno-server-artifacts.ts";
@@ -400,4 +400,14 @@ async function withRepository(
   } finally {
     await Deno.remove(path, { recursive: true });
   }
+}
+
+// These fixtures inspect generated features and execute their tasks separately.
+function runFeatures(
+  root: URL,
+  args: Parameters<typeof runFeatureOperation>[1],
+) {
+  return runFeatureOperation(root, args, builtInFeatureRegistry, undefined, {
+    runFinalTask: () => Promise.resolve(undefined),
+  });
 }
