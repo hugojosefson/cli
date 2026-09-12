@@ -110,8 +110,6 @@ bunx --bun --package @hugojosefson/cli hj repo features
 deno run --allow-all jsr:@hugojosefson/cli repo features
 ```
 
-For newly published releases, see the [Deno dependency-age note](#deno).
-
 </details>
 
 ## Start here
