@@ -117,6 +117,44 @@ Deno.test("every provider renders, detects, repairs, and directly disables exact
   }
 });
 
+Deno.test("every provider recognizes reflowed terms and preserves raw attribution validation", async () => {
+  for (const provider of licenseCatalog) {
+    const text = template(provider.definition).trimEnd() +
+      "\n\nComplete license terms.\n";
+    const feature = createSpdxLicenseFeature({
+      ...provider,
+      text: source(text),
+      alternates: [],
+    });
+    const content =
+      (rendered(provider.definition).trimEnd() + " Complete license terms.")
+        .replaceAll(" ", "\r\n");
+    assertEquals(
+      (await feature.detect(context(file(content)))).state,
+      "enabled",
+      provider.id,
+    );
+    assertEquals(
+      (await feature.detect(
+        context(file(content.replace("Complete", "Changed"))),
+      )).state,
+      "ambiguous",
+      provider.id,
+    );
+    if (
+      provider.definition.placeholders.some(({ kind }) => kind === "project")
+    ) {
+      assertEquals(
+        (await feature.detect(
+          context(file(content.replace("repo", "repo\nAdditional terms"))),
+        )).state,
+        "ambiguous",
+        provider.id,
+      );
+    }
+  }
+});
+
 Deno.test("catalog providers recognize every exact alternate and only new replacements write", async () => {
   for (
     const [oldId, newId] of [

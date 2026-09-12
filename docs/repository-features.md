@@ -432,9 +432,13 @@ license catalog covers these families:
 | Creative Commons         | CC-BY-NC-SA-4.0 |
 | Creative Commons         | CC-BY-NC-ND-4.0 |
 
-License detection requires the pinned template and its recognized README link. A
-different line wrap or a custom license section can prevent adoption.
-Recognition is a file-management check, not a legal assessment.
+License detection requires the pinned template and its recognized README link.
+It accepts `©` and `(c)` as equivalent copyright markers, different line
+wrapping and blank lines, LF or CRLF, and an optional final newline. Existing
+license text is preserved. License terms must still match, and each attribution
+value must remain valid and on one line. A custom README license section can
+prevent adoption. Recognition is a file-management check, not a legal
+assessment.
 
 | README transition                                   | Result                                                                                         |
 | --------------------------------------------------- | ---------------------------------------------------------------------------------------------- |

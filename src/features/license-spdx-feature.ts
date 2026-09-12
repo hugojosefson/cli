@@ -60,7 +60,7 @@ export interface SpdxLicenseProvider {
   readonly alternates: readonly Source[];
 }
 
-/** Creates an exclusive provider that recognizes exact alternate SPDX licenses. */
+/** Creates an exclusive provider that recognizes equivalent alternate SPDX licenses. */
 export function createSpdxLicenseFeature(
   provider: SpdxLicenseProvider,
 ): Feature {
@@ -340,6 +340,12 @@ function parse(
   definition: SpdxLicenseSourceDefinition,
   content: string,
 ): Values | undefined {
+  // Preserve raw attribution boundaries: normalizing the values themselves
+  // could hide unsafe newlines or absorb added terms into a holder or project.
+  const original = content;
+  const normalized = normalizeLicenseText(content);
+  content = normalized.text;
+  template = normalizeLicenseText(template).text;
   let templateCursor = 0;
   let contentCursor = 0;
   const result: Values = {};
@@ -360,7 +366,10 @@ function parse(
       ? content.indexOf(following, contentCursor)
       : content.length;
     if (valueEnd < 0) return undefined;
-    const value = content.slice(contentCursor, valueEnd);
+    const value = original.slice(
+      normalized.offsets[contentCursor],
+      normalized.offsets[valueEnd],
+    );
     if (!valid(placeholder.kind, value)) return undefined;
     result[placeholder.kind] = value;
     contentCursor = valueEnd;
@@ -370,6 +379,35 @@ function parse(
       contentCursor + suffix.length === content.length
     ? result
     : undefined;
+}
+
+function normalizeLicenseText(text: string): {
+  text: string;
+  offsets: number[];
+} {
+  const characters: string[] = [];
+  const offsets: number[] = [];
+  let end = 0;
+  for (let index = 0; index < text.length;) {
+    const start = index;
+    let character = text[index]!;
+    if (/[ \t\r\n]/.test(character)) {
+      while (index < text.length && /[ \t\r\n]/.test(text[index]!)) index++;
+      if (characters.length === 0 || index === text.length) continue;
+      character = " ";
+    } else if (text.startsWith("(c)", index)) {
+      character = "©";
+      index += 3;
+    } else {
+      index++;
+    }
+    characters.push(character);
+    offsets.push(start);
+    end = index;
+  }
+  // End captures stop before trailing whitespace, just like literal suffixes.
+  offsets.push(end);
+  return { text: characters.join(""), offsets };
 }
 
 function render(
