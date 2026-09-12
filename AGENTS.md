@@ -23,5 +23,9 @@ When implementing Project issues, follow these rules:
 11. Leave completed issues for GitHub to close when the pull request merges into
     `main`.
 12. Make sure that the Project moves closed issues to `Done`.
+13. Enable auto-merge with the rebase method for completed pull requests.
+
+Use Conventional Commit subjects, such as
+`feat(package): resolve package identity`.
 
 Run `deno task ci` before reporting implementation as complete.

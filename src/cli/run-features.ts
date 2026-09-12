@@ -6,6 +6,11 @@ import type { ChangePlan, PlannedValidation } from "../api/change-plan.ts";
 import type { OperationContext } from "../api/repository-context.ts";
 import { builtInFeatureRegistry } from "../features/built-in-feature-registry.ts";
 import { reconcileGitIgnorePlans } from "../features/git-ignore-feature.ts";
+import {
+  denoLockPlanOwner,
+  reconcileDenoLockPlans,
+} from "../features/deno-lock-policy.ts";
+import { prepareDenoLock, refreshDenoLock } from "./deno-lock.ts";
 import { licenseCatalog } from "../features/license-catalog.ts";
 import type { FeatureRegistry } from "../features/feature-registry.ts";
 import { resolveFeatureChanges } from "../features/resolve-feature-changes.ts";
@@ -189,6 +194,11 @@ export async function runFeatureOperation(
       services.colors?.stderr,
     );
     if (
+      registry.features.some((feature) => feature.metadata.id === "deno-fmt")
+    ) {
+      plans = await reconcileDenoLockPlans(context, plans);
+    }
+    if (
       registry.features.some((feature) => feature.metadata.id === "git-ignore")
     ) {
       plans = await reconcileGitIgnorePlans(context, plans);
@@ -231,10 +241,21 @@ export async function runFeatureOperation(
       }
       throw error;
     }
+    const lockOwner = denoLockPlanOwner(plans);
+    const lockPaths = lockOwner && plans.some((plan) => plan.changes.length > 0)
+      ? await prepareDenoLock(root)
+      : [];
+    if (lockOwner && lockPaths.length) {
+      await commits?.capture(lockOwner, lockPaths);
+    }
     const finalTask = await (services.runFinalTask ?? runFinalProjectTask)(
       root,
       plans,
     );
+    if (lockOwner && lockPaths.length) {
+      await refreshDenoLock(root);
+      await commits?.capture(lockOwner, lockPaths);
+    }
     await validate(
       root,
       files,

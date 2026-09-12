@@ -160,6 +160,10 @@ If the task fails, `hj` returns its exit code and leaves the changes visible. It
 does not create the pending feature commits. An empty initial commit can remain.
 Correct the reported failure before you commit the changes.
 
+Deno can reject a recently published helper package under its minimum dependency
+age policy. If this occurs, wait until the required version meets the policy,
+then retry. `hj` does not lower that policy.
+
 ## Deno and Git features
 
 | Feature               | Managed configuration                                                      | Requirement                                    |
