@@ -39,6 +39,7 @@ export function formatFeatureStatus(
 
 export interface FeatureOperationResult {
   readonly committed: boolean;
+  readonly finalTask?: string;
   readonly initializedGit: boolean;
   readonly localChanged: boolean;
   readonly githubChanged: boolean;
@@ -51,6 +52,7 @@ export function formatFeatureResult(
   color = false,
 ): string {
   const rows: string[][] = [];
+  if (result.finalTask) rows.push(["Project task", result.finalTask]);
   if (result.localChanged) rows.push(["Local files", "Applied local changes."]);
   if (result.committed) {
     rows.push([

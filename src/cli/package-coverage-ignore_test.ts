@@ -2,7 +2,7 @@ import { assert, assertEquals, assertStringIncludes } from "@std/assert";
 import { fromFileUrl, toFileUrl } from "@std/path";
 import { builtInFeatureRegistry } from "../features/built-in-feature-registry.ts";
 import { parseFeatures } from "./parse-features.ts";
-import { runFeatures } from "./run-features.ts";
+import { runFeatureOperation } from "./run-features.ts";
 
 Deno.test("configured CLI identity composes with coverage and conditional ignores", async () => {
   const path = await Deno.makeTempDir({
@@ -17,12 +17,16 @@ Deno.test("configured CLI identity composes with coverage and conditional ignore
     );
     await Deno.writeTextFile(new URL(".gitignore", root), "keep.log\n");
     const apply = (...flags: string[]) =>
-      runFeatures(
+      runFeatureOperation(
         root,
         parseFeatures(
           ["repo", "features", ...flags, "--yes"],
           builtInFeatureRegistry,
         ),
+        builtInFeatureRegistry,
+        undefined,
+        // This test executes generated local tests below without fetching hj.
+        { runFinalTask: () => Promise.resolve(undefined) },
       );
 
     await apply("--deno-cli", "--deno-test", "--git-ignore");
