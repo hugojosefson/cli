@@ -88,3 +88,111 @@ test("JSON repair handles creation, formatting, invalid input, and array removal
     "remove items[1]",
   );
 });
+
+test("workflow cache insertion and removal omit retained steps and describe neighboring edits", () => {
+  const retained = [
+    { name: "Configure authentication", run: "preserved private command" },
+    {
+      id: "prepare",
+      env: { GH_TOKEN: "preserved-private-value" },
+      run: "prepare",
+    },
+  ];
+  const old = [{ uses: "setup@old", with: { version: "1" } }, ...retained];
+  const cache = {
+    name: "Cache dependencies",
+    uses: "cache@pin",
+    with: { path: "~/.npm" },
+    env: { TOKEN: "new-private-value" },
+  };
+  const desired = [
+    { uses: "setup@new", with: { version: "2" } },
+    cache,
+    ...retained,
+  ];
+  const workflow = (steps: unknown[]) =>
+    JSON.stringify({ jobs: { check: { steps } } });
+  const details = describeFileRepair(
+    "ci.yaml",
+    workflow(old),
+    workflow(desired),
+  ).join("\n");
+  assertStringIncludes(details, 'jobs.check.steps[0].uses = "setup@new"');
+  assertStringIncludes(details, 'jobs.check.steps[0].with.version = "2"');
+  assertStringIncludes(details, 'jobs.check.steps[1].with.path = "~/.npm"');
+  assertStringIncludes(details, "jobs.check.steps[1].env.TOKEN = [redacted]");
+  for (
+    const preserved of [
+      "Configure authentication",
+      "preserved private command",
+      "prepare",
+      "preserved-private-value",
+      "new-private-value",
+      "remove",
+      "reorder",
+    ]
+  ) {
+    assert(!details.includes(preserved));
+  }
+  const removal = describeFileRepair(
+    "ci.yaml",
+    workflow(desired),
+    workflow([desired[0], ...retained]),
+  );
+  assert(removal.length === 1);
+  assertStringIncludes(removal[0], "remove jobs.check.steps[1]");
+  const empty = describeFileRepair("ci.yaml", workflow([cache]), workflow([]));
+  assert(empty.length === 1);
+  assertStringIncludes(empty[0], "remove jobs.check.steps[0]");
+});
+
+test("workflow repair retains duplicate occurrences and reports reordered edited steps", () => {
+  const workflow = (steps: unknown[]) =>
+    JSON.stringify({ jobs: { check: { steps } } });
+  const old = [
+    { run: "preserved private command" },
+    { run: "duplicate command" },
+    { run: "duplicate command" },
+    { id: "edit", run: "old command", env: { PASSWORD: "old-private-value" } },
+  ];
+  const desired = [old[1], old[0], old[2], {
+    id: "edit",
+    run: "new command",
+    env: { PASSWORD: "new-private-value" },
+  }];
+  const details = describeFileRepair(
+    "ci.yaml",
+    workflow(old),
+    workflow(desired),
+  ).join("\n");
+  assertStringIncludes(
+    details,
+    "reorder retained jobs.check.steps: original indices 1, 0 must appear in that order",
+  );
+  assertStringIncludes(details, 'jobs.check.steps[3].run = "new command"');
+  assertStringIncludes(
+    details,
+    "jobs.check.steps[3].env.PASSWORD = [redacted]",
+  );
+  for (
+    const preserved of [
+      "preserved private command",
+      "duplicate command",
+      "old-private-value",
+      "new-private-value",
+    ]
+  ) {
+    assert(!details.includes(preserved));
+  }
+  const anonymous = describeFileRepair(
+    "ci.yaml",
+    workflow([{ run: "old anonymous" }, old[0]]),
+    workflow([old[0], { run: "new anonymous" }]),
+  ).join("\n");
+  assertStringIncludes(anonymous, 'jobs.check.steps[1].run = "new anonymous"');
+  assertStringIncludes(
+    anonymous,
+    "original indices 1, 0 must appear in that order",
+  );
+  assert(!anonymous.includes("preserved private command"));
+});
