@@ -13,6 +13,7 @@ import {
   desiredPublishCheck,
   desiredReadmeBuild,
   desiredTaskIds,
+  isReadmeTask,
   presentTaskIds,
   readmeTaskDefinition,
 } from "./deno-tasks.ts";
@@ -74,7 +75,7 @@ export async function planEnableDenoFmt(
       const readme = readmeTransition(context);
       if (readme) {
         if (
-          readme.enabled && !sameJson(tasks.values.readme, definitions.readme)
+          readme.enabled && !isReadmeTask(tasks.values.readme)
         ) {
           changes.push({
             kind: "set-json",
@@ -88,7 +89,7 @@ export async function planEnableDenoFmt(
             kind: "remove-json",
             path: state.config.path,
             jsonPath: ["tasks", "readme"],
-            expected: readmeTaskDefinition,
+            expected: tasks.values.readme,
           });
         }
         if (
@@ -152,7 +153,7 @@ export async function planDisableDenoFmt(
           kind: "remove-json",
           path: state.config.path,
           jsonPath: ["tasks", "readme"],
-          expected: readmeTaskDefinition,
+          expected: tasks.values.readme,
         });
       }
     }

@@ -22,7 +22,8 @@
       "README.md",
       "CHANGELOG.md",
       "LICENSE",
-      "docs"
+      "docs",
+      "readme/generated"
     ],
     "exclude": [
       "src/**/*_test.ts",
@@ -43,16 +44,19 @@
       "scripts",
       "docs",
       ".github",
-      "README.md",
       "CHANGELOG.md",
       "deno.json",
-      "toolchain.json"
+      "toolchain.json",
+      "readme"
+    ],
+    "exclude": [
+      "readme/generated"
     ]
   },
   "tasks": {
     "default": {
-      "description": "Format project files, then run all checks",
-      "command": "deno task fmt && deno task all"
+      "description": "Fix formatting, then run checks.",
+      "command": "deno task --if-present package-metadata && deno fmt --ignore=coverage && deno task readme && deno task check"
     },
     "fmt": {
       "description": "Format project source",
@@ -79,14 +83,9 @@
       "command": "git diff --check"
     },
     "check": {
-      "description": "Run all non-mutating checks",
+      "description": "Run all non-mutating checks with coverage",
       "dependencies": [
-        "format",
-        "lint",
-        "typecheck",
-        "test",
-        "diff-check",
-        "publish-check"
+        "ci"
       ]
     },
     "all": {
@@ -111,7 +110,8 @@
         "typecheck",
         "coverage",
         "diff-check",
-        "publish-check"
+        "publish-check",
+        "readme-check"
       ]
     },
     "hj": {
@@ -133,6 +133,18 @@
     "npm-build": {
       "description": "Build the optional npm launcher without publishing",
       "command": "deno run --allow-env=HJ_RELEASE_SHA,PATH --allow-read --allow-write=.hj/npm --allow-run=git scripts/build-npm.ts"
+    },
+    "readme": {
+      "description": "Generate README.md.",
+      "command": "sh -c 'temp=$(mktemp README.md.XXXXXX) && trap \"rm -f \\\"$temp\\\"\" EXIT && deno run --allow-read=. jsr:@hugojosefson/cli@0.8.3 readme build > \"$temp\" && chmod 444 \"$temp\" && mv \"$temp\" README.md'"
+    },
+    "readme-example": {
+      "description": "Generate the README example from local feature detection",
+      "command": "deno run --frozen --allow-read=. --allow-write=readme/generated scripts/readme-example.ts"
+    },
+    "readme-check": {
+      "description": "Generate and compare the README and feature example without writes",
+      "command": "deno run --frozen --allow-read=. scripts/readme-example.ts --check"
     }
   },
   "coverage": {

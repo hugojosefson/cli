@@ -9,11 +9,11 @@ import { denoFmtSubject } from "./deno-fmt-inspection.ts";
 import {
   denoTaskDefinitions,
   isObject,
+  isReadmeTask,
   leafTaskDefinitions,
   leafTaskNames,
   presentPublishCheck,
   presentTaskIds,
-  readmeTaskDefinition,
   type TaskFeatureId,
 } from "./deno-tasks.ts";
 
@@ -81,7 +81,7 @@ export async function inspectDenoTask(
       tasks.check,
       denoTaskDefinitions(
         presentTaskIds(tasks),
-        sameJson(tasks.readme, readmeTaskDefinition),
+        isReadmeTask(tasks.readme),
         presentPublishCheck(tasks),
       ).check,
     ),

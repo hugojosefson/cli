@@ -1,6 +1,7 @@
 /** @module Deno task definitions and pure task inspection. */
 
 import { hjPackageReference } from "./hj-package.ts";
+import { parseSemver } from "../release/semver.ts";
 
 import type { JsonObject, JsonValue } from "../api/json.ts";
 import type { OperationContext } from "../api/repository-context.ts";
@@ -48,6 +49,24 @@ export const readmeTaskDefinition: JsonObject = {
     hjPackageReference +
     ' readme build > "$temp" && chmod 444 "$temp" && mv "$temp" README.md\'',
 };
+
+/** Keep an exact generated task valid across later hj releases. */
+export function isReadmeTask(value: JsonValue | undefined): boolean {
+  if (value === undefined || !isObject(value)) return false;
+  const command = value.command;
+  if (typeof command !== "string") return false;
+  const template = readmeTaskDefinition.command as string;
+  const [before, after] = template.split(hjPackageReference);
+  if (!command.startsWith(before) || !command.endsWith(after)) return false;
+  const reference = command.slice(before.length, -after.length);
+  const packagePrefix = hjPackageReference.slice(
+    0,
+    hjPackageReference.lastIndexOf("@") + 1,
+  );
+  return reference.startsWith(packagePrefix) &&
+    parseSemver(reference.slice(packagePrefix.length)) !== undefined &&
+    sameJson({ ...value, command: template }, readmeTaskDefinition);
+}
 
 /** Returns formatter-owned tasks for the enabled task-feature subset. */
 export function denoTaskDefinitions(
@@ -134,7 +153,7 @@ export function desiredReadmeBuild(
     item.featureId === "readme-build"
   );
   if (change) return change.enabled;
-  return sameJson(tasks.readme, readmeTaskDefinition);
+  return isReadmeTask(tasks.readme);
 }
 
 /** Returns the exact owned check aggregate after resolved task transitions. */
@@ -153,7 +172,7 @@ export function desiredCheckDefinition(
 export function currentCheckDefinition(tasks: JsonObject): JsonObject {
   return denoTaskDefinitions(
     presentTaskIds(tasks),
-    sameJson(tasks.readme, readmeTaskDefinition),
+    isReadmeTask(tasks.readme),
     presentPublishCheck(tasks),
   ).check!;
 }
@@ -180,7 +199,7 @@ export function inspectDenoTasks(config: JsonObject): DenoTaskInspection {
   const enabled = presentTaskIds(tasks);
   const definitions = denoTaskDefinitions(
     enabled,
-    sameJson(tasks.readme, readmeTaskDefinition),
+    isReadmeTask(tasks.readme),
     presentPublishCheck(tasks),
   );
   for (const name of denoTaskNames) {

@@ -9,8 +9,8 @@ import { inspectDenoConfig } from "./deno-config.ts";
 import {
   denoTaskDefinitions,
   isObject,
+  isReadmeTask,
   presentTaskIds,
-  readmeTaskDefinition,
 } from "./deno-tasks.ts";
 import { readmeStaticSchema } from "./readme-static-artifact.ts";
 
@@ -37,7 +37,7 @@ export async function inspectReadmeBuild(context: DetectionContext) {
   const taskValue = tasks?.readme;
   const defaultValue = tasks?.default;
   const taskPresent = taskValue !== undefined;
-  const exactTask = sameJson(taskValue, readmeTaskDefinition);
+  const exactTask = isReadmeTask(taskValue);
   const taskIds = tasks ? presentTaskIds(tasks) : [];
   const exactDefault = tasks !== undefined && sameJson(
     defaultValue,

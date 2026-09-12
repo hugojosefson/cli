@@ -19,7 +19,7 @@ Tasks provide the supported development interface:
 | `deno task all`                                                | Run all checks with coverage.                                 |
 | `deno task typecheck`                                          | Type-check source and scripts with frozen dependencies.       |
 | `deno task publish-check`                                      | Validate the package without uploading it.                    |
-| `deno task check`                                              | Run all checks without coverage collection.                   |
+| `deno task check`                                              | Run all checks and enforce coverage limits.                   |
 | `deno task ci`                                                 | Run the checks and enforce coverage limits.                   |
 | `deno task test src/release/publish-tag-orchestration_test.ts` | Run one test file.                                            |
 | `deno task test --filter "recovery"`                           | Run tests with matching names.                                |
@@ -293,33 +293,49 @@ ignore detection fix, and local examples.
 | `license-mit`                   | Enabled        | LICENSE and its README link select MIT.                                                                   |
 | `license-mpl-2.0`               | Disabled       | MIT is selected. This alternate license provider is intentionally inactive.                               |
 | `license-unlicense`             | Disabled       | MIT is selected. This alternate license provider is intentionally inactive.                               |
-| `readme-build`                  | Disabled       | The static README has no shared fragments or generated sections that need a build.                        |
-| `readme-static`                 | Enabled        | Visitors read the maintained root README directly.                                                        |
+| `readme-build`                  | Enabled        | The README includes a generated example from this repository's feature output.                            |
+| `readme-static`                 | Disabled       | The root README is generated from editable source and an example fragment.                                |
 
-The CI, tag, GitHub Release, and JSR workflow features are enabled. They can pin
-an earlier exact CLI version without being drifted. Detection still compares the
-complete workflow with its managed template. Changing permissions, commands,
-actions, or other content requires repair. To select the current CLI version
-explicitly, use the
+The README build, CI, tag, GitHub Release, and JSR workflow features can pin an
+earlier exact CLI version without being drifted. Detection still compares the
+complete task or workflow with its managed template. Changing permissions,
+commands, actions, or other content requires repair. To select the current CLI
+version for workflows, use the
 [workflow source option](releases.md#bootstrap-before-the-first-registry-version).
 
-`check` runs non-mutating checks. `all` depends on `ci`, which enforces coverage
-limits. CI collects tests once through the coverage task. Detection accepts the
-project's custom file selections and runner scripts. A configured task is not
-proof that its checks pass. The CI result supplies that proof.
+`check` and `all` depend on `ci`, which runs non-mutating checks and enforces
+coverage limits. CI collects tests once through the coverage task. Detection
+accepts the project's custom file selections and runner scripts. A configured
+task is not proof that its checks pass. The CI result supplies that proof.
 
-Keep the static README. It links to separate guides and has no duplicated
-fragments that need includes.
+Edit [readme/README.md](../readme/README.md), then run `deno task readme`. The
+build imports a generated Markdown fragment that links to a colored SVG example.
+The example uses this checkout's local feature detectors and terminal formatter.
+It shows four representative rows and needs no GitHub access.
 
-The repository uses managed JSR and CI badges. Its custom installation and
-requirements sections remain intact. The package configuration sets
-`hj.commandName` to `hj` because the package name ends in `cli`.
+After changing feature detection or output, run:
 
-Feature updates run `default`, which formats files and runs `all`, including
-`deno task ci`. Successful updates record separate commits for their changed
-features. The existing lockfile stays outside automatic replacement. README
-migration does not apply because this checkout has no legacy generator or README
-source file.
+```bash
+deno task readme-example
+deno task readme
+```
+
+CI runs `readme-check` through `ci`. This step regenerates the SVG, Markdown
+fragment, and complete README in memory, then compares them with the committed
+files. It fails with the refresh command when any output differs or is missing.
+This also runs in release validation through `all`. It requires no network,
+credentials, external commands, or writes. Formatting covers the editable source
+and excludes generated output.
+
+The repository uses managed JSR and CI badges. Its custom installation and usage
+sections remain intact. The package configuration sets `hj.commandName` to `hj`
+because the package name ends in `cli`.
+
+Feature updates run `default`, which builds the README and runs `check`,
+including `deno task ci`. Successful updates record separate commits for their
+changed features. The existing lockfile stays outside automatic replacement. The
+README now uses the existing `readme-build` feature because its generated
+example removes manual output maintenance.
 
 The repository already uses `@std/assert` and named test steps. For example,
 `src/features/deno-task-features_real_test.ts` groups task-conflict cases with
