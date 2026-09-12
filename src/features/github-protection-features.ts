@@ -2,8 +2,10 @@
 
 import type { Feature } from "../api/feature.ts";
 import type { OperationContext } from "../api/repository-context.ts";
-import { githubCiArtifacts } from "./github-ci-artifacts.ts";
-import { workflowCliArtifact } from "./workflow-cli.ts";
+import {
+  githubCiArtifacts,
+  renderGithubCiArtifact,
+} from "./github-ci-artifacts.ts";
 import {
   mainProtectionDefinition,
   mainReviewDefinition,
@@ -95,7 +97,7 @@ async function remoteCiPrecondition(context: OperationContext) {
   const artifact = githubCiArtifacts[0];
   const remote = await context.github?.remoteFile?.(artifact.path);
   if (remote?.kind !== "file") return undefined;
-  const expected = workflowCliArtifact(artifact, {
+  const expected = renderGithubCiArtifact(artifact, {
     repositoryRoot: context.repositoryRoot,
     files: context.files,
     git: context.git,

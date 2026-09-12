@@ -595,3 +595,58 @@ Deno.test("main protection accepts exact pinned CI and binds its observed source
     "blocked",
   );
 });
+
+Deno.test("main protection accepts migrated CI with recorded pins and rejects custom edits", async () => {
+  const { workflowCliArtifact } = await import("./workflow-cli.ts");
+  const { legacyCiCheckCompatibility } = await import("./github-ci-legacy.ts");
+  const { hjPackageReference } = await import("./hj-package.ts");
+  for (const source of ["jsr", `github:owner/hj@${"d".repeat(40)}`]) {
+    const operation = context([]);
+    const pinned = workflowCliArtifact({
+      ...githubCiArtifacts[0],
+      content: githubCiArtifacts[0].content + legacyCiCheckCompatibility,
+    }, {
+      ...operation,
+      options: { workflowCli: source, denoVersion: "2.8.1" },
+    } as OperationContext, { kind: "absent" });
+    const content = pinned.content.replaceAll(
+      hjPackageReference,
+      hjPackageReference.replace(/@[^@]+$/, "@0.2.0"),
+    );
+    operation.github!.remoteFile = () =>
+      Promise.resolve({ kind: "file", content });
+    const allowed = await githubMainProtectionFeature.checkEnable(operation);
+    if (allowed.result !== "allowed") {
+      throw new Error("Expected exact migrated CI to be allowed");
+    }
+    const plan = await githubMainProtectionFeature.planEnable(
+      operation,
+      allowed,
+    );
+    assertEquals(plan.preconditions.at(-1), {
+      kind: "github-remote-file",
+      path: pinned.path,
+      expectedContent: content,
+    });
+    for (
+      const changed of [
+        content + "# user change\n",
+        content.replace("needs: check", "needs: custom"),
+        content.replace(
+          'run: test "$HJ_CHECK_RESULT" = "success"',
+          "run: true",
+        ),
+      ]
+    ) {
+      operation.github!.remoteFile = () =>
+        Promise.resolve({ kind: "file", content: changed });
+      assertEquals(
+        (await githubMainProtectionFeature.checkEnable(operation)).result,
+        "blocked",
+      );
+      await assertRejects(() =>
+        githubMainProtectionFeature.planEnable(operation, allowed)
+      );
+    }
+  }
+});
