@@ -255,6 +255,9 @@ Deno.test("readme task preserves failures and atomically replaces successes", as
   await withRepository(async (root) => {
     await write(root, "README.md", "# Preserved\n");
     await runCli(root, ["repo", "features", "--readme-build"]);
+    await git(root, "init");
+    await git(root, "add", "README.md");
+    await git(root, "ls-files", "--error-unmatch", "README.md");
     await Deno.mkdir(new URL("bin", root));
     await write(root, "bin/deno", "#!/bin/sh\nexit 17\n");
     await Deno.chmod(new URL("bin/deno", root), 0o755);
@@ -274,6 +277,10 @@ Deno.test("readme task preserves failures and atomically replaces successes", as
     }
     assertEquals(names.filter((name) => name.startsWith("README.md.")), []);
 
+    // Git tracks the generated document, but checkout restores writable mode.
+    await Deno.remove(new URL("README.md", root));
+    await git(root, "checkout-index", "--force", "README.md");
+    assert((await new LocalFileReader(root).mode("README.md"))! & 0o200);
     await write(root, "bin/deno", "#!/bin/sh\nprintf '# Built\\n'\n");
     const success = await new Deno.Command(Deno.execPath(), {
       args: ["task", "readme"],
@@ -285,6 +292,7 @@ Deno.test("readme task preserves failures and atomically replaces successes", as
     assert(success.success);
     assertEquals(await read(root, "README.md"), "# Built\n");
     assertEquals(await new LocalFileReader(root).mode("README.md"), 0o444);
+    await git(root, "ls-files", "--error-unmatch", "README.md");
   });
 });
 

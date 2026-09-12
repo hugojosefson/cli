@@ -313,6 +313,11 @@ build imports a generated Markdown fragment that links to a colored SVG example.
 The example uses this checkout's local feature detectors and terminal formatter.
 It shows four representative rows and needs no GitHub access.
 
+Keep the generated root `README.md` tracked in Git. The build sets its file
+permissions to `0444` (read-only) and leaves it tracked. Git records the
+executable flag but does not record write permissions. After a checkout, run
+`deno task readme` to restore read-only permissions.
+
 After changing feature detection or output, run:
 
 ```bash
