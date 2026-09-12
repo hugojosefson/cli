@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.14.2
+
+### Other
+
+#### ci
+
+- exercise isolated release preparation source
+  ([97d5bd0](https://github.com/hugojosefson/cli/commit/97d5bd076485d7ce6993b9a1e48f8fc08557ae2a))
+
+#### release
+
+- isolate preparation validation inputs
+  ([9f27b4c](https://github.com/hugojosefson/cli/commit/9f27b4cee0b1da9cd295ea19d39335fed7b02023))
+
 ## 0.14.1
 
 ### Fixes
