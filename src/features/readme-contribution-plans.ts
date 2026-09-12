@@ -45,7 +45,7 @@ export async function reconcileReadmePlans(
   }
   const projected = {
     ...context,
-    files: { ...context.files, observe: (path: string) => files.observe(path) },
+    files,
   };
   const config = await inspectDenoConfig(projected);
   const metadata = await readPackageMetadata(projected);
