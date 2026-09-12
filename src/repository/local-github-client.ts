@@ -38,6 +38,7 @@ const gitOid = /^[0-9a-f]{40}(?:[0-9a-f]{24})?$/;
 /** Uses `gh` without exposing its credentials to arguments or environment. */
 export class LocalGithubClient implements GithubWriter {
   readonly #runner: GithubCommandRunner;
+  readonly #pendingReads = new Map<string, Promise<GithubCommandResult>>();
   #repository?: Promise<GithubRepository | undefined>;
 
   constructor(root: URL, runner?: GithubCommandRunner) {
@@ -614,7 +615,7 @@ export class LocalGithubClient implements GithubWriter {
     expectedFailure?: (result: GithubCommandResult) => boolean,
   ): Promise<Uint8Array | undefined> {
     try {
-      const result = await this.#runner.run(args);
+      const result = await this.#read(args);
       if (result.success || expectedFailure?.(result)) return result.stdout;
       this.#diagnostics.add(githubCommandFailure(args, result));
     } catch {
@@ -622,7 +623,25 @@ export class LocalGithubClient implements GithubWriter {
     }
     return undefined;
   }
+
+  /** Share concurrent reads, but always fetch again after a read completes. */
+  async #read(args: readonly string[]): Promise<GithubCommandResult> {
+    const key = JSON.stringify(args);
+    const pending = this.#pendingReads.get(key);
+    if (pending) return await pending;
+    const result = this.#runner.run(args);
+    this.#pendingReads.set(key, result);
+    try {
+      return await result;
+    } finally {
+      if (this.#pendingReads.get(key) === result) {
+        this.#pendingReads.delete(key);
+      }
+    }
+  }
+
   async #runOrThrow(args: readonly string[], stdin?: string): Promise<void> {
+    this.#pendingReads.clear();
     let result;
     try {
       result = await this.#runner.run(args, stdin);
