@@ -67,9 +67,25 @@ Inspect the current directory without a global install:
 bunx --bun --package @hugojosefson/cli hj repo features
 ```
 
+Or install the `hj` command globally:
+
+```bash
+bun add --global @hugojosefson/cli@latest
+```
+
+Run this command again to upgrade to the latest release.
+
+Use `bun run --bun hj` in place of `hj` in the examples below.
+
 ### Deno
 
-Install `hj` from [JSR](https://jsr.io/@hugojosefson/cli):
+Inspect the current directory without a global install:
+
+```bash
+deno run --allow-all jsr:@hugojosefson/cli repo features
+```
+
+Or install `hj` from [JSR](https://jsr.io/@hugojosefson/cli) globally:
 
 ```bash
 deno install --global --allow-all --reload --force --name hj jsr:@hugojosefson/cli
@@ -80,9 +96,9 @@ Run this command again to upgrade to the latest release.
 If needed, add the binary directory printed by Deno to your `PATH`. The command
 grants full Deno permissions so `hj` can manage files and run external tools.
 
-Deno delays new dependencies for 24 hours by default. To install a release
-immediately, add `--min-dep-age=0` to the command. This skips the delay for that
-installation. See the
+Deno delays new dependencies for 24 hours by default. To use a release
+immediately, add `--min-dep-age=0` to either Deno command above. This skips the
+delay for that command. See the
 [Deno installation reference](https://docs.deno.com/runtime/reference/cli/install/)
 for more options.
 
@@ -151,6 +167,7 @@ confirmation.
 | Installation | Command                                    |
 | ------------ | ------------------------------------------ |
 | npm          | `npm uninstall --global @hugojosefson/cli` |
+| Bun          | `bun remove --global @hugojosefson/cli`    |
 | Deno         | `deno uninstall --global hj`               |
 
 ## Documentation
