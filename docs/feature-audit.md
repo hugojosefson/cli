@@ -187,8 +187,9 @@ change guard. Node 26.2.0 and Bun 1.4.2 passed native access tests, including a
 read-only file owned by another user. New implementation and test code use
 `node:` imports and add no `Deno.` namespace references.
 
-The final `deno task ci` passed 692 tests and 29 named steps. Coverage passed
-all limits. A separate run of `readme build` with only `--allow-read=.` produced
-the same README. The installed `hj` still uses the earlier implementation and
+The Deno suite passed 700 tests and 29 named steps. The complete runtime matrix
+executed the same 729 test bodies from 113 files in Deno, Node 24, Node 26, and
+Bun. A separate run of `readme build` with only `--allow-read=.` produced the
+same README. The installed `hj` still uses the earlier implementation and
 reports unnecessary `644` repairs for LICENSE and the editable README source.
 Use `deno task hj repo features` to inspect this change before installation.
