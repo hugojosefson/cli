@@ -106,13 +106,7 @@
     "ci": {
       "description": "Run validation and coverage once",
       "dependencies": [
-        "format",
-        "lint",
-        "typecheck",
-        "coverage",
-        "diff-check",
-        "publish-check",
-        "readme-check",
+        "ci-deno",
         "native-tests"
       ]
     },
@@ -162,6 +156,18 @@
     "test-matrix": {
       "description": "Run every test in Deno, Node 24/26 and Bun",
       "command": "deno run --allow-all scripts/run-test-matrix.ts"
+    },
+    "ci-deno": {
+      "description": "Run Deno coverage and all non-native checks for the parallel CI job",
+      "dependencies": [
+        "format",
+        "lint",
+        "typecheck",
+        "coverage",
+        "diff-check",
+        "publish-check",
+        "readme-check"
+      ]
     }
   },
   "coverage": {

@@ -529,6 +529,12 @@ authentication methods.
 | `github-release-publish-jsr`    | Publish automatically after tag creation with temporary GitHub identity credentials; requires `jsr-package`. |
 | `github-release-publish-github` | Create the GitHub Release after tag publication.                                                             |
 
+The CLI's own repository uses the exact managed workflow variant marked
+`# hj-ci-runtime-matrix: deno-node-bun-v1`. It runs its Deno/Node/Bun runner
+scripts in separate jobs with one required aggregate check. Detection and repair
+preserve this explicit variant. Newly generated projects keep `deno task all`;
+the marker requires the CLI repository's tasks and scripts.
+
 `github-ci` also requires the Actions setting that allows PR creation and
 approval. PR workflow runs created by its dependency updater need approval from
 a user with write access. `github-main-protection` requires `github-ci` and

@@ -41,14 +41,22 @@ runs cannot satisfy the full matrix gate.
 
 `deno task test-matrix` builds the tests and runs all four runtimes.
 `deno task ci` collects Deno coverage once, then runs the three native suites.
-The existing required CI check includes this matrix, so a native test failure
-blocks an ordinary pull request merge. The runners record executed test and
-subtest names in `.hj/test-results`. The matrix requires identical file and test
-inventories, with every body complete and successful. Missing registrations,
-missing executions, skipped bodies, and failures fail the gate. Printed runner
-totals can differ because the runtimes count subtests differently. Do not run a
-focused test command while the matrix runs in the same checkout: they share
-report files. Use a separate worktree for concurrent tests.
+Pull-request CI runs `ci-deno` and the three native runtimes in separate Linux
+jobs. Each native job installs the frozen tools and builds its own tests. The
+required `check` job runs even when another job fails and first requires all
+four runtime jobs to succeed. It downloads only this workflow run's report
+artifacts, verifies exact runtime versions and the current checkout's test-file
+inventory, then compares complete successful test inventories. Missing uploads,
+partial reports, failed coverage, skipped jobs, and mismatches fail the gate.
+This reduces elapsed time at the cost of repeated setup on isolated runners.
+Local `deno task ci` and release validation still run the complete matrix. The
+runners record executed test and subtest names in `.hj/test-results`. The matrix
+requires identical file and test inventories, with every body complete and
+successful. Missing registrations, missing executions, skipped bodies, and
+failures fail the gate. Printed runner totals can differ because the runtimes
+count subtests differently. Do not run a focused test command while the matrix
+runs in the same checkout: they share report files. Use a separate worktree for
+concurrent tests.
 
 Native test builds require Node and npm on the development or CI host. The build
 uses the separately pinned dnt emitter with no Deno global or test shims.
@@ -151,10 +159,22 @@ and applies a formatting feature to confirm the working directory behavior.
 
 ## CI and toolchain changes
 
-[hj-ci.yaml](../.github/workflows/hj-ci.yaml) runs `deno task all` for pull
-requests. That task runs `ci`, including coverage limits. A separate job checks
-release commits. The workflow has read-only repository access and does not
-publish anything. Actions use exact commit references.
+[hj-ci.yaml](../.github/workflows/hj-ci.yaml) runs parallel runtime jobs for
+pull requests. `deno task ci-deno` collects coverage and runs the other project
+checks. `deno run --allow-all scripts/run-test-matrix.ts --runtime node24` runs
+one native suite; use `node26` or `bun` for the others. The aggregate runs
+`deno run --allow-read scripts/run-test-matrix.ts --compare-only` after all
+reports arrive. This command does not build or run tests. A separate job checks
+release commits.
+
+The `# hj-ci-runtime-matrix: deno-node-bun-v1` workflow marker selects this
+repository's exact managed variant. It requires this repository's runner scripts
+and `ci-deno` task. Detection and repair preserve the variant, configured Deno
+version, and CLI source pin while comparing the full workflow. Other
+repositories retain the default `deno task all` workflow. The marker is not a
+general-purpose multi-runtime feature for downstream repositories. The workflow
+has read-only repository access and does not publish anything. Actions use exact
+commit references.
 
 The same toolchain file supplies the fallback Deno version for newly generated
 CI and release workflows. [Global configuration](configuration.md) and
@@ -170,7 +190,7 @@ change that version, select the workflow feature with `--deno-version` and
 To run this repository's workflow locally with Docker and `act`, use:
 
 ```bash
-act pull_request -W .github/workflows/hj-ci.yaml -j check \
+act pull_request -W .github/workflows/hj-ci.yaml -j deno \
   -P ubuntu-latest=catthehacker/ubuntu:act-latest
 ```
 
