@@ -6,7 +6,7 @@ import type {
 } from "../api/feature-operation.ts";
 import type { OperationContext } from "../api/repository-context.ts";
 import { sameJson } from "../operations/local-plan-state.ts";
-import { denoTaskDefinitions } from "./deno-tasks.ts";
+import { denoTaskDefinitions, readmeTaskDefinition } from "./deno-tasks.ts";
 import {
   inspectReadmeBuild,
   readmeBuildDirectoryPath,
@@ -20,6 +20,26 @@ export async function checkEnableReadmeBuild(
   const state = await inspectReadmeBuild(context);
   if (exact(state)) {
     return noOp("Generated README is already adopted.");
+  }
+  if (state.legacy.kind === "conflict") return blocked(state.legacy.reason);
+  if (state.legacy.kind === "recognized") {
+    if (
+      !state.defaultUsable ||
+      state.root.kind !== "file" && state.root.kind !== "absent"
+    ) {
+      return blocked("Legacy README output or default task conflicts.");
+    }
+    if (!repairSelected(context)) {
+      return blocked(
+        "Legacy README generation differs. Re-run with --repair to migrate it.",
+      );
+    }
+    return allowed([{
+      code: "readme-build-migrate",
+      message: legacyReadmePreview(state),
+      subjects: [{ kind: "repository-path", identifier: readmeBuildRootPath }],
+      requiresConfirmation: true,
+    }]);
   }
   if (state.taskPresent || state.generatedMarker) {
     if (
@@ -141,4 +161,16 @@ function blocked(message: string): OperationCheck {
     }],
     warnings: [],
   };
+}
+
+export function legacyReadmePreview(
+  state: Awaited<ReturnType<typeof inspectReadmeBuild>>,
+): string {
+  return "Replace the git-hj-init README task and quoted include directives. " +
+    "Preserve existing source scripts and public exports.\n" +
+    `Replace tasks.readme: ${JSON.stringify(state.taskValue)}\n` +
+    `With tasks.readme: ${JSON.stringify(readmeTaskDefinition)}\n` +
+    "--- README.md before\n" +
+    (state.root.kind === "file" ? state.root.content : "(absent)\n") +
+    "\n+++ README.md after\n" + state.output;
 }

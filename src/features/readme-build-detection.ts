@@ -34,6 +34,9 @@ export async function detectReadmeBuild(
       }],
     };
   }
+  if (state.legacy.kind === "conflict") {
+    return ambiguous(evidence, state.legacy.reason);
+  }
   if (state.source.kind !== "file" || state.output === undefined) {
     return ambiguous(evidence, "The generated README source is unsafe.");
   }
