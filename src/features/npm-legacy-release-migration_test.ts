@@ -78,6 +78,7 @@ test("npm enablement requires coordinated legacy release migration and preserves
         npm.metadata.id,
         "github-release-publish-jsr",
         "github-ci",
+        "readme-static",
       ].map((featureId) => ({
         featureId,
         enabled: true,

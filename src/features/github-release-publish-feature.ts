@@ -1,5 +1,6 @@
 /** @module Lifecycle declarations for generated release publication workflows. */
 
+import { withNpmReadmeBadge } from "./npm-readme-badge.ts";
 import { inspectLegacyRelease } from "./github-release-legacy.ts";
 import {
   checkLegacyReleaseMigration,
@@ -158,7 +159,7 @@ export const githubReleasePublishGithubFeature = releaseFeature(
     reason: "GitHub Releases start after a release tag.",
   }],
 );
-export const githubReleasePublishNpmFeature = releaseFeature(
+export const githubReleasePublishNpmFeature = withNpmReadmeBadge(releaseFeature(
   githubReleasePublishNpmFeatureId,
   "GitHub npm release publication",
   publishNpmArtifact,
@@ -166,7 +167,7 @@ export const githubReleasePublishNpmFeature = releaseFeature(
     featureId: githubReleasePublishTagFeatureId,
     reason: "npm publication starts after a release tag.",
   }],
-);
+));
 export const githubReleasePublisherFeatures = [
   githubReleasePublishJsrFeature,
   githubReleasePublishGithubFeature,

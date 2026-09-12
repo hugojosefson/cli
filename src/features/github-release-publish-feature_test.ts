@@ -1,6 +1,8 @@
 import { test as nativeTest } from "node:test";
 import { trackTests } from "../testing/inventory-test-fixtures.ts";
 const test = trackTests(import.meta.url, nativeTest);
+import { npmBadge } from "./npm-readme-badge.ts";
+import { reconcileBlocks } from "../readme/contribution-blocks.ts";
 import { hjPackageReference } from "./hj-package.ts";
 import { assertEquals, assertRejects, assertStringIncludes } from "@std/assert";
 import type { ArtifactObservation } from "../api/artifact-inspection.ts";
@@ -547,14 +549,24 @@ test("release workflows use configured Deno versions without changing CLI source
 
 test("npm workflow lifecycle preserves custom files and requires quiescence for removal", async () => {
   const feature = githubReleasePublishNpmFeature;
-  const empty = context({});
-  assertEquals((await feature.detect(empty)).state, "disabled");
+  const badge = await reconcileBlocks("# Package\n", [
+    npmBadge("@sample/tool"),
+  ]);
+  const prerequisites = {
+    "deno.json": exact(JSON.stringify({ name: "@sample/tool" })),
+    "README.md": exact(badge),
+  };
+  const empty = context(prerequisites);
+  assertEquals((await feature.detect(empty)).state, "drifted");
   const allowed = await feature.checkEnable(empty);
   if (allowed.result !== "allowed") throw new Error("Expected enablement");
   const plan = await feature.planEnable(empty, allowed);
   const write = plan.changes.find((change) => change.kind === "write-file")!;
   assertEquals(write.path, publishNpmArtifact.path);
-  const saved = context({ [write.path]: exact(write.content) });
+  const saved = context({
+    ...prerequisites,
+    [write.path]: exact(write.content),
+  });
   assertEquals((await feature.detect(saved)).state, "enabled");
   assertEquals((await feature.checkEnable(saved)).result, "no-op");
   assertEquals((await feature.checkDisable(saved)).result, "blocked");
@@ -565,10 +577,16 @@ test("npm workflow lifecycle preserves custom files and requires quiescence for 
     (await feature.planDisable(removable, remove)).changes[0].kind,
     "remove-file",
   );
-  const custom = context({ [write.path]: exact("name: custom\n") });
+  const custom = context({
+    ...prerequisites,
+    [write.path]: exact("name: custom\n"),
+  });
   assertEquals((await feature.detect(custom)).state, "ambiguous");
   assertEquals((await feature.checkEnable(custom)).result, "blocked");
-  const drift = context({ [write.path]: exact(write.content + "# drift\n") });
+  const drift = context({
+    ...prerequisites,
+    [write.path]: exact(write.content + "# drift\n"),
+  });
   assertEquals((await feature.detect(drift)).state, "drifted");
   assertEquals((await feature.checkEnable(drift)).result, "blocked");
   assertEquals(

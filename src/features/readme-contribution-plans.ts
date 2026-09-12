@@ -1,4 +1,9 @@
 /** @module Compose feature-owned README guides against the final feature plans. */
+import {
+  npmBadge,
+  npmBadgeIdentity,
+  npmBadgeOwner,
+} from "./npm-readme-badge.ts";
 import { fileAccess } from "../repository/file-access.ts";
 import { fromFileUrl } from "@std/path";
 import {
@@ -184,9 +189,23 @@ export async function reconcileReadmePlans(
     github,
     cliPermissions,
   });
+  const npmName = await npmBadgeIdentity(projected);
+  if (active(npmBadgeOwner) && npmName) contributions.push(npmBadge(npmName));
+  const preserveNpmBadge =
+    context.resolvedChanges.find((change) => change.featureId === npmBadgeOwner)
+        ?.enabled !== false &&
+    (!npmName || context.detections.get(npmBadgeOwner)?.state === "ambiguous" ||
+      context.detections.get(npmBadgeOwner) === undefined);
   const provider = build ? "readme-build" : "readme-static";
   // Remove unchanged legacy JSR API blocks before the library adds its block.
-  const owners = [provider, "jsr-package", "deno-cli", "deno-lib", "github-ci"];
+  const owners = [
+    provider,
+    "jsr-package",
+    "deno-cli",
+    "deno-lib",
+    npmBadgeOwner,
+    "github-ci",
+  ];
   const appended: ChangePlan[] = [];
   // File/export ownership belongs to JSR publication. README blocks stay with
   // the feature named in their marker so per-feature commits remain possible.
@@ -195,6 +214,7 @@ export async function reconcileReadmePlans(
   }
   for (const owner of owners) {
     if (owner === "github-ci" && preserveCiBadge) continue;
+    if (owner === npmBadgeOwner && preserveNpmBadge) continue;
     const before = files.changes.length;
     const current = await files.read(sourcePath);
     if (current === undefined) continue;

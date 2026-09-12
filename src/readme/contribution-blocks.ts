@@ -97,7 +97,9 @@ export async function reconcileBlocks(
       item.position === "badges" &&
       (item.id.startsWith("jsr-package")
         ? text.includes("[![JSR")
-        : text.includes("[![CI]"))
+        : item.id === "github-ci:badge"
+        ? text.includes("[![CI]")
+        : npmBadgeImages(text).length > 0)
     ) continue;
     const block = await wrap(item);
     if (item.position === "badges") {
@@ -107,12 +109,16 @@ export async function reconcileBlocks(
         section < 0 ? text.length : section,
         marker < 0 ? text.length : marker,
       );
-      if (item.id === "github-ci:badge") {
-        const jsr = [...text.matchAll(pattern)].find((match) =>
-          match[1] === "jsr-package:badges"
-        );
-        if (jsr) at = jsr.index! + jsr[0].length;
-      }
+      const order = [
+        "jsr-package:badges",
+        "github-release-publish-npm:badge",
+        "github-ci:badge",
+      ];
+      const earlier = [...text.matchAll(pattern)].filter((match) =>
+        order.indexOf(match[1]) >= 0 &&
+        order.indexOf(match[1]) < order.indexOf(item.id)
+      ).at(-1);
+      if (earlier) at = earlier.index! + earlier[0].length;
       text = insert(text, at, block);
     } else {
       const order = [
@@ -142,4 +148,32 @@ function insert(text: string, at: number, block: string): string {
   const before = text.slice(0, at).replace(/\n*$/, "");
   const after = text.slice(at);
   return before + "\n\n" + block + (after ? "\n" + after : "");
+}
+
+/** Inspect one owned contribution without treating edited bodies as generated. */
+export async function inspectContribution(
+  text: string,
+  desired: ReadmeContribution,
+) {
+  const matches = [...text.matchAll(pattern)].filter((match) =>
+    match[1] === desired.id
+  );
+  const markers = text.split(`<!-- hj:readme ${desired.id} `).length - 1;
+  if (markers > 1) return "duplicate";
+  const match = matches[0];
+  if (!match) {
+    return text.includes(`<!-- hj:readme ${desired.id} `) ? "custom" : "absent";
+  }
+  if (await contributionHash(match[3]) !== match[2]) return "custom";
+  return await contributionHash(desired.content) === match[2]
+    ? "exact"
+    : "stale";
+}
+
+/** Recognize npm badge images without claiming ownership of custom Markdown. */
+export function npmBadgeImages(text: string): readonly string[] {
+  return [...text.matchAll(/!\[([^\]]*)\]\(([^)\n]+)\)/g)].filter((match) =>
+    /^npm(?: version)?$/i.test(match[1]) ||
+    match[2].startsWith("https://img.shields.io/npm/v/")
+  ).map((match) => match[0]);
 }
