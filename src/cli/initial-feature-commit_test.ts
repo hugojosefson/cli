@@ -89,6 +89,54 @@ Deno.test("generated README license content belongs to the license commit", asyn
   });
 });
 
+Deno.test("package README sections belong to the CLI, library, and JSR commits", async () => {
+  await withDirectory(async (root, env) => {
+    const result = await run(root, env, [
+      "--readme-static",
+      "--license-mit",
+      "--git",
+      "--deno-cli",
+      "--deno-lib",
+      "--jsr-package",
+      "--jsr-scope=example",
+    ]);
+    assert(result.success, text(result.stderr));
+    const history = (await git(root, "log", "--reverse", "--format=%H %s"))
+      .split("\n");
+    for (
+      const [owner, marker] of [
+        ["deno-cli", "deno-cli:installation"],
+        ["deno-lib", "deno-lib:example"],
+        ["jsr-package", "jsr-package:api"],
+      ]
+    ) {
+      const commit = history.find((line) =>
+        line.includes(`chore(${owner}):`)
+      )!.split(" ")[0];
+      const before = (await git(root, "ls-tree", `${commit}^`, "README.md"))
+        ? await git(root, "show", `${commit}^:README.md`)
+        : "";
+      assertEquals(before.includes(marker), false);
+      assertStringIncludes(
+        await git(root, "show", `${commit}:README.md`),
+        marker,
+      );
+    }
+    assertEquals(await git(root, "status", "--porcelain"), "");
+    const again = await run(root, env, [
+      "--readme-static",
+      "--license-mit",
+      "--git",
+      "--deno-cli",
+      "--deno-lib",
+      "--jsr-package",
+      "--jsr-scope=example",
+    ]);
+    assert(again.success, text(again.stderr));
+    assertStringIncludes(text(again.stdout), "No changes.");
+  });
+});
+
 Deno.test("Git alone creates one empty initial commit", async () => {
   await withDirectory(async (root, env) => {
     const result = await run(root, env, ["--git"]);
@@ -182,7 +230,8 @@ function run(root: URL, env: Record<string, string>, flags: string[]) {
       parseFeatures(["repo", "features", ...Deno.args.slice(1)], registry),
       registry,
       () => [],
-      { githubIdentity: { viewer: async () => undefined }, runFinalTask: async () => undefined },
+      { githubIdentity: { viewer: async () => undefined }, runFinalTask: async () => undefined,
+        jsrScopes: { scopes: async () => ({kind: "missing-authentication"}) } },
     ));
   `;
   return new Deno.Command("deno", {
