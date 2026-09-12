@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.4
+
+- chore: update dependencies
+- fix(deps): retain supported fork-version release
+
 ## 0.2.3
 
 - fix(features): preserve workflow pins and explain detected states
