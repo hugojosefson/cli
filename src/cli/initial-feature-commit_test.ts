@@ -39,6 +39,7 @@ Deno.test("fresh feature setup commits only generated paths and is safe to repea
         "src/cli/cli.ts",
         "src/cli/command.ts",
         "src/cli/commands.ts",
+        "src/cli/package-metadata.json",
         "src/cli/serve-command.ts",
         "src/server/server.ts",
         "test/cli_test.ts",

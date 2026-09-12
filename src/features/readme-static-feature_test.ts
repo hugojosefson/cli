@@ -7,7 +7,10 @@ function context(observation: ArtifactObservation): OperationContext {
   return {
     repositoryRoot: new URL("file:///work/my%20repository/"),
     files: {
-      observe: () => Promise.resolve(observation),
+      observe: (path) =>
+        Promise.resolve(
+          path === "README.md" ? observation : { kind: "absent" },
+        ),
       exists: () => Promise.resolve(false),
       readText: () => Promise.resolve(undefined),
       readJson: () => Promise.resolve(undefined),
@@ -32,7 +35,7 @@ function context(observation: ArtifactObservation): OperationContext {
 
 const exact: ArtifactObservation = {
   kind: "file",
-  content: "# my repository\n",
+  content: "# my-repository\n",
   digest: "exact-digest",
   mode: 0o644,
 };
@@ -104,7 +107,7 @@ Deno.test("readme-static plans only absent creation and exact digest-guarded rem
     changes: [{
       kind: "write-file",
       path: "README.md",
-      content: "# my repository\n",
+      content: "# my-repository\n",
       mode: 0o644,
       expectedDigest: undefined,
     }],

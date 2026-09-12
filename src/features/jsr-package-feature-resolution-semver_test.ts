@@ -17,7 +17,7 @@ Deno.test("jsr-package composes identity and publish checks into an initial conf
       exports: { ".": "./mod.ts" },
       tasks: { check: { dependencies: ["format"] } },
     }, "deno-fmt");
-    assertEquals(value.name, "@owner/repository");
+    assertEquals(value.name, `@owner/${root.pathname.split("/").at(-2)}`);
     assertEquals(value.version, "0.0.0");
     assertEquals(
       (value.tasks as Record<string, unknown>)["publish-check"],

@@ -33,22 +33,20 @@ export async function planEnableJsrPackage(
   allowed: AllowedOperation,
 ): Promise<ChangePlan> {
   await requireAllowed(checkEnableJsrPackage(context));
+  const identity = await jsrPackageIdentity(context);
+  if (identity.kind !== "available") throw new Error(identity.observation);
   const config = await inspectDenoConfig(context);
   if (config.kind === "absent") {
     return jsrPlan(
       "enable",
       allowed,
       [],
-      "Configure JSR package metadata and publishing check.",
+      `Configure JSR package ${identity.name} and publishing check.`,
       "enabled",
     );
   }
   if (config.kind !== "config") {
     throw new Error("JSR package configuration changed after checking.");
-  }
-  const identity = await jsrPackageIdentity(context);
-  if (identity.kind !== "available") {
-    throw new Error("JSR package identity changed after checking.");
   }
   const changes: PlannedChange[] = [];
   if (config.value.name === undefined) {
@@ -62,7 +60,7 @@ export async function planEnableJsrPackage(
       "enable",
       allowed,
       changes,
-      "Configure JSR package metadata and publishing check.",
+      `Configure JSR package ${identity.name} and publishing check.`,
       "enabled",
     );
   }
@@ -87,7 +85,7 @@ export async function planEnableJsrPackage(
     "enable",
     allowed,
     changes,
-    "Configure JSR package metadata and publishing check.",
+    `Configure JSR package ${identity.name} and publishing check.`,
     "enabled",
   );
 }

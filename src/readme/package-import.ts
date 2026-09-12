@@ -1,28 +1,27 @@
 /** @module Deno package export lookup for README source snippets. */
 
-import { dirname, isAbsolute, relative, resolve } from "@std/path";
-import { parse, type ParseError } from "jsonc-parser";
+import { dirname, isAbsolute, relative, resolve, toFileUrl } from "@std/path";
+import {
+  type PackageMetadata,
+  projectMetadata,
+  validJsrName,
+} from "../package/metadata.ts";
 
 export type PackageImports = ReadonlyMap<string, string>;
 
-export async function packageImports(root: string): Promise<PackageImports> {
-  const configs: unknown[] = [];
-  for (const name of ["deno.json", "deno.jsonc"]) {
-    const path = resolve(root, name);
-    try {
-      if (!(await Deno.lstat(path)).isFile) continue;
-      const errors: ParseError[] = [];
-      const config = parse(await Deno.readTextFile(path), errors) as unknown;
-      if (errors.length) return new Map();
-      configs.push(config);
-    } catch (error) {
-      if (error instanceof Deno.errors.NotFound) continue;
-      return new Map();
-    }
+export async function packageImports(
+  root: string,
+  readMetadata: () => Promise<PackageMetadata> = () =>
+    projectMetadata(toFileUrl(root + "/")),
+): Promise<PackageImports> {
+  try {
+    const metadata = await readMetadata();
+    if (!metadata.configured || !validJsrName(metadata.name)) return new Map();
+    return exportsFor(root, { ...metadata.config, name: metadata.name }) ??
+      new Map();
+  } catch {
+    return new Map();
   }
-  return configs.length === 1
-    ? exportsFor(root, configs[0]) ?? new Map()
-    : new Map();
 }
 
 export function rewritePackageImport(

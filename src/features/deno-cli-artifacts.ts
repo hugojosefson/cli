@@ -1,17 +1,33 @@
 /** @module Exact starter artifacts contributed by the Deno CLI feature. */
 
+import { bundledMetadata, readPackageMetadata } from "../package/metadata.ts";
+import { jsrPackageIdentity } from "./jsr-package-identity.ts";
+import { hjPackageReference } from "./hj-package.ts";
 import type {
   ArtifactSchema,
   ExactArtifactInspection,
 } from "../api/artifact-inspection.ts";
-import type { DetectionContext } from "../api/repository-context.ts";
+import type {
+  DetectionContext,
+  OperationContext,
+} from "../api/repository-context.ts";
 import { inspectArtifact } from "../artifacts/inspect-artifact.ts";
 
 export const denoCliFeatureId = "deno-cli";
 export const denoCliExport = "./src/cli/cli.ts";
+export const packageMetadataTask = {
+  description: "Build bundled CLI package metadata from Deno configuration.",
+  command:
+    'sh -c \'temp=$(mktemp src/cli/package-metadata.json.XXXXXX) && trap "rm -f \\"$temp\\"" EXIT && deno run --allow-read=. ' +
+    hjPackageReference +
+    ' package build > "$temp" && chmod 644 "$temp" && mv "$temp" src/cli/package-metadata.json\'',
+};
 export const denoCliInitialConfigContribution = {
   featureId: denoCliFeatureId,
-  value: { exports: { "./cli": denoCliExport } },
+  value: {
+    exports: { "./cli": denoCliExport },
+    tasks: { "package-metadata": packageMetadataTask },
+  },
 };
 
 const commandContent = `export type CliCommand = {
@@ -21,13 +37,15 @@ const commandContent = `export type CliCommand = {
 };
 `;
 
-const baseCommandsContent = `import type { CliCommand } from "./command.ts";
+const baseCommandsContent =
+  `import metadata from "./package-metadata.json" with { type: "json" };
+import type { CliCommand } from "./command.ts";
 
 const helpCommand: CliCommand = {
   name: "help",
   description: "Show available commands.",
   run: () =>
-    "Usage: cli <command>\\n\\n" +
+    metadata.name + "\\n\\nUsage: " + metadata.command + " <command>\\n\\n" +
     commands.map((command) => command.name + "  " + command.description).join(
       "\\n",
     ),
@@ -37,14 +55,16 @@ const helpCommand: CliCommand = {
 export const commands: readonly CliCommand[] = [helpCommand];
 `;
 
-const serverCommandsContent = `import type { CliCommand } from "./command.ts";
+const serverCommandsContent =
+  `import metadata from "./package-metadata.json" with { type: "json" };
+import type { CliCommand } from "./command.ts";
 import { serveCommand } from "./serve-command.ts";
 
 const helpCommand: CliCommand = {
   name: "help",
   description: "Show available commands.",
   run: () =>
-    "Usage: cli <command>\\n\\n" +
+    metadata.name + "\\n\\nUsage: " + metadata.command + " <command>\\n\\n" +
     commands.map((command) => command.name + "  " + command.description).join(
       "\\n",
     ),
@@ -69,6 +89,7 @@ const serverListenAddress = "0.0.0.0:8000";
 export const denoCliServerPaths: readonly string[] = [
   "src/cli/cli.ts",
   "src/cli/commands.ts",
+  "src/cli/package-metadata.json",
   "src/cli/serve-command.ts",
 ];
 
@@ -155,11 +176,30 @@ export function denoCliArtifactsForServer(serverEnabled: boolean) {
 
 /** Inspects the executable seed with exact content and mode checks. */
 export async function inspectDenoCliArtifacts(
-  context: DetectionContext,
+  context:
+    & DetectionContext
+    & Partial<Pick<OperationContext, "resolvedChanges">>,
   serverEnabled = false,
 ): Promise<readonly ExactArtifactInspection[]> {
+  let metadata = await readPackageMetadata(context);
+  if (
+    !metadata.configured &&
+    context.resolvedChanges?.some((change) =>
+      change.featureId === "jsr-package" && change.enabled
+    )
+  ) {
+    const identity = await jsrPackageIdentity(context);
+    if (identity.kind === "available") {
+      metadata = { ...metadata, name: identity.name };
+    }
+  }
+  const artifacts = [...denoCliArtifactsForServer(serverEnabled), {
+    path: "src/cli/package-metadata.json",
+    content: bundledMetadata(metadata),
+    mode: 0o644,
+  }];
   return await Promise.all(
-    denoCliArtifactsForServer(serverEnabled).map(async (artifact) => {
+    artifacts.map(async (artifact) => {
       const schema: ArtifactSchema = { kind: "file", ...artifact };
       return inspectArtifact(
         schema,

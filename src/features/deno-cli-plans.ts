@@ -1,14 +1,15 @@
 /** @module Ordered Deno CLI change plans. */
 
+import { sameJson } from "../operations/local-plan-state.ts";
 import type { ChangePlan } from "../api/change-plan.ts";
 import type { AllowedOperation } from "../api/feature-operation.ts";
 import type { PlannedChange } from "../api/planned-change.ts";
 import type { OperationContext } from "../api/repository-context.ts";
 import {
-  denoCliArtifactsForServer,
   denoCliExport,
   denoCliFeatureId,
   inspectDenoCliArtifacts,
+  packageMetadataTask,
 } from "./deno-cli-artifacts.ts";
 import { inspectDenoConfig } from "./deno-config.ts";
 import {
@@ -31,9 +32,17 @@ export async function planEnableDenoCli(
     context,
     resolvedServerEnabled(context, currentServer),
   );
-  const desiredArtifacts = denoCliArtifactsForServer(
-    resolvedServerEnabled(context, currentServer),
-  );
+  const desiredArtifacts = artifacts.map((item) => {
+    if (item.schema.kind !== "file") {
+      throw new Error("Expected CLI file artifact.");
+    }
+    return item.schema;
+  });
+  const metadata = JSON.parse(
+    desiredArtifacts.find((item) =>
+      item.path === "src/cli/package-metadata.json"
+    )!.content,
+  ) as { name: string };
   const changes: PlannedChange[] = [];
   if (
     config.kind === "absent" &&
@@ -66,6 +75,22 @@ export async function planEnableDenoCli(
         ? config.value.exports["./cli"]
         : undefined,
     });
+  }
+  if (config.kind === "config") {
+    const tasks = isObject(config.value.tasks) ? config.value.tasks : {};
+    const formatterCreatesTasks = config.value.tasks === undefined &&
+      context.resolvedChanges.some((change) =>
+        change.featureId === "deno-fmt" && change.enabled
+      );
+    if (!formatterCreatesTasks && tasks["package-metadata"] === undefined) {
+      changes.push({
+        kind: "set-json",
+        path: config.path,
+        jsonPath: ["tasks", "package-metadata"],
+        value: packageMetadataTask,
+        expected: undefined,
+      });
+    }
   }
   for (const path of ["src", "src/cli", "test"]) {
     if ((await context.files.observe(path)).kind === "absent") {
@@ -101,7 +126,7 @@ export async function planEnableDenoCli(
     "enable",
     allowed,
     changes,
-    "Configure Deno CLI export and executable seed.",
+    `Configure Deno CLI export and executable seed for ${metadata.name}.`,
     "enabled",
   );
 }
@@ -121,6 +146,17 @@ export async function planDisableDenoCli(
         expected: denoCliExport,
       }]
       : [];
+  if (
+    config.kind === "config" && isObject(config.value.tasks) &&
+    sameJson(config.value.tasks["package-metadata"], packageMetadataTask)
+  ) {
+    changes.push({
+      kind: "remove-json",
+      path: config.path,
+      jsonPath: ["tasks", "package-metadata"],
+      expected: packageMetadataTask,
+    });
+  }
   return plan(
     "disable",
     allowed,

@@ -1,3 +1,4 @@
+import { packageMetadataTask } from "./deno-cli-artifacts.ts";
 import { assert, assertEquals, assertRejects } from "@std/assert";
 import { parse } from "jsonc-parser";
 import { parseFeatures } from "../cli/parse-features.ts";
@@ -88,6 +89,7 @@ Deno.test("composes task and code features initially", async () => {
     });
     assertEquals(config.tasks, {
       ...denoTaskDefinitions(taskIds),
+      "package-metadata": packageMetadataTask,
       ...denoServerTasks,
       lint: leafTaskDefinitions["deno-lint"],
       typecheck: leafTaskDefinitions["deno-typecheck"],

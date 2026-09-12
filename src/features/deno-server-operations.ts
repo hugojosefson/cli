@@ -75,6 +75,19 @@ export async function checkEnableDenoServer(
   if (cliEnabled && !ownsCliChange(context)) {
     const integrated = await inspectDenoCliArtifacts(context, true);
     const base = await inspectDenoCliArtifacts(context, false);
+    const metadata = integrated.find((item) =>
+      item.schema.path === "src/cli/package-metadata.json"
+    )!;
+    if (
+      metadata.result !== "matches" && metadata.result !== "absent" &&
+      !(repair(context) && metadata.result === "differs" &&
+        metadata.observation.kind === "file")
+    ) {
+      return blocked(
+        "CLI package metadata differs. Repair the CLI metadata before changing the server.",
+      );
+    }
+
     const adapter = integrated.find((item) =>
       item.schema.path === "src/cli/serve-command.ts"
     )!;
@@ -102,7 +115,7 @@ export async function checkEnableDenoServer(
       );
     }
     cliReady = registry.result === "matches" && adapter.result === "matches" &&
-      launcher.result === "matches";
+      launcher.result === "matches" && metadata.result === "matches";
     if (
       registry.result !== "matches" && baseRegistry.result !== "matches" &&
       !legacyServerRegistry(registry)
@@ -150,6 +163,15 @@ export async function checkDisableDenoServer(
   if (cliEnabled && !ownsCliChange(context)) {
     const integrated = await inspectDenoCliArtifacts(context, true);
     const base = await inspectDenoCliArtifacts(context, false);
+    const metadata = integrated.find((item) =>
+      item.schema.path === "src/cli/package-metadata.json"
+    )!;
+    if (metadata.result !== "matches" && metadata.result !== "absent") {
+      return blocked(
+        "CLI package metadata differs. Repair the CLI metadata before changing the server.",
+      );
+    }
+
     const launcher = integrated.find((item) =>
       item.schema.path === "src/cli/cli.ts"
     )!;

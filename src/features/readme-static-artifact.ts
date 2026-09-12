@@ -1,5 +1,6 @@
 /** @module Exact starter README declaration and inspection. */
 
+import { readPackageMetadata } from "../package/metadata.ts";
 import { basename } from "@std/path";
 import type {
   ArtifactSchema,
@@ -15,13 +16,19 @@ export const readmeStaticFeatureId = "readme-static";
 export const readmeStaticPath = "README.md";
 
 /** Returns the exact starter README schema for a repository. */
-export function readmeStaticSchema(
+export async function readmeStaticSchema(
   context: DetectionContext,
-): ArtifactSchema {
+): Promise<ArtifactSchema> {
+  let name = directoryName(context.repositoryRoot);
+  try {
+    name = (await readPackageMetadata(context)).name;
+  } catch {
+    // A README can be created before package metadata is configured.
+  }
   return {
     kind: "file",
     path: readmeStaticPath,
-    content: `# ${directoryName(context.repositoryRoot)}\n`,
+    content: `# ${name}\n`,
     mode: 0o644,
   };
 }
@@ -30,7 +37,7 @@ export function readmeStaticSchema(
 export async function inspectReadmeStatic(
   context: DetectionContext,
 ): Promise<ExactArtifactInspection> {
-  const schema = readmeStaticSchema(context);
+  const schema = await readmeStaticSchema(context);
   return inspectArtifact(schema, await context.files.observe(schema.path));
 }
 
