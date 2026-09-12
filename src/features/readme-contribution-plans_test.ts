@@ -512,3 +512,30 @@ Deno.test("built README removes disabled guides and preserves files included by 
     assertEquals(await buildReadme(root), await read(root, "README.md"));
   });
 });
+
+Deno.test("formatted README contributions remain owned after package rename", async () => {
+  await fixture(async (root) => {
+    await enable(root, "readme-static");
+    const formatted = await new Deno.Command("deno", {
+      args: ["fmt"],
+      cwd: root,
+      stdout: "piped",
+      stderr: "piped",
+    }).output();
+    assertEquals(formatted.code, 0, new TextDecoder().decode(formatted.stderr));
+    const config = JSON.parse(await read(root, "deno.json"));
+    config.name = "@sample/renamed";
+    await Deno.writeTextFile(
+      new URL("deno.json", root),
+      JSON.stringify(config),
+    );
+    await runCli(root, ["repo", "features", "--jsr-package", "--yes"]);
+    const output = await read(root, "README.md");
+    assert(!output.includes("@sample/tool"), output);
+    assertStringIncludes(
+      output,
+      "deno run --reload jsr:@sample/renamed/example-usage",
+    );
+    assertStringIncludes(output, 'from "@sample/renamed"');
+  });
+});

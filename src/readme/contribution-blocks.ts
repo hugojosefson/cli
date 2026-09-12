@@ -13,11 +13,26 @@ export async function blockHash(content: string): Promise<string> {
   return await digestBytes(new TextEncoder().encode(content));
 }
 
+/** Markdown formatters wrap prose and surround HTML blocks with blank lines.
+ * Keep those presentation changes separate from code and text edits. */
+async function contributionHash(content: string): Promise<string> {
+  const parts = content.split(/(^[ \t]*```[^\n]*\n[\s\S]*?^[ \t]*```[ \t]*$)/m);
+  const normalized = parts.map((part) => {
+    const code = /^([ \t]*```[^\n]*\n)([\s\S]*?)(\n[ \t]*```[ \t]*)$/.exec(
+      part,
+    );
+    return code
+      ? code[1] + code[2].replace(/^\n+|\n+$/g, "") + code[3]
+      : part.replace(/\s+/g, " ").trim();
+  });
+  return await blockHash(JSON.stringify(normalized));
+}
+
 /** Return identities whose complete body still matches its ownership marker. */
 export async function unchangedBlocks(text: string): Promise<Set<string>> {
   const result = new Set<string>();
   for (const match of text.matchAll(pattern)) {
-    if (await blockHash(match[3]) === match[2]) result.add(match[1]);
+    if (await contributionHash(match[3]) === match[2]) result.add(match[1]);
   }
   return result;
 }
@@ -30,7 +45,7 @@ export async function rehashBlocks(
     if (ids.has(match[1])) {
       text = text.replace(
         match[0],
-        match[0].replace(match[2], await blockHash(match[3])),
+        match[0].replace(match[2], await contributionHash(match[3])),
       );
     }
   }
@@ -48,7 +63,7 @@ export async function reconcileBlocks(
     if (owner && !match[1].startsWith(owner + ":")) continue;
     const item = pending.get(match[1]);
     pending.delete(match[1]);
-    if (await blockHash(match[3]) !== match[2]) continue;
+    if (await contributionHash(match[3]) !== match[2]) continue;
     if (item) text = text.replace(match[0], await wrap(item));
     else {
       const at = text.indexOf(match[0]);
@@ -107,7 +122,7 @@ export async function reconcileBlocks(
 }
 
 async function wrap(item: ReadmeContribution): Promise<string> {
-  return `<!-- hj:readme ${item.id} ${await blockHash(
+  return `<!-- hj:readme ${item.id} ${await contributionHash(
     item.content,
   )} -->\n${item.content}\n<!-- /hj:readme -->\n`;
 }
