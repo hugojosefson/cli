@@ -96,3 +96,31 @@ Deno.test("custom Install instructions suppress and retire only an unchanged gen
   );
   assertEquals(await reconcileBlocks(edited, desired), edited);
 });
+
+Deno.test("Deno installation instructions suppress redundant requirements and preserve custom requirements", async () => {
+  const desired = [{
+    id: "readme:requirements",
+    position: "section" as const,
+    content: "## Requirements\n\nRequires [Deno](https://deno.com/).",
+  }];
+  const install =
+    "\n## Install\n\nInstall [Deno](https://deno.com/), then install hj.\n";
+  const custom = "# Project\n" + install;
+  assertEquals(await reconcileBlocks(custom, desired), custom);
+  const generated = await reconcileBlocks("# Project\n", desired);
+  assertEquals(
+    (await reconcileBlocks(generated + install, desired)).includes(
+      "## Requirements",
+    ),
+    false,
+  );
+  const edited = generated.replace(
+    "Requires [Deno](https://deno.com/).",
+    "Requires Deno and a custom service.",
+  ) + install;
+  assertEquals(await reconcileBlocks(edited, desired), edited);
+  assertStringIncludes(
+    await reconcileBlocks("# Project\n\n## Install\nInstall hj.\n", desired),
+    "## Requirements",
+  );
+});
