@@ -74,7 +74,9 @@ async function revalidatePreviousRelease(
   process: ReleaseProcess,
   bundle: ReleaseBundle,
 ): Promise<void> {
-  const config = await inspectDenoConfig({ files: new LocalFileReader(root) });
+  const config = await inspectDenoConfig({
+    files: new LocalFileReader(root, false),
+  });
   if (config.kind !== "config" || typeof config.value.version !== "string") {
     throw new Error("One Deno config with a string version is required.");
   }

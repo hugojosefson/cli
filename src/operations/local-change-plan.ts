@@ -80,7 +80,7 @@ async function verify(
   root: RepositoryRoot,
   condition: Precondition,
 ): Promise<void> {
-  const files = new LocalFileReader(root.url);
+  const files = new LocalFileReader(root.url, false);
   const git = new LocalGitReader(root.url);
   let matches = false;
   if (condition.kind === "file-digest") {

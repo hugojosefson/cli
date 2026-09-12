@@ -87,7 +87,7 @@ async function writeFile(
   mode: number | undefined,
   path: string,
 ): Promise<void> {
-  const observed = await new LocalFileReader(root.url).observe(path);
+  const observed = await new LocalFileReader(root.url, false).observe(path);
   const matches = expected === undefined
     ? observed.kind === "absent"
     : observed.kind === "file" && observed.digest === expected;
@@ -125,7 +125,7 @@ async function removeFile(
   path: string,
   expected: string,
 ): Promise<void> {
-  if (await new LocalFileReader(root.url).digest(path) !== expected) {
+  if (await new LocalFileReader(root.url, false).digest(path) !== expected) {
     throw new ChangePlanError("expected-state", path);
   }
   await fs.rm(url);
@@ -138,7 +138,8 @@ async function removeDirectory(
   expected: string,
 ): Promise<void> {
   if (
-    await new LocalFileReader(root.url).directoryStateDigest(path) !== expected
+    await new LocalFileReader(root.url, false).directoryStateDigest(path) !==
+      expected
   ) throw new ChangePlanError("expected-state", path);
   await fs.rm(url, { recursive: true });
 }
@@ -150,7 +151,7 @@ async function setMode(
   expected: number | undefined,
   mode: number,
 ): Promise<void> {
-  const observed = await new LocalFileReader(root.url).observe(path);
+  const observed = await new LocalFileReader(root.url, false).observe(path);
   const matches = expected === undefined
     ? observed.kind === "absent"
     : observed.kind === "file" && observed.mode === expected;

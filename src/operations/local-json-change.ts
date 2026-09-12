@@ -26,7 +26,7 @@ export async function editJson(
   expected: JsonValue | undefined,
   remove: boolean,
 ): Promise<void> {
-  const text = await new LocalFileReader(root.url).readText(path);
+  const text = await new LocalFileReader(root.url, false).readText(path);
   if (text === undefined) throw new ChangePlanError("expected-state", path);
   const errors: ParseError[] = [];
   const tree = parseTree(text, errors, {
