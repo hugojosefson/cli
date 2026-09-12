@@ -386,3 +386,9 @@ and permissions. `GITHUB_OUTPUT` and `GITHUB_STEP_SUMMARY` are optional paths.
 The [template source](../src/features/github-release-publish-artifacts.ts)
 provides the exact commands. CLI help owns command usage. Input validation and
 its tests belong to the workflow adapters.
+
+## npm packages
+
+The optional npm publisher runs after tag success. See
+[npm publication](npm-publication.md) for the build contract, credentials,
+installation entry points, and retries.

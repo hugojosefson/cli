@@ -409,3 +409,26 @@ original issue labels remained in GitHub.
 Fixture tests cover Board as the first view of a new project, preservation of
 custom views and status options, Area updates after label changes, and repeated
 setup without duplicate views or item assignments.
+
+## npm publisher checks
+
+Issue #12 adds a separate npm publisher and a local build example for this
+repository. On 2026-09-12, `deno task npm-build` produced the CLI package and
+its Node.js launcher displayed `hj --help`. `npm pack --ignore-scripts` produced
+an archive without publishing it. The CLI launcher requires Deno on `PATH`.
+
+The scratchpad fixture builds `@hugojosefson/scratchpad@3.0.20-npm.0` from its
+two existing library exports. Both built exports ran in Node.js, and npm packed
+the five expected files. A local Git remote supplied an exact release tag for
+the full publisher check. Real Git commands, the build task, npm packing,
+entry-point inspection, and a repeated publication command passed. Only the
+upload and the npm registry response were simulated in that check. The repeated
+command did not upload again.
+
+The public npm registry returned 404 for `@hugojosefson/scratchpad`. The local
+environment has no npm token or npm login configuration, and the browser
+redirects to npm sign-in. The scratchpad repository has no `NPM_TOKEN` secret.
+Live publication remains unverified until npm authentication is configured.
+Issue #12 must remain open until that publication succeeds. See
+[npm publication](npm-publication.md) for the exact workflow and authentication
+contract.
