@@ -75,3 +75,24 @@ Deno.test("ownership tolerates prose wrapping while code string edits remain cus
   assertEquals((await unchangedBlocks(edited)).size, 0);
   assertEquals(await reconcileBlocks(edited, []), edited);
 });
+
+Deno.test("custom Install instructions suppress and retire only an unchanged generated Installation section", async () => {
+  const desired = [{
+    id: "jsr-package:installation",
+    content: "## Installation\n\nAdd the package as a dependency.",
+    position: "section" as const,
+  }];
+  const custom = "# Project\n\n## Install\n\nInstall the command from JSR.\n";
+  assertEquals(await reconcileBlocks(custom, desired), custom);
+  const generated = await reconcileBlocks("# Project\n", desired);
+  const duplicate = generated +
+    "\n## Install\n\nInstall the command from JSR.\n";
+  const removed = await reconcileBlocks(duplicate, desired);
+  assertStringIncludes(removed, "Install the command from JSR.");
+  assertEquals(removed.includes("## Installation"), false);
+  const edited = duplicate.replace(
+    "Add the package as a dependency.",
+    "Custom package instructions.",
+  );
+  assertEquals(await reconcileBlocks(edited, desired), edited);
+});
