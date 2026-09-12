@@ -58,7 +58,14 @@ function context(
   };
 }
 function exact(content: string): ArtifactObservation {
-  return { kind: "file", content, digest: "digest", mode: 0o644 };
+  return {
+    kind: "file",
+    content,
+    digest: "digest",
+    mode: 0o644,
+    // Workflow detection intentionally depends on content, even on read-only storage.
+    access: { readable: true, writable: false, executable: false, shift: 6 },
+  };
 }
 
 test("workflow detection preserves exact registry pins and rejects other drift", async () => {
