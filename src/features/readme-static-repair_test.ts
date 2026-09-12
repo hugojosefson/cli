@@ -94,3 +94,39 @@ test("readme-static preserves unselected writable content and blocks ambiguity",
     "blocked",
   );
 });
+
+test("readme-static detects and repairs badge placement without replacing custom prose", async () => {
+  const content =
+    "# Project\n\n[![Badge](badge.svg)](target)\n\nIntroduction.\n\n| Area | Details |\n| --- | --- |\n| Code | Tools |\n";
+  const observation = {
+    kind: "file" as const,
+    content,
+    digest: "before",
+    mode: 0o644,
+  };
+  const ctx = context(observation);
+  const detected = await readmeStaticFeature.detect(ctx);
+  assertEquals(detected.state, "drifted");
+  const blocked = await readmeStaticFeature.checkEnable({
+    ...ctx,
+    repair: undefined,
+  });
+  assertEquals(blocked.result, "blocked");
+  const check = await readmeStaticFeature.checkEnable(ctx);
+  if (check.result !== "allowed") throw new Error("Expected repair");
+  const plan = await readmeStaticFeature.planEnable(ctx, check);
+  const write = plan.changes[0];
+  if (write.kind !== "write-file") throw new Error("Expected content repair");
+  assertEquals(write.expectedDigest, "before");
+  assertEquals(
+    write.content.indexOf("Introduction.") < write.content.indexOf("[![Badge]"),
+    true,
+  );
+  assertEquals(
+    write.content.indexOf("[![Badge]") < write.content.indexOf("| Area"),
+    true,
+  );
+  const fixed = context({ ...observation, content: write.content });
+  assertEquals((await readmeStaticFeature.detect(fixed)).state, "enabled");
+  assertEquals((await readmeStaticFeature.checkEnable(fixed)).result, "no-op");
+});

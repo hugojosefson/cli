@@ -70,3 +70,26 @@ function feature(featureId: string, text: string) {
 function block(id: string, content: string) {
   return `<!-- hj:readme ${id} aabbcc -->\n${content}\n<!-- /hj:readme -->\n`;
 }
+
+test("inline badge snapshots retain earlier owners until each removal is reached", () => {
+  const npm = block("github-release-publish-npm:badge", "[![npm](npm)](npm)")
+    .trim().replaceAll("\n", " ");
+  const ci = block("github-ci:badge", "[![CI](ci)](ci)").trim().replaceAll(
+    "\n",
+    " ",
+  );
+  const baseline = `# Package\n\nIntro.\n\n${npm} ${ci}\n`;
+  const final = "# Package\n\nIntro.\n";
+  const features = [
+    feature("github-ci", final),
+    feature("github-release-publish-npm", final),
+  ];
+  partitionReadmeContributions(
+    new Map([["README.md", file(baseline)]]),
+    features,
+    new Map([["README.md", file(final)]]),
+  );
+  assertStringIncludes(decode(features[0].files.get("README.md")), npm);
+  assertEquals(decode(features[0].files.get("README.md")).includes(ci), false);
+  assertEquals(decode(features[1].files.get("README.md")), final);
+});

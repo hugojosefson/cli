@@ -196,6 +196,11 @@ export async function reconcileReadmePlans(
         ?.enabled !== false &&
     (!npmName || context.detections.get(npmBadgeOwner)?.state === "ambiguous" ||
       context.detections.get(npmBadgeOwner) === undefined);
+  // Ambiguous badge ownership cannot safely be composed with other README edits.
+  if (
+    context.detections.get(npmBadgeOwner)?.state === "ambiguous" &&
+    preserveNpmBadge
+  ) return plans;
   const provider = build ? "readme-build" : "readme-static";
   // Remove unchanged legacy JSR API blocks before the library adds its block.
   const owners = [

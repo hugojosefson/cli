@@ -14,6 +14,7 @@ import { LocalFileReader } from "../repository/local-file-reader.ts";
 import { LocalGitReader } from "../repository/local-git-reader.ts";
 import { applyLocalChangePlan } from "../operations/local-change-plan.ts";
 import { buildReadme } from "../readme/build-readme.ts";
+import { layoutBadges } from "../readme/badge-layout.ts";
 import { reconcileBlocks } from "../readme/contribution-blocks.ts";
 import { githubReleasePublishNpmFeature as feature } from "./github-release-publish-feature.ts";
 import { npmBadge, npmBadgeOwner } from "./npm-readme-badge.ts";
@@ -258,9 +259,9 @@ for (const build of [false, true]) {
         npmBadge("@sample/tool").content + "\n";
       await write(root, source, custom);
       await apply(root, build);
-      assertEquals(await read(root, source), custom);
+      assertEquals(await read(root, source), layoutBadges(custom));
       await apply(root, build, false);
-      assertEquals(await read(root, source), custom);
+      assertEquals(await read(root, source), layoutBadges(custom));
       await write(
         root,
         source,

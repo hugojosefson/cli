@@ -1,5 +1,6 @@
 /** @module Exact starter README checks and plans. */
 
+import { layoutBadges } from "../readme/badge-layout.ts";
 import { fileAccess } from "../repository/file-access.ts";
 import type { ChangePlan } from "../api/change-plan.ts";
 import type {
@@ -34,6 +35,29 @@ export async function checkEnableReadmeStatic(
     inspection.observation.kind === "file" &&
     fileAccess(inspection.observation).writable
   ) {
+    if (
+      layoutBadges(inspection.observation.content) !==
+        inspection.observation.content
+    ) {
+      return context.repair?.kind === "all-drifted" ||
+          context.repair?.kind === "features" &&
+            context.repair.featureIds.includes(readmeStaticFeatureId)
+        ? allowed()
+        : {
+          result: "blocked",
+          warnings: [],
+          blockers: [{
+            code: "readme-badge-layout",
+            message: "README.md badge layout differs.",
+            subjects: [{
+              kind: "repository-path",
+              identifier: readmeStaticPath,
+            }],
+            resolution:
+              "Use --repair to move the badges after the first paragraph.",
+          }],
+        };
+    }
     return {
       result: "no-op",
       reason: "README.md is already writable.",
@@ -118,7 +142,20 @@ export async function planEnableReadmeStatic(
   allowed: AllowedOperation,
 ): Promise<ChangePlan> {
   if (replacesBuild(context)) return changePlan("enable", allowed, []);
-  const plan = planArtifactCreation(await inspectReadmeStatic(context));
+  const inspection = await inspectReadmeStatic(context);
+  if (
+    inspection.result !== "absent" && inspection.result !== "unreadable" &&
+    inspection.observation.kind === "file" &&
+    fileAccess(inspection.observation).writable
+  ) {
+    return changePlan("enable", allowed, [{
+      kind: "write-file",
+      path: readmeStaticPath,
+      content: layoutBadges(inspection.observation.content),
+      expectedDigest: inspection.observation.digest,
+    }]);
+  }
+  const plan = planArtifactCreation(inspection);
   const repair = await planRepairReadmeStatic(context, allowed);
   if (repair) return repair;
   if (plan.result !== "planned") {

@@ -6,8 +6,7 @@ interface FeatureFiles {
   readonly plan: ChangePlan;
   readonly files: Map<string, FileVersion | undefined>;
 }
-const pattern =
-  /<!-- hj:readme ([\w:-]+) ([a-f0-9]+) -->\n[\s\S]*?\n<!-- \/hj:readme -->\n?/g;
+import { contributionPattern as pattern } from "../readme/badge-layout.ts";
 
 /** Restore reached owners when a later captured snapshot predates their block. */
 export function partitionReadmeContributions(

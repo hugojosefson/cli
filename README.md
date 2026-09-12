@@ -1,9 +1,13 @@
 # hj
 
-[![Simple English: attempted](https://img.shields.io/badge/simple_english-attempted-blue)](https://www.asd-ste100.org/)
-
 `hj` configures repositories and automates personal development workflows. Run
 it with Node.js, Bun, or Deno in the repository you want to manage.
+
+<!-- deno-fmt-ignore-start -->
+<!-- hj:readme jsr-package:badges 572aba0516320896bc967eb6a2ab6257682c791937319c42ee30c162ca6165bd -->
+
+[![JSR Version](https://jsr.io/badges/@hugojosefson/cli)](https://jsr.io/@hugojosefson/cli) [![JSR Score](https://jsr.io/badges/@hugojosefson/cli/score)](https://jsr.io/@hugojosefson/cli) <!-- /hj:readme --> <!-- hj:readme github-release-publish-npm:badge c9cf2e0e859be880fd5a386c1654e2aa24b3764dd827580bd4ad4ac07b5dc1cf --> [![npm Version](https://img.shields.io/npm/v/@hugojosefson/cli)](https://www.npmjs.com/package/@hugojosefson/cli) <!-- /hj:readme --> <!-- hj:readme github-ci:badge cef2c14f63758c9d69d92ef24b123236225fdf1984e0a9e31519646de6464d00 --> [![CI](https://github.com/hugojosefson/cli/actions/workflows/hj-ci.yaml/badge.svg)](https://github.com/hugojosefson/cli/actions/workflows/hj-ci.yaml) <!-- /hj:readme --> [![Simple English: attempted](https://img.shields.io/badge/simple_english-attempted-blue)](https://www.asd-ste100.org/)
+<!-- deno-fmt-ignore-end -->
 
 | Area          | What `hj` manages                                          |
 | ------------- | ---------------------------------------------------------- |
@@ -11,25 +15,6 @@ it with Node.js, Bun, or Deno in the repository you want to manage.
 | Documentation | README files and licenses.                                 |
 | GitHub        | Repository settings, protection rules, and workflows.      |
 | Releases      | Version changes, changelogs, tags, and package publishing. |
-
-<!-- hj:readme jsr-package:badges 572aba0516320896bc967eb6a2ab6257682c791937319c42ee30c162ca6165bd -->
-
-[![JSR Version](https://jsr.io/badges/@hugojosefson/cli)](https://jsr.io/@hugojosefson/cli)
-[![JSR Score](https://jsr.io/badges/@hugojosefson/cli/score)](https://jsr.io/@hugojosefson/cli)
-
-<!-- /hj:readme -->
-
-<!-- hj:readme github-release-publish-npm:badge c9cf2e0e859be880fd5a386c1654e2aa24b3764dd827580bd4ad4ac07b5dc1cf -->
-
-[![npm Version](https://img.shields.io/npm/v/@hugojosefson/cli)](https://www.npmjs.com/package/@hugojosefson/cli)
-
-<!-- /hj:readme -->
-
-<!-- hj:readme github-ci:badge cef2c14f63758c9d69d92ef24b123236225fdf1984e0a9e31519646de6464d00 -->
-
-[![CI](https://github.com/hugojosefson/cli/actions/workflows/hj-ci.yaml/badge.svg)](https://github.com/hugojosefson/cli/actions/workflows/hj-ci.yaml)
-
-<!-- /hj:readme -->
 
 ## Prerequisites
 

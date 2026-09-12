@@ -1,5 +1,6 @@
 /** @module Built-in exact starter README feature. */
 
+import { badgeLayoutDetection } from "./readme-badge-layout.ts";
 import { fileAccess } from "../repository/file-access.ts";
 import type { Feature } from "../api/feature.ts";
 import type { DetectionContext } from "../api/repository-context.ts";
@@ -34,6 +35,11 @@ async function detectReadmeStatic(context: DetectionContext) {
     inspection.observation.kind === "file" &&
     fileAccess(inspection.observation).writable
   ) {
+    const badges = badgeLayoutDetection(
+      inspection.observation.content,
+      "README.md",
+    );
+    if (badges) return badges;
     return {
       state: "enabled" as const,
       evidence: [{
