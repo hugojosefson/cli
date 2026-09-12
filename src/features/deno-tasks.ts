@@ -98,8 +98,8 @@ export function denoTaskDefinitions(
     default: {
       description: "Fix formatting, then run checks.",
       command: readmeBuild
-        ? "deno task --if-present package-metadata && deno fmt --ignore=coverage && deno task readme && deno task check"
-        : "deno task --if-present package-metadata && deno fmt --ignore=coverage && deno task check",
+        ? "deno task --if-present package-metadata && deno task fmt && deno task readme && deno task check"
+        : "deno task --if-present package-metadata && deno task fmt && deno task check",
     },
     all: { description: "Run all checks.", dependencies: ["check"] },
   };

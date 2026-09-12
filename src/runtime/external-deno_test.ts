@@ -316,3 +316,15 @@ test("aborting a native command waits for child cleanup and propagates cancellat
     clearTimeout(timer);
   }
 });
+
+test("a child that closes stdin cannot hang command cleanup", async () => {
+  const deadline = AbortSignal.timeout(5000);
+  await assertRejects(() =>
+    runRawCommand("sh", {
+      args: ["-c", "exec 0<&-; exec sleep 30"],
+      input: "x".repeat(1024 * 1024),
+      signal: deadline,
+    })
+  );
+  assertEquals(deadline.aborted, false, "input failure must stop the child");
+});
