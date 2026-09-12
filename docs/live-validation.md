@@ -556,11 +556,31 @@ also succeeded. Its public provenance connects the pinned manifest to that exact
 source and includes the artifact-action fix. The version-pinned generator
 contains the new action references and neither old reference.
 
-A final audit used the public 0.12.0 package under Node.js 24 and Bun against
-the release checkout with these documentation changes. Both outputs matched
+Before the launcher and badge follow-ups, an audit used the public 0.12.0
+package under Node.js 24 and Bun. Its target was the release checkout with the
+documentation edits available at that time. Both outputs matched
 `deno task hj repo features` exactly: 54 features, with 28 enabled and 26
 intentionally disabled. No feature reported drift or ambiguity. Help and the
 full repository inspection ran without Deno in PATH or an acquired Deno cache.
-The installed CLI also matched the checkout before the final release-version
-update. The grouped changelog feature accounts for the additional enabled
-feature since the initial publication audit.
+The installed CLI also matched the checkout before the 0.12.0 version update.
+The grouped changelog feature accounts for the additional enabled feature since
+the initial publication audit.
+
+## Global launcher and npm badge integration, 2026-09-12
+
+[PR #110](https://github.com/hugojosefson/cli/pull/110) adds the portable npm
+launcher. Production archive checks passed 51 cases on each of Node.js 24 and
+Node.js 26, covering npm 11, npm 12, and Bun. Separate checks upgraded public
+0.11.0 to the candidate archive, then ran plain `hj` help and inspection with
+only Node or only Bun available. Removal also passed. These candidate checks
+preceded publication and did not change the user's global installation.
+
+[PR #112](https://github.com/hugojosefson/cli/pull/112) makes npm publication
+own its README badge. The feature adds, detects, repairs and removes its badge
+while preserving custom content. The repository uses that managed badge.
+Repeating the enable command makes no changes.
+
+The
+[combined GitHub checks](https://github.com/hugojosefson/cli/actions/runs/34706638607)
+passed the same 765 test bodies across 119 files in Deno 2.9.6, Node.js 24.21.0,
+Node.js 26.2.0, and Bun 1.4.2. All six checks passed without annotations.
