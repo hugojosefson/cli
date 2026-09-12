@@ -123,7 +123,6 @@ async function prepareUsual(
   if (!releaseType) throw new Error("The release range is empty.");
   const version = await nextVersion(previousVersion, releaseType);
 
-  await runOrThrow(process, "deno", ["task", "all"]);
   await requireClean(process);
   const previousVersionText = config.text;
   const versionText = updateDenoConfigVersion(

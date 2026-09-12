@@ -144,9 +144,19 @@ is validated data describing the exact proposed changes.
 | Publish GitHub Release | Send `hj-release-publish-tag-success` to start the GitHub Release publisher.                      |
 | Publish JSR package    | The same success event starts the JSR publisher automatically.                                    |
 
-Preparation runs package checks on uncommitted candidate files. The generated
-`publish-check` task uses `--dry-run --allow-dirty --check=all`. It uploads
-nothing. The real publisher still requires the exact tagged source.
+Preparation runs `deno task all` once, after updating and formatting the
+candidate version and changelog. It does not repeat the full suite on the
+selected source tree first. Clean-state, source-commit, changed-path, tree,
+race, and recovery checks still apply. A failed candidate check stops
+preparation before it emits a release bundle.
+
+Preparation also runs package checks on uncommitted candidate files. The
+generated `publish-check` task uses `--dry-run --allow-dirty --check=all`. It
+uploads nothing. The JSR publisher contribution retains its separate package dry
+run: other projects can define `all` without `publish-check`, so successful
+project checks alone do not prove that the package was checked. This
+repository's `publish-check` also retains its frozen-lockfile check. The real
+publisher still requires the exact tagged source.
 
 The release commit uses the standard `github-actions[bot]` Git identity. The
 workflow does not need a runner's global Git identity.
