@@ -7,6 +7,10 @@ import type {
 import type { JsonObject } from "../api/json.ts";
 import { canonical } from "../repository/canonical-ruleset.ts";
 import { rulesetResource } from "./github-protection-definitions.ts";
+import {
+  githubAccessResolution,
+  unavailableGithubRepository,
+} from "./github-repository-access.ts";
 export type RulesetState = {
   readonly definition: JsonObject;
   readonly digest?: string;
@@ -17,7 +21,11 @@ export async function inspectRulesets(
   definitions: readonly JsonObject[],
 ): Promise<readonly RulesetState[]> {
   if (!context.github || !await context.github.repository()) {
-    return definitions.map((definition) => ({ definition, kind: "absent" }));
+    const unavailable = await unavailableGithubRepository(context);
+    return definitions.map((definition) => ({
+      definition,
+      kind: unavailable.state === "disabled" ? "absent" : "ambiguous",
+    }));
   }
   const rulesets = await context.github.rulesets();
   if (!rulesets) {
@@ -70,8 +78,8 @@ export function detected(states: readonly RulesetState[]) {
     !["exact", "absent"].includes(states[index].kind)
   ).map((item) => ({
     ...item,
-    resolution:
-      "Inspect GitHub rulesets and access before applying protection changes.",
+    resolution: githubAccessResolution +
+      " Inspect the named GitHub rulesets before changing protection.",
   }));
   if (states.some((state) => state.kind === "ambiguous")) {
     return { state: "ambiguous" as const, evidence, issues };

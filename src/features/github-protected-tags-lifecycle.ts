@@ -27,6 +27,11 @@ import { requireTagQuiescence } from "./release-quiescence.ts";
 import { publishTagWorkflow } from "../release/names.ts";
 import { publishTagArtifact } from "./github-release-publish-artifacts.ts";
 
+import {
+  githubAccessResolution,
+  unavailableGithubRepository,
+} from "./github-repository-access.ts";
+
 type TagState = "absent" | "final" | "guard" | "release" | "invalid";
 type Snapshot = {
   readonly general: TagState;
@@ -258,11 +263,9 @@ function expectations(
 
 async function snapshot(context: DetectionContext): Promise<Snapshot> {
   if (!context.github || !await context.github.repository()) {
-    return {
-      general: "absent",
-      release: "absent",
-      digests: [undefined, undefined],
-    };
+    const unavailable = await unavailableGithubRepository(context);
+    const state = unavailable.state === "disabled" ? "absent" : "invalid";
+    return { general: state, release: state, digests: [undefined, undefined] };
   }
   const rulesets = await context.github.rulesets();
   if (!rulesets) {
@@ -353,8 +356,8 @@ function detection(
     evidence,
     issues: [{
       ...evidence[0],
-      resolution:
-        "Inspect GitHub tag rulesets and access before applying protection changes.",
+      resolution: githubAccessResolution +
+        " Inspect GitHub tag rulesets before changing protection.",
     }],
   };
 }

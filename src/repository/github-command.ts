@@ -44,6 +44,29 @@ export function githubCommandFailure(
     ...(status ? [`HTTP ${status}`] : []),
     ...(Number.isInteger(exit) ? [`exit ${exit}`] : []),
   ];
+  if (result) {
+    try {
+      const body = JSON.parse(new TextDecoder().decode(result.stdout));
+      if (
+        Array.isArray(body?.errors) &&
+        body.errors.some((error: unknown) =>
+          error !== null && typeof error === "object" &&
+          (("type" in error &&
+            ["RATE_LIMIT", "RATE_LIMITED"].includes(String(error.type))) ||
+            ("code" in error && error.code === "graphql_rate_limit"))
+        )
+      ) {
+        return "GitHub API rate limit reached. Wait for the limit to reset, then retry.";
+      }
+    } catch { /* Unknown response bodies remain private. */ }
+    if (
+      /(?:GraphQL:|gh:) API rate limit (?:already )?exceeded\b/.test(
+        new TextDecoder().decode(result.stderr),
+      )
+    ) {
+      return "GitHub API rate limit reached. Wait for the limit to reset, then retry.";
+    }
+  }
   if (status === "403" && result) {
     try {
       const body = JSON.parse(new TextDecoder().decode(result.stdout));
