@@ -20,12 +20,13 @@ export function formatFeatureStatus(
         detection && "issues" in detection && detection.issues.length
           ? detection.issues.map((issue) => issue.observation)
           : detection?.evidence.map((item) => item.observation) ?? [];
+      const repair = repairs.get(id) ?? repairStateDescription(detection);
       return [
         id,
         detection?.state ?? "unknown",
         [
           ...new Set(details),
-          `Repair: ${repairs.get(id) ?? repairStateDescription(detection)}`,
+          ...(repair ? [`Repair: ${repair}`] : []),
         ].join("\n"),
       ];
     });

@@ -46,7 +46,7 @@ Deno.test("git-ignore status accepts a custom suffix and names only missing excl
       );
     const clean = await run();
     assertStringIncludes(clean.replace(/ +/g, " "), "git-ignore enabled");
-    assertStringIncludes(clean, "No repair needed");
+    assert(!clean.includes("Repair:"));
     assert(!clean.includes("Reorder"));
     assertStringIncludes(await run("--repair"), "No changes.");
     assertEquals(await context.files.readText(".gitignore"), complete);
@@ -70,9 +70,15 @@ Deno.test("git-ignore status accepts a custom suffix and names only missing excl
       await context.files.readText(".gitignore"),
       missing + "# hj:git-ignore /coverage/\n/coverage/\n",
     );
-    assertStringIncludes(await run(), "No repair needed");
+    assert(!(await run()).includes("Repair:"));
     await Deno.remove(new URL(".gitignore", root));
-    assertStringIncludes(await run("--repair"), "leaves it disabled");
+    const disabledRepair = await run("--repair");
+    assertStringIncludes(
+      disabledRepair.replace(/ +/g, " "),
+      "git-ignore disabled",
+    );
+    assert(!disabledRepair.includes("Repair:"));
+    assertStringIncludes(disabledRepair, "No changes.");
     assertEquals(await context.files.exists(".gitignore"), false);
     await run("--repair", "--git-ignore", "--yes");
     assertEquals((await gitIgnoreFeature.detect(context)).state, "enabled");
@@ -208,7 +214,7 @@ Deno.test("status previews the real formatting repair and shared files without c
     const repaired = await run("--repair", "--deno-fmt", "--yes");
     assertEquals(taskCalls, 1);
     assertStringIncludes(repaired.replace(/ +/g, " "), "deno-fmt enabled");
-    assertStringIncludes(repaired, "No repair needed");
+    assert(!repaired.includes("Repair:"));
     const final = JSON.parse((await context.files.readText("deno.json"))!);
     assertEquals(final.tasks.fmt, denoTaskDefinitions().fmt);
     assertEquals(final.tasks.custom, custom);
@@ -250,6 +256,7 @@ Deno.test("repair preview resolves missing dependencies and reports ambiguous de
       ]]),
     }, registry);
     assertStringIncludes(previews.get("consumer")!, "Create consumer.txt");
+    assertEquals(previews.has("dependency"), false);
     assertEquals(planned, 1);
     assertEquals(await context.files.exists("consumer.txt"), false);
     const blocked = await featureRepairPreviews({
@@ -314,15 +321,12 @@ Deno.test("repair previews preserve manual blockers and do not leak unexpected p
       assertStringIncludes(result.get("example")!, expected);
       assert(!result.get("example")!.includes("never-print-this"));
     }
-    assertStringIncludes(
+    assertEquals(
       repairStateDescription({ state: "enabled", evidence: [] }),
-      "No repair needed",
+      undefined,
     );
-    assertStringIncludes(
-      repairStateDescription(disabled),
-      "--repair alone leaves it disabled",
-    );
-    assertStringIncludes(repairStateDescription(), "could not be determined");
+    assertEquals(repairStateDescription(disabled), undefined);
+    assertStringIncludes(repairStateDescription()!, "could not be determined");
     assertStringIncludes(
       repairStateDescription({
         state: "ambiguous",
@@ -334,7 +338,7 @@ Deno.test("repair previews preserve manual blockers and do not leak unexpected p
           observation: "Conflicting README providers",
           resolution: "Choose one README provider.",
         }],
-      }),
+      })!,
       "README.md: Choose one README provider",
     );
   });

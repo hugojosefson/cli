@@ -35,10 +35,12 @@ When implementing Project issues, follow these rules:
 17. If a feature reports ambiguity or drift, improve detection, add or improve
     repair, or change this repository's contents as appropriate. Combine these
     approaches when needed. Preserve intentional custom behavior.
-18. Make sure that `hj repo features` states each feature's specific repair
-    actions. Name affected files, configuration values, or remote resources. If
-    repair is unnecessary or unsupported, state that and explain any required
-    manual action. Do not present a generic repair hint as a repair description.
+18. When action is needed, make sure that `hj repo features` states the specific
+    repair actions or required manual action. Name affected files, configuration
+    values, or remote resources. If repair is unsupported, state that and explain
+    the required manual action. For matching enabled and intentionally disabled
+    features, show detection evidence without generic no-repair messages or empty
+    repair lines. Do not present a generic repair hint as a repair description.
 19. After changes, repeat the feature inspection and record the results. Apply
     these requirements to all existing and future features.
 20. Use `github-default-project` as the model for drifted repair details. Follow

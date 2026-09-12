@@ -78,13 +78,14 @@ The combined checkout for [#54](https://github.com/hugojosefson/cli/issues/54)
 included the GitHub detection and Git-ignore fixes above. Both
 `hj repo features` and `deno task hj repo features` reported all 53 expected
 states: 26 enabled and 27 disabled. None reported ambiguity or drift. The
-current checkout also displayed a repair description for every feature. The
 installed command confirmed the states before the repair-output change merged.
 This inspection left `.gitignore` unchanged.
 
-The current checkout explicitly reported that the 26 enabled features needed no
-repair. It also reported that `--repair` alone leaves disabled features
-disabled. A positive feature flag can still enable a disabled feature.
+Matching enabled and intentionally disabled features now show their detection
+evidence without generic no-repair messages or empty repair lines. Detailed
+repair actions and manual guidance remain for states that need action.
+`--repair` alone still leaves disabled features disabled. A positive feature
+flag can still enable a disabled feature.
 
 The CLI regression used a temporary repository with custom lines after valid
 managed ignore entries. Status reported enabled, and `--repair` reported
@@ -108,3 +109,20 @@ GitHub resources.
 
 The combined `deno task ci` passed 636 tests and seven named steps. Coverage
 passed all limits: 90.8% of lines, 91.8% of branches, and 93.5% of functions.
+
+## Omit redundant repair messages
+
+The inspection for [#64](https://github.com/hugojosefson/cli/issues/64) compared
+`hj repo features` with `deno task hj repo features`. Both commands reported all
+53 expected states: 26 enabled and 27 disabled. None reported ambiguity or
+drift. The installed command still printed 53 generic no-repair lines before
+this change merged. The updated checkout printed none and retained every
+detection observation. Its `deno-lint` output used one line:
+
+```text
+deno-lint                      enabled        Deno task lint is configured.
+```
+
+The 17 focused tests passed. They covered the absence of empty repair lines,
+exact missing `.gitignore` additions, manual blockers, read-only previews, and
+unchanged behavior for `--repair` on disabled features.

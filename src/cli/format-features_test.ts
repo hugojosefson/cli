@@ -55,6 +55,15 @@ Deno.test("feature rows style names and wrapped details according to state", () 
     const detections = new Map([["git", { state, evidence, issues: [] }]]);
     const plain = formatFeatureStatus(registry, detections);
     const colored = formatFeatureStatus(registry, detections, true);
+    if (state === "enabled" || state === "disabled") {
+      assertEquals(plain.includes("Repair:"), false);
+      assertEquals(
+        plain.split("\n").slice(2).some((line) => !line.trim()),
+        false,
+      );
+    } else {
+      assertStringIncludes(plain, "Repair:");
+    }
     // deno-lint-ignore no-control-regex -- Compare visible text after ANSI removal.
     assertEquals(colored.replaceAll(/\u001b\[\d+m/g, ""), plain);
     assertStringIncludes(

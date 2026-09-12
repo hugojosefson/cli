@@ -9,13 +9,12 @@ import { describePlannedChange } from "./describe-planned-change.ts";
 import { reconcileFeaturePlans } from "./reconcile-feature-plans.ts";
 import { repairCompletionDescription } from "./repair-completion-description.ts";
 
-/** Repair changes only drifted features; never infer that disabled means broken. */
-export function repairStateDescription(detection?: FeatureDetection): string {
-  if (detection?.state === "enabled") {
-    return "No repair needed; the enabled configuration matches.";
-  }
-  if (detection?.state === "disabled") {
-    return "No repair needed while disabled; --repair alone leaves it disabled.";
+/** Describes unresolved states; matching enabled and disabled states need no guidance. */
+export function repairStateDescription(
+  detection?: FeatureDetection,
+): string | undefined {
+  if (detection?.state === "enabled" || detection?.state === "disabled") {
+    return undefined;
   }
   if (detection?.state === "ambiguous") {
     const resolutions = [
@@ -42,7 +41,8 @@ export async function featureRepairPreviews(
     const id = feature.metadata.id;
     const detection = base.detections.get(id);
     if (detection?.state !== "drifted") {
-      descriptions.set(id, repairStateDescription(detection));
+      const description = repairStateDescription(detection);
+      if (description) descriptions.set(id, description);
       continue;
     }
     const request = {

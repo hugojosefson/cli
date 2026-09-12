@@ -72,9 +72,10 @@ Help does not request extra permissions. The installed command and
 ## Read the status table
 
 `hj repo features` reports status without changes. The Details and repair column
-explains the observation and the specific repair effects. Detection reads
-configuration and local files. It does not run project tasks or prove that tests
-pass or a package is published.
+explains the observation. When action is needed, it describes the specific
+repair effects or required manual action. Detection reads configuration and
+local files. It does not run project tasks or prove that tests pass or a package
+is published.
 
 Repair details follow the `github-default-project` model. Each detail names a
 needed addition, removal, replacement, value, or order for the current
@@ -90,12 +91,13 @@ insufficient. Details come from the same inspected differences or plans that
 repair uses. Inspection does not write files, change GitHub resources, run
 project tasks, or prompt for credentials.
 
-Matching enabled features need no repair. Disabled features stay disabled with
-`--repair` alone. A positive flag can enable a disabled feature, including when
-combined with `--repair`. Ambiguous results explain the required manual action.
-Drifted results describe `--repair --<feature>`, including required dependencies
-and shared files. The output also identifies project tasks and Git commits that
-follow local repairs.
+Matching enabled and intentionally disabled features show detection evidence
+without generic no-repair messages or empty repair lines. Disabled features stay
+disabled with `--repair` alone. A positive flag can enable a disabled feature,
+including when combined with `--repair`. Ambiguous and unknown results explain
+the required manual action. Drifted results describe `--repair --<feature>`,
+including required dependencies and shared files. The output also identifies
+project tasks and Git commits that follow local repairs.
 
 Extra `.gitignore` entries after the managed entries do not require repair. If
 all required entries remain correct, detection reports enabled. If required
