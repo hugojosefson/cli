@@ -3,6 +3,7 @@
 import { canonical } from "../repository/canonical-ruleset.ts";
 import type { ChangePlan } from "../api/change-plan.ts";
 import type { Feature } from "../api/feature.ts";
+import type { FeatureDetection } from "../api/feature-detection.ts";
 import type {
   AllowedOperation,
   OperationCheck,
@@ -322,16 +323,40 @@ function preconditions(state: Snapshot) {
     stateDigest: state.digests[index],
   }));
 }
-function detection(state: Snapshot) {
-  if (state.general === "invalid" || state.release === "invalid") {
-    return { state: "ambiguous" as const, evidence: [], issues: [] };
+function detection(
+  state: Snapshot,
+): FeatureDetection {
+  const status = state.general === "invalid" || state.release === "invalid"
+    ? "ambiguous"
+    : state.general === "absent" && state.release === "absent"
+    ? "disabled"
+    : state.general === "final" && state.release === "release"
+    ? "enabled"
+    : "drifted";
+  const evidence = [{
+    code: "github-tag-protection-inspected",
+    kind: "github-ruleset",
+    subject: { kind: "github-ruleset", identifier: "github-protected-tags" },
+    observation: status === "enabled"
+      ? "Tag protection is active. The CLI checks exact SemVer."
+      : status === "disabled"
+      ? "Managed tag protection is absent."
+      : status === "ambiguous"
+      ? "Tag protection could not be confirmed."
+      : "Managed tag protection is incomplete or differs.",
+  }];
+  if (status === "enabled" || status === "disabled") {
+    return { state: status, evidence };
   }
-  if (state.general === "absent" && state.release === "absent") {
-    return { state: "disabled" as const, evidence: [] };
-  }
-  return state.general === "final" && state.release === "release"
-    ? { state: "enabled" as const, evidence: [] }
-    : { state: "drifted" as const, evidence: [], issues: [] };
+  return {
+    state: status,
+    evidence,
+    issues: [{
+      ...evidence[0],
+      resolution:
+        "Inspect GitHub tag rulesets and access before applying protection changes.",
+    }],
+  };
 }
 function blocked(message: string): OperationCheck {
   return {

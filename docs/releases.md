@@ -74,6 +74,11 @@ generated variant. Running feature operations without the source option
 preserves a recorded source. Custom changes still require repair or manual
 resolution under the normal ownership rules.
 
+An existing workflow keeps its exact JSR CLI version during detection and
+ordinary feature operations. A version difference alone is not drift. Changed
+workflow content still requires repair. Use `--repair --workflow-cli=jsr` to
+select the version of the CLI that you are running.
+
 After the CLI version exists on JSR, generate normal workflows with that version
 of the CLI:
 
