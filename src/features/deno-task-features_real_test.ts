@@ -2,7 +2,7 @@ import { packageMetadataTask } from "./deno-cli-artifacts.ts";
 import { assert, assertEquals, assertRejects } from "@std/assert";
 import { parse } from "jsonc-parser";
 import { parseFeatures } from "../cli/parse-features.ts";
-import { runFeatures } from "../cli/run-features.ts";
+import { runFeatureOperation } from "../cli/run-features.ts";
 import { builtInFeatureRegistry } from "./built-in-feature-registry.ts";
 import {
   coverageTaskDefinition,
@@ -236,3 +236,13 @@ type TaskConfig = {
   readonly exports?: unknown;
   readonly tasks: Record<string, Record<string, unknown>>;
 };
+
+// These fixtures inspect generated features and execute their tasks separately.
+function runFeatures(
+  root: URL,
+  args: Parameters<typeof runFeatureOperation>[1],
+) {
+  return runFeatureOperation(root, args, builtInFeatureRegistry, undefined, {
+    runFinalTask: () => Promise.resolve(undefined),
+  });
+}

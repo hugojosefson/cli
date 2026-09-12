@@ -1,7 +1,7 @@
 import { assertEquals, assertStringIncludes } from "@std/assert";
 import { builtInFeatureRegistry } from "./built-in-feature-registry.ts";
 import { parseFeatures } from "../cli/parse-features.ts";
-import { runFeatures } from "../cli/run-features.ts";
+import { runFeatureOperation } from "../cli/run-features.ts";
 import { denoTaskDefinitions, leafTaskDefinitions } from "./deno-tasks.ts";
 
 Deno.test("task features use exact commands and canonical aggregates", () => {
@@ -85,4 +85,14 @@ function run(root: URL, flags: string[]): Promise<string> {
     root,
     parseFeatures(["repo", "features", ...flags], builtInFeatureRegistry),
   );
+}
+
+// These fixtures inspect generated features and execute their tasks separately.
+function runFeatures(
+  root: URL,
+  args: Parameters<typeof runFeatureOperation>[1],
+) {
+  return runFeatureOperation(root, args, builtInFeatureRegistry, undefined, {
+    runFinalTask: () => Promise.resolve(undefined),
+  });
 }

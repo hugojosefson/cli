@@ -4,7 +4,10 @@ import {
   assertRejects,
   assertStringIncludes,
 } from "@std/assert";
-import { runCli } from "../cli/run-cli.ts";
+import { runCli as executeCli } from "../cli/run-cli.ts";
+import { runFeatureOperation } from "../cli/run-features.ts";
+import { parseFeatures } from "../cli/parse-features.ts";
+import { builtInFeatureRegistry } from "../features/built-in-feature-registry.ts";
 import { LocalFileReader } from "../repository/local-file-reader.ts";
 import { denoTaskDefinitions, readmeTaskDefinition } from "./deno-tasks.ts";
 
@@ -306,4 +309,18 @@ async function symlink(target: URL, path: URL): Promise<void> {
     ],
   }).output();
   assert(result.success, new TextDecoder().decode(result.stderr));
+}
+
+// Run generated commands explicitly in each test without fetching hj at setup.
+function runCli(root: URL, args: readonly string[]) {
+  if (args[0] !== "repo" || args[1] !== "features") {
+    return executeCli(root, args);
+  }
+  return runFeatureOperation(
+    root,
+    parseFeatures(args, builtInFeatureRegistry),
+    builtInFeatureRegistry,
+    undefined,
+    { runFinalTask: () => Promise.resolve(undefined) },
+  ).then((output) => ({ output, terminalNewline: true }));
 }

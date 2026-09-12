@@ -1,6 +1,6 @@
 import { assert, assertEquals, assertStringIncludes } from "@std/assert";
 import { parseFeatures } from "../cli/parse-features.ts";
-import { runFeatures } from "../cli/run-features.ts";
+import { runFeatureOperation } from "../cli/run-features.ts";
 import { builtInFeatureRegistry } from "./built-in-feature-registry.ts";
 
 Deno.test("generated server serves through Deno, tasks, and the executable CLI without prompts", async () => {
@@ -124,3 +124,13 @@ Deno.test("generated server serves through Deno, tasks, and the executable CLI w
     await Deno.remove(path, { recursive: true });
   }
 });
+
+// These fixtures inspect generated features and execute their tasks separately.
+function runFeatures(
+  root: URL,
+  args: Parameters<typeof runFeatureOperation>[1],
+) {
+  return runFeatureOperation(root, args, builtInFeatureRegistry, undefined, {
+    runFinalTask: () => Promise.resolve(undefined),
+  });
+}

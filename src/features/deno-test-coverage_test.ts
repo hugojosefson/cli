@@ -11,7 +11,7 @@ import { applyLocalChangePlan } from "../operations/local-change-plan.ts";
 import { denoTaskFeature } from "./deno-task-feature.ts";
 import type { JsonValue } from "../api/json.ts";
 import { parseFeatures } from "../cli/parse-features.ts";
-import { runFeatures } from "../cli/run-features.ts";
+import { runFeatureOperation } from "../cli/run-features.ts";
 import { builtInFeatureRegistry } from "./built-in-feature-registry.ts";
 import { denoServerTasks } from "./deno-server-tasks.ts";
 import {
@@ -324,4 +324,14 @@ async function command(root: URL, args: string[]) {
     output: new TextDecoder().decode(result.stdout) +
       new TextDecoder().decode(result.stderr),
   };
+}
+
+// These fixtures inspect generated features and execute their tasks separately.
+function runFeatures(
+  root: URL,
+  args: Parameters<typeof runFeatureOperation>[1],
+) {
+  return runFeatureOperation(root, args, builtInFeatureRegistry, undefined, {
+    runFinalTask: () => Promise.resolve(undefined),
+  });
 }

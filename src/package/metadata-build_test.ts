@@ -4,7 +4,10 @@ import {
   assertRejects,
   assertStringIncludes,
 } from "@std/assert";
-import { runCli } from "../cli/run-cli.ts";
+import { runCli as executeCli } from "../cli/run-cli.ts";
+import { runFeatureOperation } from "../cli/run-features.ts";
+import { parseFeatures } from "../cli/parse-features.ts";
+import { builtInFeatureRegistry } from "../features/built-in-feature-registry.ts";
 import { applyLocalChangePlan } from "../operations/local-change-plan.ts";
 import { denoCliFeature } from "../features/deno-cli-feature.ts";
 import {
@@ -299,3 +302,17 @@ Deno.test("server repair includes metadata required by an older CLI registry", a
     );
   });
 });
+
+// Run generated commands explicitly in each test without fetching hj at setup.
+function runCli(root: URL, args: readonly string[]) {
+  if (args[0] !== "repo" || args[1] !== "features") {
+    return executeCli(root, args);
+  }
+  return runFeatureOperation(
+    root,
+    parseFeatures(args, builtInFeatureRegistry),
+    builtInFeatureRegistry,
+    undefined,
+    { runFinalTask: () => Promise.resolve(undefined) },
+  ).then((output) => ({ output, terminalNewline: true }));
+}
