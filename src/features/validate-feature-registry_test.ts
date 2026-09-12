@@ -25,6 +25,7 @@ Deno.test("the complete built-in registry validates", () => {
       "github-release-publish-tag",
       "github-release-publish-jsr",
       "github-release-publish-github",
+      "github-release-publish-npm",
       "github-ci",
       "github-main-protection",
       "github-main-review",

@@ -657,3 +657,10 @@ Attribution is resolved in this order:
 
 Setup stops if required attribution remains unresolved. For release setup and
 removal, read the [release guide](releases.md).
+
+## npm publication
+
+Select `--github-release-publish-npm` to add an independent npm publisher after
+release-tag success. Define and test the `npm-build` task first. The
+[npm publication guide](npm-publication.md) describes package output,
+authentication, and retries.

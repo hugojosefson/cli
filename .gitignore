@@ -1,1 +1,4 @@
 .coverage/
+
+# Local npm build example
+/.hj/npm/

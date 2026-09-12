@@ -6,6 +6,7 @@ import type { ReleaseEnvironment } from "../release/release-environment.ts";
 import type { ReleaseProcess } from "../release/release-process.ts";
 import type { JsrApi, PackageFileReader } from "../release/publish-jsr.ts";
 import type { GithubReleaseApi } from "../release/publish-github.ts";
+import type { NpmApi, NpmBuildFiles } from "../release/publish-npm.ts";
 import type { PublisherFiles } from "../release/publisher-input.ts";
 
 export type ReleaseServices = {
@@ -15,6 +16,8 @@ export type ReleaseServices = {
   readonly publisherFiles?: PublisherFiles;
   readonly packageFiles?: PackageFileReader;
   readonly jsrApi?: JsrApi;
+  readonly npmApi?: NpmApi;
+  readonly npmBuildFiles?: NpmBuildFiles;
   readonly githubReleaseApi?: GithubReleaseApi;
 };
 
@@ -22,7 +25,8 @@ export type ReleaseCommand =
   | "publish-tag-prepare"
   | "publish-tag-apply"
   | "publish-jsr"
-  | "publish-github";
+  | "publish-github"
+  | "publish-npm";
 export async function runReleaseCommand(
   command: ReleaseCommand,
   root: URL,
@@ -33,6 +37,7 @@ export async function runReleaseCommand(
     "publish-tag-apply": runPublishTagApply,
     "publish-jsr": runPublishJsr,
     "publish-github": runPublishGithub,
+    "publish-npm": runPublishNpm,
   };
   return await handlers[command](root, services);
 }
@@ -152,4 +157,24 @@ function githubRepository(value: string): { owner: string; name: string } {
   const match = /^([A-Za-z0-9_.-]+)\/([A-Za-z0-9_.-]+)$/.exec(value);
   if (!match) throw new TypeError("GITHUB_REPOSITORY is invalid.");
   return { owner: match[1], name: match[2] };
+}
+
+async function runPublishNpm(
+  root: URL,
+  dependencies: ReleaseServices,
+): Promise<CliResult> {
+  const { environment, process } = await releaseContext(root, dependencies);
+  const publisher = await import("../release/publish-npm.ts");
+  await publisher.publishNpm({
+    root,
+    environment,
+    process,
+    files: dependencies.publisherFiles ??
+      (await import("../release/publisher-input.ts")).localPublisherFiles(root),
+    buildFiles: dependencies.npmBuildFiles ??
+      publisher.localNpmBuildFiles(root),
+    api: dependencies.npmApi ?? publisher.npmHttpApi(),
+    clock: dependencies.releaseClock,
+  });
+  return { output: "npm publication finished.", terminalNewline: true };
 }

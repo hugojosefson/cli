@@ -8,11 +8,13 @@ import type {
 import {
   publishGithubArtifact,
   publishJsrArtifact,
+  publishNpmArtifact,
   publishTagArtifact,
 } from "./github-release-publish-artifacts.ts";
 import {
   githubReleasePublisherFeatures,
   githubReleasePublishJsrFeature,
+  githubReleasePublishNpmFeature,
   githubReleasePublishTagFeature,
 } from "./github-release-publish-feature.ts";
 import { parse } from "yaml";
@@ -377,6 +379,9 @@ Deno.test("only the JSR publisher contributes the usual-route pre-tag command", 
     }, {
       id: "github-release-publish-github",
       contributions: [],
+    }, {
+      id: "github-release-publish-npm",
+      contributions: [],
     }],
   );
 });
@@ -525,4 +530,59 @@ Deno.test("release workflows use configured Deno versions without changing CLI s
     }
     assertStringIncludes(overridden.schema.content, "deno-version: 2.9.0");
   }
+});
+
+Deno.test("npm workflow lifecycle preserves custom files and requires quiescence for removal", async () => {
+  const feature = githubReleasePublishNpmFeature;
+  const empty = context({});
+  assertEquals((await feature.detect(empty)).state, "disabled");
+  const allowed = await feature.checkEnable(empty);
+  if (allowed.result !== "allowed") throw new Error("Expected enablement");
+  const plan = await feature.planEnable(empty, allowed);
+  const write = plan.changes.find((change) => change.kind === "write-file")!;
+  assertEquals(write.path, publishNpmArtifact.path);
+  const saved = context({ [write.path]: exact(write.content) });
+  assertEquals((await feature.detect(saved)).state, "enabled");
+  assertEquals((await feature.checkEnable(saved)).result, "no-op");
+  assertEquals((await feature.checkDisable(saved)).result, "blocked");
+  const removable = { ...saved, github: quiescentGithub };
+  const remove = await feature.checkDisable(removable);
+  if (remove.result !== "allowed") throw new Error("Expected removal");
+  assertEquals(
+    (await feature.planDisable(removable, remove)).changes[0].kind,
+    "remove-file",
+  );
+  const custom = context({ [write.path]: exact("name: custom\n") });
+  assertEquals((await feature.detect(custom)).state, "ambiguous");
+  assertEquals((await feature.checkEnable(custom)).result, "blocked");
+  const drift = context({ [write.path]: exact(write.content + "# drift\n") });
+  assertEquals((await feature.detect(drift)).state, "drifted");
+  assertEquals((await feature.checkEnable(drift)).result, "blocked");
+  assertEquals(
+    (await feature.checkEnable({ ...drift, repair: { kind: "all-drifted" } }))
+      .result,
+    "allowed",
+  );
+});
+
+Deno.test("npm workflow authenticates independently after tag success and accepts manual retries", () => {
+  const workflow = parse(publishNpmArtifact.content);
+  assertEquals(workflow.on.repository_dispatch.types, [
+    "hj-release-publish-tag-success",
+  ]);
+  assertEquals(workflow.on.workflow_dispatch.inputs.tag.required, true);
+  assertEquals(workflow.permissions, { contents: "read", "id-token": "write" });
+  assertEquals(workflow.concurrency["cancel-in-progress"], false);
+  const steps = workflow.jobs["publish-npm"].steps;
+  assertStringIncludes(steps[0].with.ref, "releaseSha");
+  assertEquals(
+    steps.find((step: { env?: Record<string, string> }) =>
+      step.env?.NODE_AUTH_TOKEN
+    ).env.NODE_AUTH_TOKEN,
+    "${{ secrets.NPM_TOKEN }}",
+  );
+  assertStringIncludes(steps.at(-1).run, "--allow-run=deno,git,npm");
+  assertStringIncludes(steps.at(-1).run, "release publish-npm");
+  assertEquals(publishTagArtifact.content.includes("NPM_TOKEN"), false);
+  assertEquals(publishTagArtifact.content.includes("npm-build"), false);
 });

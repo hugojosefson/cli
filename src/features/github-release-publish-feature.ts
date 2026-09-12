@@ -22,12 +22,14 @@ import {
 import {
   githubReleasePublishGithubFeatureId,
   githubReleasePublishJsrFeatureId,
+  githubReleasePublishNpmFeatureId,
   githubReleasePublishTagFeatureId,
 } from "../release/names.ts";
 import {
   inspectReleaseArtifact,
   publishGithubArtifact,
   publishJsrArtifact,
+  publishNpmArtifact,
   publishTagArtifact,
   releaseWorkflowMarker,
 } from "./github-release-publish-artifacts.ts";
@@ -145,9 +147,19 @@ export const githubReleasePublishGithubFeature = releaseFeature(
     reason: "GitHub Releases start after a release tag.",
   }],
 );
+export const githubReleasePublishNpmFeature = releaseFeature(
+  githubReleasePublishNpmFeatureId,
+  "GitHub npm release publication",
+  publishNpmArtifact,
+  [{
+    featureId: githubReleasePublishTagFeatureId,
+    reason: "npm publication starts after a release tag.",
+  }],
+);
 export const githubReleasePublisherFeatures = [
   githubReleasePublishJsrFeature,
   githubReleasePublishGithubFeature,
+  githubReleasePublishNpmFeature,
 ] as const;
 
 async function detect(

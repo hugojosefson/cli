@@ -27,6 +27,7 @@ import { jsrPackageFeature } from "./jsr-package-feature.ts";
 import {
   githubReleasePublishGithubFeature,
   githubReleasePublishJsrFeature,
+  githubReleasePublishNpmFeature,
   githubReleasePublishTagFeature,
 } from "./github-release-publish-feature.ts";
 import {
@@ -54,6 +55,7 @@ export const builtInFeatureRegistry: FeatureRegistry = {
     githubReleasePublishTagFeature,
     githubReleasePublishJsrFeature,
     githubReleasePublishGithubFeature,
+    githubReleasePublishNpmFeature,
     githubCiFeature,
     githubMainProtectionFeature,
     githubMainReviewFeature,
