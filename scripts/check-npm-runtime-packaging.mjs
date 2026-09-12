@@ -373,6 +373,9 @@ try {
         const label = `${manager.name}-${source}-${scenario}`;
         const cwd = join(root, `${label} caller with spaces`);
         await mkdir(cwd);
+        // Runtime caches in HOME must not become unowned Git repair outputs.
+        const home = join(installation, `${scenario} home with spaces`);
+        await mkdir(home);
         const start = requests.length;
         const args = source === "archive"
           ? [...manager.prefix, "--package", first.archive, binName]
@@ -382,6 +385,7 @@ try {
           ];
         let env = {
           ...environment(cwd, registry),
+          HOME: home,
           npm_config_cache: join(installation, "npm-cache"),
           BUN_INSTALL_CACHE_DIR: join(installation, "bun-cache"),
           TMPDIR: installation,
