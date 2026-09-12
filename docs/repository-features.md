@@ -175,6 +175,25 @@ Correct the reported failure before you commit the changes.
 | `deno-server`         | A `deno serve` module with `serve` and `dev` tasks.                        | `deno-fmt`; integrates with an enabled CLI.    |
 | `deno-config-version` | A release version from one Deno configuration.                             | An exact SemVer version, such as `1.2.3`.      |
 
+A lockfile records resolved dependency versions. The shared `deno-fmt`
+configuration sets `lock: false` for libraries and other projects without a
+lockfile requirement. Enabling `deno-cli` or `deno-server` sets the managed
+value to `true`. Removing the last application feature restores `false`. A
+pre-existing explicit `lock: true` remains a separate requirement and stays
+enabled.
+
+Before project tasks run, `hj` generates or updates its owned `deno.lock` from
+the project's JavaScript and TypeScript files. This includes test dependencies
+and allows frozen dependency checks to run. The feature commit includes the
+resulting lockfile and its ownership record, `.hj/deno-lock.json`.
+
+The ownership record stores the last generated file digest, a fingerprint of its
+contents. `hj` removes an owned lockfile only while that digest still matches.
+Existing lockfiles, custom paths, custom lock options, and edited lockfiles stay
+outside automatic replacement or removal. Remove `.hj/deno-lock.json` to release
+ownership and retain an explicit `lock: true` requirement. An unrecognized
+ownership record blocks changes until you resolve it.
+
 Git is not required by the Deno project or formatting features. The Deno
 features can coexist. With no enabled features, `hj` creates nothing.
 
