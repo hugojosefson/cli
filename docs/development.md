@@ -176,6 +176,11 @@ general-purpose multi-runtime feature for downstream repositories. The workflow
 has read-only repository access and does not publish anything. Actions use exact
 commit references.
 
+CI groups runs by workflow and pull request number. Pushing another revision to
+the same PR cancels its older CI run. Other PRs remain independent. Dependency
+updates and release publication keep their separate concurrency groups without
+cancelling in-progress mutations.
+
 The same toolchain file supplies the fallback Deno version for newly generated
 CI and release workflows. [Global configuration](configuration.md) and
 `--deno-version` can select another version. Generated workflows and README

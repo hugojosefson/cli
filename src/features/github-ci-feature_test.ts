@@ -30,6 +30,7 @@ import {
   githubCiRuntimeMatrixMarker,
 } from "./github-ci-runtime-matrix.ts";
 import { parse as parseYaml } from "yaml";
+import { describeFileRepair } from "../cli/describe-file-repair.ts";
 
 function context(
   observations: Record<string, ArtifactObservation>,
@@ -106,6 +107,15 @@ test("github-ci owns deterministic pull-request and dependency workflows", () =>
   const ci = githubCiArtifacts[0].content;
   const deps = githubCiArtifacts[1].content;
   assertStringIncludes(ci, "pull_request:");
+  assertEquals(parseYaml(ci).concurrency, {
+    group:
+      "hj-ci-${{ github.workflow }}-pr-${{ github.event.pull_request.number }}",
+    "cancel-in-progress": true,
+  });
+  assertEquals(parseYaml(deps).concurrency, {
+    group: "hj-deps-${{ github.repository }}",
+    "cancel-in-progress": false,
+  });
   assertStringIncludes(ci, "deno task all");
   assertStringIncludes(ci, "hj-release-commit-validation:");
   assertStringIncludes(ci, "release publish-tag-prepare");
@@ -279,6 +289,33 @@ test("github-ci repairs marked drift without replacing custom workflows", async 
       .result,
     "blocked",
   );
+});
+
+test("github-ci repairs missing PR concurrency with exact settings", async () => {
+  const [ci, deps] = githubCiArtifacts;
+  const before = ci.content.replace(
+    /concurrency:\n {2}group: .*\n {2}cancel-in-progress: true\n\n/,
+    "",
+  );
+  const drifted = context({
+    [ci.path]: { ...exact(ci.path), content: before },
+    [deps.path]: exact(deps.path),
+  }, { kind: "features", featureIds: ["github-ci"] });
+  assertEquals((await githubCiFeature.detect(drifted)).state, "drifted");
+  const check = await githubCiFeature.checkEnable(drifted);
+  assertEquals(check.result, "allowed");
+  if (check.result !== "allowed") throw new Error("Expected repair");
+  const plan = await githubCiFeature.planEnable(drifted, check);
+  const writes = plan.changes.filter((change) => change.kind === "write-file");
+  assertEquals(writes.map((change) => change.path), [ci.path]);
+  assertEquals(writes[0].content, ci.content);
+  const details = describeFileRepair(ci.path, before, writes[0].content).join(
+    "\n",
+  );
+  assertStringIncludes(details, ci.path);
+  assertStringIncludes(details, "concurrency.group");
+  assertStringIncludes(details, parseYaml(ci.content).concurrency.group);
+  assertStringIncludes(details, "concurrency.cancel-in-progress = true");
 });
 
 test("github-ci applies its full lifecycle without touching other workflows", async () => {
