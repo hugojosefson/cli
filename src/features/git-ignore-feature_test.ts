@@ -71,6 +71,79 @@ Deno.test("git-ignore preserves custom bytes, duplicate patterns, edits, and mod
   });
 });
 
+Deno.test("git-ignore accepts custom lines after owned entries without repair", async () => {
+  await repository(async (context) => {
+    await write(
+      context,
+      "deno.json",
+      JSON.stringify({
+        tasks: { test: "deno test --coverage=coverage" },
+      }),
+    );
+    for (const newline of ["\n", "\r\n"]) {
+      const content = [
+        ".coverage/",
+        "# hj:git-ignore",
+        "# hj:git-ignore .*.swp",
+        ".*.swp",
+        "# hj:git-ignore /coverage/",
+        "/coverage/",
+        "",
+        "# Local npm build example",
+        "/.hj/npm/",
+      ].join(newline);
+      await write(context, ".gitignore", content);
+      assertEquals((await gitIgnoreFeature.detect(context)).state, "enabled");
+      assertEquals(
+        (await gitIgnoreFeature.checkEnable(context)).result,
+        "no-op",
+      );
+      assertEquals(
+        gitIgnoreContent(content, [".*.swp", "/coverage/"]),
+        content,
+      );
+      assertEquals(await context.files.readText(".gitignore"), content);
+    }
+  });
+});
+
+Deno.test("git-ignore repairs missing exclusions without moving custom or valid owned lines", async () => {
+  await repository(async (context) => {
+    await write(
+      context,
+      "deno.json",
+      JSON.stringify({
+        tasks: { test: "deno test --coverage=coverage" },
+      }),
+    );
+    const content =
+      ".coverage/\n# hj:git-ignore\n# hj:git-ignore .*.swp\n.*.swp\n\n# Local npm build example\n/.hj/npm/\n";
+    await write(context, ".gitignore", content);
+    assertEquals((await gitIgnoreFeature.detect(context)).state, "drifted");
+    await apply(context, true);
+    const repaired = content + "# hj:git-ignore /coverage/\n/coverage/\n";
+    assertEquals(await context.files.readText(".gitignore"), repaired);
+    assertEquals((await gitIgnoreFeature.detect(context)).state, "enabled");
+    assertEquals((await gitIgnoreFeature.checkEnable(context)).result, "no-op");
+  });
+});
+
+Deno.test("git-ignore repairs edited exclusions while preserving their custom replacement", async () => {
+  await repository(async (context) => {
+    const content =
+      "# hj:git-ignore\n# hj:git-ignore .*.swp\n.*.swo\n\n# Custom suffix\ncustom/\n";
+    await write(context, ".gitignore", content);
+    assertEquals((await gitIgnoreFeature.detect(context)).state, "drifted");
+    await apply(context, true);
+    assertEquals(
+      await context.files.readText(".gitignore"),
+      "# hj:git-ignore\n.*.swo\n\n# Custom suffix\ncustom/\n# hj:git-ignore .*.swp\n.*.swp\n",
+    );
+    assertEquals((await gitIgnoreFeature.detect(context)).state, "enabled");
+    assertEquals((await gitIgnoreFeature.checkEnable(context)).result, "no-op");
+  });
+});
+
 Deno.test("git-ignore requirements follow coverage targets and node_modules configuration", async () => {
   await repository(async (context) => {
     for (

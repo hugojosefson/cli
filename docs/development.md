@@ -180,7 +180,9 @@ match the actual repair plan.
 Run `hj repo features` to inspect this checkout. Every registered feature is
 assessed below. Disabled features are intentional when they provide an
 alternative or a service that this CLI does not use. Remote states require
-GitHub access, so an unauthenticated visitor can receive different results.
+GitHub access, so an unauthenticated visitor can receive different results. The
+[repository feature audit](feature-audit.md) records the repeated inspection,
+ignore detection fix, and local examples.
 
 | Feature                         | Expected state | Why this matches the project                                                                              |
 | ------------------------------- | -------------- | --------------------------------------------------------------------------------------------------------- |
