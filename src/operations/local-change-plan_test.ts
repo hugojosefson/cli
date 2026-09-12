@@ -271,3 +271,51 @@ async function git(root: URL, args: readonly string[]): Promise<string> {
   if (!output.success) throw new Error("git failed");
   return new TextDecoder().decode(output.stdout);
 }
+
+Deno.test("JSON value preconditions guard the whole plan and allow unrelated edits", async () => {
+  await withRepository(async (root) => {
+    const path = "deno.jsonc";
+    const change = {
+      kind: "write-file" as const,
+      path: "new.txt",
+      content: "new",
+      expectedDigest: undefined,
+    };
+    const guard = {
+      kind: "json-value" as const,
+      path,
+      jsonPath: ["tasks", "release"],
+      expected: "exact",
+    };
+    for (
+      const content of [
+        undefined,
+        "{ broken",
+        '{"tasks": {}}',
+        '{"tasks": {"release": "custom"}}',
+      ]
+    ) {
+      if (content !== undefined) {
+        await Deno.writeTextFile(new URL(path, root), content);
+      }
+      await assertRejects(
+        () => applyLocalChangePlan(root, plan([change], [guard])),
+        ChangePlanError,
+      );
+      assertEquals(await text(root, "new.txt"), undefined);
+    }
+    await Deno.writeTextFile(
+      new URL(path, root),
+      '// Preserve unrelated fields.\n{"tasks": {"release": "exact"}, "custom": true,}\n',
+    );
+    await applyLocalChangePlan(
+      root,
+      plan([change], [guard, {
+        ...guard,
+        jsonPath: ["absent"],
+        expected: undefined,
+      }]),
+    );
+    assertEquals(await text(root, "new.txt"), "new");
+  });
+});

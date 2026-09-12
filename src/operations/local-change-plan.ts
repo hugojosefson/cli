@@ -1,5 +1,11 @@
 /** @module Bounded local verifier and applicator for feature change plans. */
 
+import {
+  findNodeAtLocation,
+  getNodeValue,
+  type ParseError,
+  parseTree,
+} from "jsonc-parser";
 import type { ChangePlan, Precondition } from "../api/change-plan.ts";
 import type { PlannedChange } from "../api/planned-change.ts";
 import { LocalFileReader } from "../repository/local-file-reader.ts";
@@ -11,7 +17,7 @@ import {
 import { ChangePlanError } from "./change-plan-error.ts";
 import { applyFileChange } from "./local-file-changes.ts";
 import { applyGitChange } from "./local-git-changes.ts";
-import { containedUrl } from "./local-plan-state.ts";
+import { containedUrl, sameJson } from "./local-plan-state.ts";
 
 /** Verifies preconditions and applies ordered local changes, not validations. */
 export async function applyLocalChangePlan(
@@ -82,6 +88,19 @@ async function verify(
     matches = condition.digest === undefined
       ? observed.kind === "absent"
       : observed.kind === "file" && observed.digest === condition.digest;
+  }
+  if (condition.kind === "json-value") {
+    const text = await files.readText(condition.path);
+    const errors: ParseError[] = [];
+    const tree = text === undefined ? undefined : parseTree(text, errors, {
+      allowTrailingComma: true,
+      disallowComments: false,
+    });
+    const node = tree
+      ? findNodeAtLocation(tree, [...condition.jsonPath])
+      : undefined;
+    matches = tree !== undefined && errors.length === 0 &&
+      sameJson(node ? getNodeValue(node) : undefined, condition.expected);
   }
   if (condition.kind === "directory-state") {
     const observed = await files.observe(condition.path);

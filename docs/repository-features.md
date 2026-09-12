@@ -466,8 +466,10 @@ runs `deno task all`, including tests. The compatibility `test` job reports
 success only when `check` succeeds, without a second test run. It reports
 failure when `check` fails, skips, or cancels. Existing branch protection stays
 unchanged. The new `hj-release-commit-validation` check remains available to
-managed protection rules. Other workflows, including legacy `release.yaml`,
-remain outside this CI migration.
+managed protection rules. The
+[release migration](releases.md#migration-and-repair) replaces legacy
+`release.yaml` and its tasks through the coordinated release features. CI also
+retains `test` when that release migration requires it.
 
 ## GitHub preset
 
