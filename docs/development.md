@@ -340,7 +340,7 @@ ignore detection fix, and local examples.
 | `github-protected-tags`         | Enabled        | Managed tag rules prevent release changes. The CLI enforces exact SemVer.                                 |
 | `github-rebase-merge`           | Enabled        | Rebase merging preserves individual commits and linear history.                                           |
 | `github-release-publish-github` | Enabled        | The generated workflow publishes GitHub Releases.                                                         |
-| `github-release-publish-npm`    | Disabled       | The npm build example runs locally. Public npm publication for this CLI is not configured.                |
+| `github-release-publish-npm`    | Enabled        | The generated workflow publishes the native CLI archive to npm.                                           |
 | `github-release-publish-jsr`    | Enabled        | The generated workflow publishes packages to JSR.                                                         |
 | `github-release-publish-tag`    | Enabled        | The generated workflow prepares release PRs and protected tags.                                           |
 | `github-repo`                   | Enabled        | The authenticated CLI can read the linked GitHub repository.                                              |

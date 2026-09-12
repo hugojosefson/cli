@@ -84,3 +84,27 @@ Use Conventional Commit subjects, such as
 `feat(package): resolve package identity`.
 
 Run `deno task ci` before reporting implementation as complete.
+
+## Opening browser links
+
+When opening a webpage for the user, show the full destination URL as a
+clickable link before opening it, so the user can copy and paste it. For
+authentication, show only the service's official user-facing verification URL.
+Never print access tokens or other credentials.
+
+Open these user-facing links in the operating system's browser in the
+background. On Linux, use:
+
+```sh
+nohup xdg-open '<url>' >/dev/null 2>&1 < /dev/null &
+```
+
+Replace `<url>` with the destination. On another operating system, use its
+native equivalent. Never open `jsr.io` in the built-in preview browser.
+
+A successful launcher exit means that it accepted the attempt; it does not prove
+that the user can see a window. If the window is not visible, provide the URL
+for copy and paste. Do not repeatedly guess browser commands, hardcode a
+particular browser, or change global browser defaults. Investigate desktop
+handlers, configuration, or inherited environment settings only when the user
+asks for troubleshooting.
