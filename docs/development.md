@@ -208,6 +208,33 @@ For native CLI project tasks, see
 [local Deno selection and caching](local-deno-runtime.md). The workflow version
 setting remains separate from local runtime selection.
 
+## Workflow dependency caches
+
+Managed CI, dependency updates, and release workflows enable the pinned
+`setup-deno` action's download cache. Its primary key includes runner OS,
+architecture, job, selected Deno version, Deno lockfiles, and `toolchain.json`.
+Changing `--deno-version` updates the cache key too. Package version metadata
+and commit IDs are excluded. The action restores across jobs with an
+OS/architecture fallback, then saves under each job's primary key. Deno still
+resolves and checks dependencies. A fallback hit does not mean that the lockfile
+is unchanged.
+
+The workflows use Deno's default cache directory consistently. If adding a
+`DENO_DIR` override, set it for both setup and execution. The native runtime
+jobs and tag preparation also cache `~/.npm` downloads when both native test
+lockfiles exist. Their key includes the OS, architecture, both integrity locks,
+and toolchain file, with an OS/architecture fallback. `npm ci --ignore-scripts`
+still validates and installs dependencies. Build directories, `node_modules`,
+test results, and coverage reports are not reused by these caches.
+
+A cache miss runs the normal installation and every required check. GitHub
+allows PRs to restore caches from the default branch, but caches written by a PR
+remain scoped to its merge ref and cannot seed `main`. First runs can therefore
+be cold in both contexts. Inspect setup-deno's restored key and the npm cache
+step's hit/save output before claiming a warm-cache speed improvement. Native
+installation and compilation previously took about 20 seconds; these download
+caches do not remove the minutes spent executing tests.
+
 ## Code structure
 
 The source follows the flow from a request to a guarded change:

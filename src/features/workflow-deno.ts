@@ -46,6 +46,9 @@ export function workflowDenoArtifact<
     content: artifact.content.replaceAll(
       `deno-version: ${workflowDenoVersion}\n`,
       `deno-version: ${version}\n`,
+    ).replaceAll(
+      `cache-hash: deno-${workflowDenoVersion}-`,
+      `cache-hash: deno-${version}-`,
     ),
   };
 }
