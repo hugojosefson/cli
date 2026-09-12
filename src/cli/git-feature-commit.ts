@@ -186,7 +186,7 @@ export class FeatureCommitSession {
       }
     }
     const directory = await Deno.makeTempDir({
-      dir: "/tmp/opencode",
+      dir: await this.#git(["rev-parse", "--absolute-git-dir"]),
       prefix: "hj-feature-index-",
     });
     const env = { GIT_INDEX_FILE: `${directory}/index` };
