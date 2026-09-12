@@ -7,8 +7,8 @@ show a possible reuse opportunity. Every required test still runs.
 
 The existing complete four-runtime comparison and Deno coverage remain the
 release requirements. The pilot does not install Nx, restore test results,
-combine coverage from separate runs, or change publication. Issue #97 remains
-open for the adoption decision.
+combine coverage from separate runs, or change publication. The adoption
+decision below keeps dependency caches and explicit test groups.
 
 ## The GitHub repository group
 
@@ -171,6 +171,10 @@ tests continue. A complete suite with no test failures can supply observations.
 The comparison command reports native proposed key matches and changed inputs.
 It does not accept those observations as test results.
 
+CI output also contains a compact `Native input summary` with keys and timing
+data. Release output retains this summary after job cleanup removes report
+files. The summary excludes environment values and file contents.
+
 Each proposed key contains the group's resolved emitted imports, source files,
 installed dependency contents, build tools, runtime tools, and group membership.
 The receipt and result checks retain the complete inventory. Configuration
@@ -230,8 +234,27 @@ A corrupt artifact caused a new test execution.
 
 These measurements do not include remote transfer. They apply to one machine.
 The prototype did not supply results to CI. The integrated observations must
-first show useful matches and costs on hosted runners. Nx adoption and test
-result restoration are open decisions in issue #97.
+first show useful matches and costs on hosted runners. The adoption decision
+below uses these input limits and measured costs.
+
+## Adoption decision
+
+Keep dependency download caches and the two explicit test groups. Do not add Nx
+or shared test result restoration at this stage. This records the adoption
+decision for issue #97. The full matrix and coverage stay mandatory.
+
+The proposed native keys have limits that a cache scheduler cannot remove.
+Generated package exports and absolute tool paths can invalidate both groups.
+The remainder group contains most test bodies. Runtime file reads and host
+libraries are not complete declared inputs. A matching digest does not identify
+a trusted result producer.
+
+The local experiment shows possible savings for release core. It does not show a
+hosted cache hit rate or net savings after transfer and input checks. The
+integrated reports record input costs and possible matches during full test
+execution. A future cache proposal must show a net benefit and a checked input
+boundary. It must also prevent PR authors from writing results that trusted
+validation can use.
 
 ## Collect and compare
 
