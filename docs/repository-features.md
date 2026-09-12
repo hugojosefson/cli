@@ -143,6 +143,17 @@ that contains those files. Before any changes, `hj` checks that Git can identify
 the author and committer. If either identity is unavailable, the command stops
 and explains how to set it.
 
+After local file changes, `hj` runs `deno task default` once before it creates
+feature commits. It uses the final task definition and the final project files.
+This includes feature removals and changes to source files, imports, README
+inputs, configuration, lockfiles, and file modes. Read-only inspection and
+operations without local file changes do not run the task. If no `default` task
+remains, `hj` reports that result.
+
+If the task fails, `hj` returns its exit code and leaves the changes visible. It
+does not create the pending feature commits. An empty initial commit can remain.
+Correct the reported failure before you commit the changes.
+
 ## Deno and Git features
 
 | Feature               | Managed configuration                                                      | Requirement                                    |

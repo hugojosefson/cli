@@ -3,6 +3,7 @@ import { toFileUrl } from "@std/path";
 import { formatCliOutput } from "./format-output.ts";
 import { formatCliError, terminalColor } from "./terminal-colors.ts";
 import { runCli } from "./run-cli.ts";
+import { CommandFailure } from "./command-failure.ts";
 
 try {
   const result = await runCli(toFileUrl(Deno.cwd()), Deno.args, {
@@ -14,5 +15,5 @@ try {
   await Deno.stdout.write(new TextEncoder().encode(formatCliOutput(result)));
 } catch (error) {
   console.error(formatCliError(error, terminalColor(Deno.stderr)));
-  Deno.exit(1);
+  Deno.exit(error instanceof CommandFailure ? error.exitCode : 1);
 }

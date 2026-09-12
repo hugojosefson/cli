@@ -24,11 +24,9 @@ import {
   preflightGithubChangePlan,
 } from "../operations/github-change-plan.ts";
 import { formatFeatureResult, formatFeatureStatus } from "./format-features.ts";
-import {
-  featureCommitPlan,
-  plannedCommitPaths,
-  requireGitIdentity,
-} from "./git-feature-commit.ts";
+import { FeatureCommitSession } from "./git-feature-commit.ts";
+import { CommandFailure } from "./command-failure.ts";
+import { runFinalProjectTask } from "./final-project-task.ts";
 import type { FeaturesArguments } from "./parse-features.ts";
 import {
   type FeatureAction,
@@ -54,6 +52,8 @@ export type FeatureSelector = (
 
 export interface FeatureOperationServices {
   readonly colors?: OutputColors;
+  /** Replaces project task execution for isolated operation tests. */
+  readonly runFinalTask?: typeof runFinalProjectTask;
   readonly promptAttribution?: AttributionPrompt;
   readonly githubIdentity?: GithubIdentityReader;
   readonly github?: GithubWriter;
@@ -202,22 +202,18 @@ export async function runFeatureOperation(
       plans.map((plan) => preflightGithubChangePlan(github, plan)),
     );
     const beforeGit = await git.isRepository();
-    const paths = plannedCommitPaths(plans);
     const initializedGit = plans.some((plan) =>
       plan.changes.some((change) => change.kind === "git-init")
     );
-    const commit = initializedGit || beforeGit && paths.length > 0
-      ? featureCommitPlan(paths)
-      : undefined;
-    if (commit) {
-      await requireGitIdentity(root);
-      await preflightLocalChangePlan(root, commit);
-    }
+    const commits = await FeatureCommitSession.prepare(root, plans);
     const remoteChanges = githubChangeNames(plans);
     await applyGithubChangePlans(github, plans);
     try {
+      await commits?.initialize();
       for (const plan of plans) {
         await applyLocalChangePlan(root, localPlan(plan));
+        await commits?.initialize();
+        await commits?.capture(plan);
       }
     } catch (error) {
       if (remoteChanges.length) {
@@ -235,6 +231,10 @@ export async function runFeatureOperation(
       }
       throw error;
     }
+    const finalTask = await (services.runFinalTask ?? runFinalProjectTask)(
+      root,
+      plans,
+    );
     await validate(
       root,
       files,
@@ -243,7 +243,7 @@ export async function runFeatureOperation(
       registry,
       plans.flatMap((plan) => plan.validations),
     );
-    const committed = commit !== undefined;
+    const committed = await commits?.finish() ?? false;
     const githubChanged = plans.some((plan) =>
       plan.changes.some((change) =>
         change.kind === "upsert-github-resource" ||
@@ -251,7 +251,6 @@ export async function runFeatureOperation(
         change.kind === "github-ruleset-transition"
       )
     );
-    if (commit) await applyLocalChangePlan(root, commit);
     return formatFeatureResult(
       formatFeatureStatus(
         registry,
@@ -260,6 +259,7 @@ export async function runFeatureOperation(
       ),
       {
         committed,
+        finalTask,
         initializedGit: !beforeGit && initializedGit,
         localChanged: plans.some((plan) => localPlan(plan).changes.length > 0),
         githubChanged,
@@ -271,6 +271,10 @@ export async function runFeatureOperation(
       error instanceof Error && github instanceof LocalGithubClient &&
       github.diagnostics.length
     ) {
+      if (error instanceof CommandFailure) {
+        error.message += `\n${github.diagnostics.join("\n")}`;
+        throw error;
+      }
       throw new Error(`${error.message}\n${github.diagnostics.join("\n")}`, {
         cause: error,
       });
