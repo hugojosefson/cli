@@ -1,10 +1,13 @@
 /** @module Pure parser for `hj repo features` arguments. */
 
 import type {
+  DefaultSelection,
   FeatureChangeRequest,
   RepairSelection,
 } from "../api/feature-change.ts";
 import type { FeatureRegistry } from "../features/feature-registry.ts";
+import type { GlobalConfig } from "./global-config.ts";
+import { validateDenoVersion } from "../features/workflow-deno.ts";
 import { validScope } from "../package/metadata.ts";
 import { validateWorkflowCli } from "../features/workflow-cli.ts";
 
@@ -13,12 +16,19 @@ interface FeatureRequestArguments {
   readonly confirmation: boolean;
   readonly workflowCli?: string;
   readonly jsrScope?: string;
+  readonly denoVersion?: string;
+  readonly defaultDenoVersion?: string;
 }
 
 export type FeaturesArguments =
   | ({ readonly kind: "status" } & FeatureRequestArguments)
   | ({ readonly kind: "change" } & FeatureRequestArguments)
-  | { readonly kind: "interactive"; readonly confirmation: boolean };
+  | {
+    readonly kind: "interactive";
+    readonly confirmation: boolean;
+    readonly defaultDenoVersion?: string;
+    readonly configuredDefaults?: readonly DefaultSelection[];
+  };
 
 export const featureDefaults = [
   { kind: "feature" as const, featureId: "git" },
@@ -29,6 +39,7 @@ export const featureDefaults = [
 export function parseFeatures(
   args: readonly string[],
   registry: FeatureRegistry,
+  defaults: GlobalConfig = {},
 ): FeaturesArguments {
   if (args[0] !== "repo" || args[1] !== "features") {
     throw new Error("expected `hj repo features`");
@@ -46,7 +57,15 @@ export function parseFeatures(
   let confirmation = false;
   let workflowCli: string | undefined;
   let jsrScope: string | undefined;
+  let denoVersion: string | undefined;
   for (const arg of args.slice(2)) {
+    if (arg.startsWith("--deno-version=")) {
+      if (denoVersion !== undefined) {
+        throw new Error("duplicate --deno-version");
+      }
+      denoVersion = validateDenoVersion(arg.slice("--deno-version=".length));
+      continue;
+    }
     if (arg.startsWith("--jsr-scope=")) {
       if (jsrScope !== undefined) throw new Error("duplicate --jsr-scope");
       jsrScope = arg.slice("--jsr-scope=".length);
@@ -109,17 +128,29 @@ export function parseFeatures(
       addRequest(requested, capability.defaultProvider, true);
     } else throw new Error(`capability has no default provider: ${id}`);
   }
+  const configuredDefaults = defaults.features?.map((id) =>
+    featureIds.has(id)
+      ? { kind: "feature" as const, featureId: id }
+      : { kind: "capability" as const, capabilityId: id }
+  );
   if (interactive) {
     if (
       applyDefaults || repair || requested.size > 0 ||
       selectedPresets.size > 0 || workflowCli !== undefined ||
-      jsrScope !== undefined
+      jsrScope !== undefined || denoVersion !== undefined
     ) {
       throw new Error(
         "`--interactive` cannot be combined with defaults, repair, or feature flags",
       );
     }
-    return { kind: "interactive", confirmation };
+    return {
+      kind: "interactive",
+      confirmation,
+      ...(configuredDefaults === undefined ? {} : { configuredDefaults }),
+      ...(defaults["deno-version"] === undefined
+        ? {}
+        : { defaultDenoVersion: defaults["deno-version"] }),
+    };
   }
   const request = {
     changes: [...requested].map(([featureId, enabled]) => ({
@@ -128,11 +159,11 @@ export function parseFeatures(
     })),
     presets: [...selectedPresets],
     applyDefaults,
-    defaults: featureDefaults,
+    defaults: configuredDefaults ?? featureDefaults,
     ...(repair ? { repair: repairSelection(requested) } : {}),
   };
   if (
-    workflowCli !== undefined &&
+    (workflowCli !== undefined || denoVersion !== undefined) &&
     !request.changes.some((change) =>
       change.enabled && [
         "github-ci",
@@ -143,7 +174,9 @@ export function parseFeatures(
     ) && !selectedPresets.has("jsr")
   ) {
     throw new Error(
-      "--workflow-cli requires an explicit positive workflow feature or --jsr.",
+      `${
+        workflowCli !== undefined ? "--workflow-cli" : "--deno-version"
+      } requires an explicit positive workflow feature or --jsr.`,
     );
   }
   if (
@@ -161,6 +194,10 @@ export function parseFeatures(
       kind: "change",
       request,
       confirmation,
+      ...(denoVersion === undefined ? {} : { denoVersion }),
+      ...(defaults["deno-version"] === undefined
+        ? {}
+        : { defaultDenoVersion: defaults["deno-version"] }),
       ...(jsrScope === undefined ? {} : { jsrScope }),
       ...(workflowCli === undefined ? {} : { workflowCli }),
     };

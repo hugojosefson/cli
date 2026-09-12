@@ -425,3 +425,83 @@ Deno.test("workflow source migration reaches enabled features through the CLI op
     await Deno.remove(root, { recursive: true });
   }
 });
+
+Deno.test("github-ci generates configured Deno pins and preserves them across default changes", async () => {
+  const configured = {
+    ...context({}),
+    options: { defaultDenoVersion: "2.8.1" },
+  };
+  const check = await githubCiFeature.checkEnable(configured);
+  if (check.result !== "allowed") throw new Error("Expected allowed operation");
+  const plan = await githubCiFeature.planEnable(configured, check);
+  const observations: Record<string, ArtifactObservation> = {};
+  for (const change of plan.changes) {
+    if (change.kind !== "write-file") continue;
+    assertStringIncludes(change.content, "deno-version: 2.8.1");
+    observations[change.path] = {
+      kind: "file",
+      content: change.content,
+      digest: change.path,
+      mode: 0o644,
+    };
+  }
+  assertEquals(Object.keys(observations).length, 2);
+  assertEquals(
+    (await githubCiFeature.detect(context(observations))).state,
+    "enabled",
+  );
+  assertEquals(
+    (await githubCiFeature.checkEnable({
+      ...context(observations),
+      options: { defaultDenoVersion: "2.9.0" },
+    })).result,
+    "no-op",
+  );
+  const explicit = {
+    ...context(observations, { kind: "all-drifted" }),
+    options: { denoVersion: "2.9.0", defaultDenoVersion: "2.8.1" },
+  };
+  const repair = await githubCiFeature.checkEnable(explicit);
+  if (repair.result !== "allowed") throw new Error("Expected allowed repair");
+  const repairPlan = await githubCiFeature.planEnable(explicit, repair);
+  for (const change of repairPlan.changes) {
+    if (change.kind === "write-file") {
+      assertStringIncludes(change.content, "deno-version: 2.9.0");
+    }
+  }
+  const changed = { ...observations };
+  const ci = changed[githubCiArtifacts[0].path];
+  if (ci.kind !== "file") throw new Error("Expected file");
+  changed[githubCiArtifacts[0].path] = {
+    ...ci,
+    content: ci.content.replace("deno-version: 2.8.1", "deno-version: 2.7.0"),
+  };
+  assertEquals(
+    (await githubCiFeature.detect(context(changed))).state,
+    "drifted",
+  );
+  changed[githubCiArtifacts[0].path] = {
+    ...ci,
+    content: ci.content.replace("contents: read", "contents: write"),
+  };
+  assertEquals(
+    (await githubCiFeature.detect(context(changed))).state,
+    "drifted",
+  );
+});
+
+Deno.test("invalid recorded Deno versions are drift instead of configuration errors", async () => {
+  const observations = Object.fromEntries(
+    githubCiArtifacts.map((artifact) => [artifact.path, {
+      ...exact(artifact.path),
+      content: artifact.content.replaceAll(
+        /deno-version: [0-9.]+/g,
+        "deno-version: 02.8.1",
+      ),
+    }]),
+  );
+  assertEquals(
+    (await githubCiFeature.detect(context(observations))).state,
+    "drifted",
+  );
+});
