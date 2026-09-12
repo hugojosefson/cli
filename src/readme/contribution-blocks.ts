@@ -58,7 +58,11 @@ export async function reconcileBlocks(
   desired: readonly ReadmeContribution[],
   owner?: string,
 ): Promise<string> {
-  const pending = new Map(desired.map((item) => [item.id, item]));
+  const pending = new Map(
+    desired.filter((item) =>
+      item.id !== "jsr-package:installation" || !/^## Install\s*$/im.test(text)
+    ).map((item) => [item.id, item]),
+  );
   for (const match of [...text.matchAll(pattern)]) {
     if (owner && !match[1].startsWith(owner + ":")) continue;
     const item = pending.get(match[1]);

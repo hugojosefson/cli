@@ -2,6 +2,9 @@
   "name": "@hugojosefson/cli",
   "version": "0.5.0",
   "license": "MIT",
+  "hj": {
+    "commandName": "hj"
+  },
   "minimumDependencyAge": {
     "age": 1440,
     "exclude": ["jsr:@hugojosefson/cli"]

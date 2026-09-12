@@ -16,7 +16,7 @@ Tasks provide the supported development interface:
 | `deno task hj --help`                                          | Show the local CLI commands.                                  |
 | `deno task default`                                            | Format files, then run all checks with coverage.              |
 | `deno task fmt`                                                | Format source, tooling, workflows, and documentation.         |
-| `deno task all`                                                | Run all checks without coverage collection.                   |
+| `deno task all`                                                | Run all checks with coverage.                                 |
 | `deno task typecheck`                                          | Type-check source and scripts with frozen dependencies.       |
 | `deno task publish-check`                                      | Validate the package without uploading it.                    |
 | `deno task check`                                              | Run all checks without coverage collection.                   |
@@ -170,7 +170,7 @@ GitHub access, so an unauthenticated visitor can receive different results.
 | `deno-server`                   | Disabled       | This tool generates servers for other projects but does not serve requests itself.                        |
 | `deno-test`                     | Enabled        | The test runner and coverage checks exercise the implementation.                                          |
 | `deno-typecheck`                | Enabled        | Source and scripts receive type checks.                                                                   |
-| `git-ignore`                    | Disabled       | Existing custom exclusions remain unowned until this feature is selected.                                 |
+| `git-ignore`                    | Enabled        | Managed editor and coverage exclusions supplement the existing custom exclusions.                         |
 | `git`                           | Enabled        | The project has a Git history.                                                                            |
 | `github-auto-merge`             | Enabled        | Passing checks allow the release bot to merge its release PR.                                             |
 | `github-ci`                     | Enabled        | Managed CI runs project checks and supplies dependency updates.                                           |
@@ -228,6 +228,16 @@ proof that its checks pass. The CI result supplies that proof.
 
 Keep the static README. It links to separate guides and has no duplicated
 fragments that need includes.
+
+The repository uses managed JSR and CI badges. Its custom installation and
+requirements sections remain intact. The package configuration sets
+`hj.commandName` to `hj` because the package name ends in `cli`.
+
+Feature updates run `default`, which formats files and runs `all`, including
+`deno task ci`. Successful updates record separate commits for their changed
+features. The existing lockfile stays outside automatic replacement. README
+migration does not apply because this checkout has no legacy generator or README
+source file.
 
 ## First public release
 
