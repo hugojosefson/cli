@@ -48,6 +48,7 @@ import {
   snapshotFiles,
 } from "./feature-file-snapshot.ts";
 import { LocalGitReader } from "../repository/local-git-reader.ts";
+import { partitionFeatureConfig } from "./partition-feature-config.ts";
 
 interface FeatureSnapshot {
   readonly plan: ChangePlan;
@@ -102,7 +103,7 @@ export class FeatureCommitSession {
     return new FeatureCommitSession(
       root,
       plans,
-      await snapshotFiles(root),
+      await snapshotFiles(root, paths),
       head,
     );
   }
@@ -131,7 +132,10 @@ export class FeatureCommitSession {
     plan: ChangePlan,
     onlyPaths?: readonly string[],
   ): Promise<void> {
-    const current = await snapshotFiles(this.root, this.#previous.keys());
+    const current = await snapshotFiles(this.root, [
+      ...this.#previous.keys(),
+      ...plannedCommitPaths(this.plans),
+    ]);
     const paths = changedFiles(this.#previous, current).filter((path) =>
       !onlyPaths || onlyPaths.includes(path)
     );
@@ -157,7 +161,16 @@ export class FeatureCommitSession {
   /** Builds a commit chain in a private index, then publishes the chain at once. */
   async finish(): Promise<boolean> {
     if (!this.#head) return false;
-    const final = await snapshotFiles(this.root, this.#previous.keys());
+    const final = await snapshotFiles(this.root, [
+      ...this.#previous.keys(),
+      ...plannedCommitPaths(this.plans),
+    ]);
+    await partitionFeatureConfig(
+      this.plans,
+      this.#baseline,
+      this.#features,
+      final,
+    );
     await this.#attributeTaskChanges(final);
     const replayed = new Map<string, FileVersion | undefined>();
     for (const feature of this.#features) {
@@ -199,7 +212,10 @@ export class FeatureCommitSession {
       }
       if (head === this.#head) return this.#initialized;
       // Task or external processes must not change files while their commits build.
-      const latest = await snapshotFiles(this.root, this.#previous.keys());
+      const latest = await snapshotFiles(this.root, [
+        ...this.#previous.keys(),
+        ...plannedCommitPaths(this.plans),
+      ]);
       if (changedFiles(final, latest).length) {
         throw new Error(
           "Project files changed after validation; no feature commits were created.",
