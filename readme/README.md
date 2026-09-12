@@ -2,9 +2,8 @@
 
 [![Simple English: attempted](https://img.shields.io/badge/simple_english-attempted-blue)](https://www.asd-ste100.org/)
 
-`hj` configures repositories and automates personal development workflows.
-Install it from [JSR](https://jsr.io/@hugojosefson/cli) and run it in the
-repository you want to manage.
+`hj` configures repositories and automates personal development workflows. Run
+it with Node.js, Bun, or Deno in the repository you want to manage.
 
 | Area          | What `hj` manages                                          |
 | ------------- | ---------------------------------------------------------- |
@@ -34,8 +33,31 @@ repository you want to manage.
 
 ## Install
 
-Linux is the supported and tested platform. Install [Deno](https://deno.com/),
-then install `hj` from JSR:
+Linux x64 with glibc is the supported platform. The shared test suite runs in
+Node.js 24 and 26, Bun 1.4.2, and Deno 2.9.6.
+
+With Node.js or Bun, inspect the current repository without a global install:
+
+```bash
+npx @hugojosefson/cli repo features
+bunx --bun --package @hugojosefson/cli hj repo features
+```
+
+The [npm package](https://www.npmjs.com/package/@hugojosefson/cli) includes its
+JSR dependencies. It needs no JSR registry configuration. Ordinary commands run
+in Node.js or Bun. A command that runs a project's Deno tasks selects a suitable
+Deno executable and downloads it when needed. See
+[local Deno selection](../docs/local-deno-runtime.md) for version requirements,
+cache reuse, and offline use.
+
+To install the `hj` command globally with npm:
+
+```bash
+npm install --global @hugojosefson/cli
+```
+
+With [Deno](https://deno.com/), install `hj` from
+[JSR](https://jsr.io/@hugojosefson/cli):
 
 ```bash
 deno install --global --allow-all --name hj jsr:@hugojosefson/cli
@@ -115,8 +137,10 @@ confirmation.
 
 | Action                           | Command                                                                              |
 | -------------------------------- | ------------------------------------------------------------------------------------ |
+| Update the npm installation      | `npm install --global @hugojosefson/cli@latest`                                      |
+| Remove the npm installation      | `npm uninstall --global @hugojosefson/cli`                                           |
 | Update to the latest JSR release | `deno install --global --allow-all --reload --force --name hj jsr:@hugojosefson/cli` |
-| Remove the installed command     | `deno uninstall --global hj`                                                         |
+| Remove the Deno installation     | `deno uninstall --global hj`                                                         |
 
 ## Documentation
 
@@ -126,7 +150,9 @@ confirmation.
 | [Changelog](../CHANGELOG.md)                                         | Read release notes and known limits.                          |
 | [Releases](../docs/releases.md)                                      | Configure release workflows and recover interrupted releases. |
 | [Development](../docs/development.md)                                | Run from source, install locally, test, and contribute.       |
-| [Live validation](../docs/live-validation.md)                        | Read the scratchpad test results and their limits.            |
+| [Local Deno selection](../docs/local-deno-runtime.md)                | Choose Deno for project tasks and reuse its cache.            |
+| [Runtime tests](../docs/development.md#local-commands)               | Run the same suite in Deno, Node.js, and Bun.                 |
+| [Live validation](../docs/live-validation.md)                        | Read release and runtime validation results.                  |
 | [Issues](https://github.com/hugojosefson/cli/issues)                 | Track proposed changes, validation, and design decisions.     |
 | [Project](https://github.com/users/hugojosefson/projects/10/views/2) | Browse work, ideas, priorities, and recorded decisions.       |
 
