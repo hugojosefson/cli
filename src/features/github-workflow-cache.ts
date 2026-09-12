@@ -18,3 +18,8 @@ export const nativeNpmCacheStep = `      - name: Cache native test npm downloads
           restore-keys: |
             native-test-npm-\${{ runner.os }}-\${{ runner.arch }}-
 `;
+
+export const nativeNpmRestoreStep = nativeNpmCacheStep.replace(
+  "uses: actions/cache@",
+  "uses: actions/cache/restore@",
+);

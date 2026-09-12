@@ -241,6 +241,18 @@ step's hit/save output before claiming a warm-cache speed improvement. Native
 installation and compilation previously took about 20 seconds; these download
 caches do not remove the minutes spent executing tests.
 
+Managed PR jobs have `cache-mode: read`. Native jobs use
+`actions/cache/restore`. Dependency updates and tag preparation can write caches
+from the default branch or `main`. Publication jobs have read access. GitHub
+enforces access through scoped cache tokens. Caches from PR merge refs cannot
+supply data to `main`. See the
+[GitHub cache rules](https://docs.github.com/en/actions/reference/workflows-and-actions/dependency-caching).
+
+A changed PR workflow cannot grant its cache access to `main`. Do not build PR
+source with trusted cache access through `pull_request_target`. PR artifacts and
+test reports must not supply trusted release results. Download caches do not
+replace installation checks or test execution.
+
 ## Code structure
 
 The source follows the flow from a request to a guarded change:
