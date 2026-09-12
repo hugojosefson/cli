@@ -64,6 +64,7 @@ export async function reconcileBlocks(
     const item = pending.get(match[1]);
     pending.delete(match[1]);
     if (await contributionHash(match[3]) !== match[2]) continue;
+    if (item && await contributionHash(item.content) === match[2]) continue;
     if (item) text = text.replace(match[0], await wrap(item));
     else {
       const at = text.indexOf(match[0]);

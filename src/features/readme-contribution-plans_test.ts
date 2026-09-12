@@ -523,6 +523,10 @@ Deno.test("formatted README contributions remain owned after package rename", as
       stderr: "piped",
     }).output();
     assertEquals(formatted.code, 0, new TextDecoder().decode(formatted.stderr));
+    assertStringIncludes(
+      await runCli(root, ["repo", "features", "--jsr-package", "--yes"]),
+      "No changes.",
+    );
     const config = JSON.parse(await read(root, "deno.json"));
     config.name = "@sample/renamed";
     await Deno.writeTextFile(
