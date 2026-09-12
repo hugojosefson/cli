@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.7.2
+
+- docs(release): record verified npm publication
+- docs(release): verify npm package-name installation
+
 ## 0.7.1
 
 - fix(release): permit local npm publication commands
