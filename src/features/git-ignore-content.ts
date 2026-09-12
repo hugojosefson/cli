@@ -24,10 +24,18 @@ export function gitIgnoreContent(
   const kept: string[] = [];
   for (let index = 0; index < lines.length; index++) {
     const line = lines[index]!.replace(/\r?\n$/, "");
-    if (line === marker) continue;
+    if (line === marker) {
+      if (desired !== undefined) kept.push(lines[index]!);
+      continue;
+    }
     const pattern = patterns.find((pattern) => line === `${marker} ${pattern}`);
     if (pattern) {
-      if (lines[index + 1]?.replace(/\r?\n$/, "") === pattern) index++;
+      if (lines[index + 1]?.replace(/\r?\n$/, "") === pattern) {
+        if (desired?.includes(pattern)) {
+          kept.push(lines[index]!, lines[index + 1]!);
+        }
+        index++;
+      }
       continue;
     }
     kept.push(lines[index]!);
@@ -35,13 +43,17 @@ export function gitIgnoreContent(
   let result = kept.join("");
   if (desired === undefined) return result;
   const newline = content.includes("\r\n") ? "\r\n" : "\n";
-  if (result && !result.endsWith("\n")) result += newline;
-  const unowned = result.split(/\r?\n/);
-  result += marker + newline;
+  const existing = result.split(/\r?\n/);
+  const additions: string[] = [];
+  if (!ownsGitIgnore(result)) additions.push(marker);
   for (const pattern of desired) {
-    if (!unowned.includes(pattern)) {
-      result += `${marker} ${pattern}${newline}${pattern}${newline}`;
+    if (!existing.includes(pattern)) {
+      additions.push(`${marker} ${pattern}`, pattern);
     }
+  }
+  if (additions.length > 0) {
+    if (result && !result.endsWith("\n")) result += newline;
+    result += additions.join(newline) + newline;
   }
   return result;
 }

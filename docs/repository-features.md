@@ -233,6 +233,9 @@ conditional entries from the resulting configuration. You can select or remove
 `git-ignore` independently. It adds no blanket editor-directory or log
 exclusions.
 
+Custom lines after valid managed entries do not cause drift or require repair.
+Repair keeps valid entries in place and adds missing required patterns.
+
 `editorconfig` creates `.editorconfig` with LF line endings, UTF-8, final
 newlines, trailing whitespace removal, and two-space indentation. It adds
 missing defaults before custom sections so their values take precedence.
