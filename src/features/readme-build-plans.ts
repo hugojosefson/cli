@@ -164,11 +164,21 @@ export async function planDisableReadmeBuild(
       expected: readmeTaskDefinition,
     });
   }
-  changes.push({
-    kind: "remove-directory",
-    path: readmeBuildDirectoryPath,
-    expectedStateDigest: state.directory.stateDigest,
-  });
+  if (await context.files.exists(".hj/readme.json")) {
+    // Public examples and editable installation scripts belong to their
+    // contributing features, not to the README build provider.
+    if (state.source.kind === "file") {
+      changes.push({
+        kind: "remove-file",
+        path: readmeBuildSourcePath,
+        expectedDigest: state.source.digest,
+      });
+    }
+  } else {changes.push({
+      kind: "remove-directory",
+      path: readmeBuildDirectoryPath,
+      expectedStateDigest: state.directory.stateDigest,
+    });}
   return plan(
     "disable",
     allowed,

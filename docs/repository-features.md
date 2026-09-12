@@ -366,12 +366,56 @@ License detection requires the pinned template and its recognized README link. A
 different line wrap or a custom license section can prevent adoption.
 Recognition is a file-management check, not a legal assessment.
 
-| README transition                                   | Result                                                                                |
-| --------------------------------------------------- | ------------------------------------------------------------------------------------- |
-| Static to built                                     | Copy the writable README into `readme/`, then replace the root with generated output. |
-| Built to static                                     | Keep the generated content as a writable root README and remove the source directory. |
-| Remove a clean source directory tracked by Git      | No extra confirmation is needed.                                                      |
-| Remove a dirty source directory, or one outside Git | Show a warning and require confirmation; `--yes` accepts it.                          |
+| README transition                                   | Result                                                                                         |
+| --------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| Static to built                                     | Copy the writable README into `readme/`, then replace the root with generated output.          |
+| Built to static                                     | Keep a writable root README. Preserve shared example files when contribution ownership exists. |
+| Remove a clean source directory tracked by Git      | No extra confirmation is needed.                                                               |
+| Remove a dirty source directory, or one outside Git | Show a warning and require confirmation; `--yes` accepts it.                                   |
+
+### Generated guides
+
+A contribution is a README block supplied by one feature. The selected README
+provider collects these blocks during feature operations. Existing headings,
+introductions, license sections, and custom blocks stay intact.
+
+| Owner                         | Contribution                                                     |
+| ----------------------------- | ---------------------------------------------------------------- |
+| `jsr-package`                 | JSR version and score badges, API link, and `readme/install.sh`. |
+| `github-ci`                   | CI badge for the linked repository and `hj-ci.yaml`.             |
+| Deno features                 | A requirement for Deno, through the active README provider.      |
+| `deno-cli` with `jsr-package` | Command installation when the package has a `./cli` export.      |
+| `deno-lib` with `jsr-package` | A runnable example, its public export, and a link to the tests.  |
+
+Static READMEs contain the installation commands and example code directly.
+Built READMEs keep standalone include directives in `readme/README.md`. The
+build removes shell shebangs and changes matching library imports to the
+configured package name. Local examples keep relative imports so they run from
+clones too.
+
+The generated library example calls `placeholder()` and prints its result.
+Readers can run the public example after the package is published:
+
+```sh
+deno run --reload jsr:@scope/package/example-usage
+```
+
+From a clone, readers can run `deno run readme/example-usage.ts`. Command-only
+packages omit library examples. Existing example files and export targets stay
+intact. Custom libraries need an existing example because `hj` cannot infer
+which public function to call.
+
+Ownership markers identify each generated block and its original content. The
+`.hj/readme.json` file records the original installation and example files. Keep
+this file in Git. Disabling a feature removes only its unchanged blocks and
+files. A customized public example keeps its export. Switching README providers
+keeps the shared installation and example files.
+
+After a package rename, run `hj repo features --jsr-package --yes` to refresh
+owned guides and installation files. The README build also resolves current
+package references in owned installation includes. It preserves customized
+scripts. The generated heading stays linked to the package name, while a custom
+heading stays unchanged.
 
 ## GitHub features
 

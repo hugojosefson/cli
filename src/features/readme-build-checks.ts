@@ -33,7 +33,12 @@ export async function checkEnableReadmeBuild(
       "Generated README differs. Re-run with --repair to restore generated artifacts.",
     );
   }
-  if (state.source.kind !== "absent" || state.directory.kind !== "absent") {
+  if (
+    state.source.kind !== "absent" ||
+    state.directory.kind !== "absent" &&
+      !(state.directory.kind === "directory" &&
+        await context.files.exists(".hj/readme.json"))
+  ) {
     return blocked(
       "readme/ already exists and is not owned by the generated README feature.",
     );

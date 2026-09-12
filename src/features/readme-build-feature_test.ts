@@ -16,8 +16,8 @@ Deno.test("readme-build converts static content and reverses it", async () => {
     await write(root, "README.md", "# Kept\n");
     await runCli(root, ["repo", "features", "--readme-build"]);
     const files = new LocalFileReader(root);
-    assertEquals(await read(root, "readme/README.md"), "# Kept\n");
-    assertEquals(await read(root, "README.md"), "# Kept\n");
+    assertStringIncludes(await read(root, "readme/README.md"), "# Kept\n");
+    assertStringIncludes(await read(root, "README.md"), "# Kept\n");
     assertEquals(await files.mode("README.md"), 0o444);
     const config = JSON.parse(await read(root, "deno.jsonc"));
     assertEquals(config.tasks.readme, readmeTaskDefinition);
@@ -35,7 +35,7 @@ Deno.test("readme-build converts static content and reverses it", async () => {
       "--no-readme-build",
       "--yes",
     ]);
-    assertEquals(await read(root, "README.md"), "# Kept\n");
+    assertStringIncludes(await read(root, "README.md"), "# Kept\n");
     assertEquals(await files.mode("README.md"), 0o644);
     assertEquals(await files.exists("readme"), false);
   });
@@ -114,7 +114,7 @@ Deno.test("readme-build repairs task, aggregate, output, and mode drift", async 
       "--readme-build",
       "--repair",
     ]);
-    assertEquals(await read(root, "README.md"), "# Source\n");
+    assertStringIncludes(await read(root, "README.md"), "# Source\n");
     assertEquals(await new LocalFileReader(root).mode("README.md"), 0o444);
     const repaired = JSON.parse(await read(root, "deno.jsonc"));
     assertEquals(repaired.tasks.readme, readmeTaskDefinition);
@@ -217,7 +217,7 @@ Deno.test("readme task preserves failures and atomically replaces successes", as
       stderr: "null",
     }).output();
     assert(!result.success);
-    assertEquals(await read(root, "README.md"), "# Preserved\n");
+    assertStringIncludes(await read(root, "README.md"), "# Preserved\n");
     assertEquals(await new LocalFileReader(root).mode("README.md"), 0o444);
     const names = [];
     for await (const entry of Deno.readDir(root)) {
