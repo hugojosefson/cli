@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.3
+
+- fix(features): preserve workflow pins and explain detected states
+
 ## 0.2.2
 
 - fix(github): share concurrent feature reads without caching later checks
