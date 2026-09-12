@@ -164,11 +164,13 @@ Deno.test("generated README keeps configured name references and custom prose", 
     await writeConfig(root, { name: "@acme/deno-original" });
     await runCli(root, ["repo", "features", "--readme-build"]);
     const source = new URL("readme/README.md", root);
-    assertEquals(await Deno.readTextFile(source), "# {{package.name}}\n");
-    assertEquals(
-      await Deno.readTextFile(new URL("README.md", root)),
-      "# @acme/deno-original\n",
+    assertStringIncludes(
+      await Deno.readTextFile(source),
+      "# {{package.name}}\n",
     );
+    const originalOutput = await Deno.readTextFile(new URL("README.md", root));
+    assertStringIncludes(originalOutput, "# @acme/deno-original\n");
+    assertStringIncludes(originalOutput, "Requires [Deno](https://deno.com/).");
     await Deno.writeTextFile(
       source,
       (await Deno.readTextFile(source)) + "\nCustom prose.\n",
@@ -183,7 +185,8 @@ Deno.test("generated README keeps configured name references and custom prose", 
     );
     assertEquals(
       (await runCli(root, ["readme", "build"])).output,
-      "# @acme/other-tool\n\nCustom prose.\n",
+      originalOutput.replace("@acme/deno-original", "@acme/other-tool") +
+        "\nCustom prose.\n",
     );
     await Deno.writeTextFile(source, "{{package.constructor}}");
     await assertRejects(

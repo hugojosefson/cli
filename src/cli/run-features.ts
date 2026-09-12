@@ -14,6 +14,7 @@ import { formatTable } from "./format-table.ts";
 import type { ChangePlan, PlannedValidation } from "../api/change-plan.ts";
 import type { OperationContext } from "../api/repository-context.ts";
 import { builtInFeatureRegistry } from "../features/built-in-feature-registry.ts";
+import { reconcileReadmePlans } from "../features/readme-contribution-plans.ts";
 import { reconcileGitIgnorePlans } from "../features/git-ignore-feature.ts";
 import {
   denoLockPlanOwner,
@@ -230,6 +231,7 @@ export async function runFeatureOperation(
     ) {
       plans = await reconcileDenoLockPlans(context, plans);
     }
+    plans = await reconcileReadmePlans(context, plans);
     if (
       registry.features.some((feature) => feature.metadata.id === "git-ignore")
     ) {
