@@ -5,6 +5,8 @@ import {
   assertStringIncludes,
 } from "@std/assert";
 import { denoFmtFeature } from "../features/deno-fmt-feature.ts";
+import { builtInFeatureRegistry } from "../features/built-in-feature-registry.ts";
+import { denoTaskDefinitions } from "../features/deno-tasks.ts";
 import { readmeStaticFeature } from "../features/readme-static-feature.ts";
 import type { FeatureRegistry } from "../features/feature-registry.ts";
 import { CommandFailure } from "./command-failure.ts";
@@ -19,6 +21,97 @@ const registry: FeatureRegistry = {
     defaultProvider: "readme-static",
   }],
 };
+
+Deno.test("initial library checks pass before separate configuration contributions are committed", async () => {
+  await fixture(async (root) => {
+    const result = await runFeatureOperation(
+      root,
+      parseFeatures([
+        "repo",
+        "features",
+        "--deno-lib",
+        "--deno-lint",
+        "--deno-typecheck",
+        "--deno-test",
+      ], builtInFeatureRegistry),
+      builtInFeatureRegistry,
+    );
+    assertStringIncludes(result, "deno task default passed.");
+    const history = (await git(root, "log", "--reverse", "--format=%H %s"))
+      .split("\n");
+    for (
+      const [feature, task] of [["deno-lint", "lint"], [
+        "deno-typecheck",
+        "typecheck",
+      ], ["deno-test", "test"]]
+    ) {
+      const commit = history.find((line) =>
+        line.includes(`chore(${feature}):`)
+      )!.split(" ")[0];
+      const before = JSON.parse(
+        await git(root, "show", `${commit}^:deno.jsonc`),
+      );
+      const after = JSON.parse(await git(root, "show", `${commit}:deno.jsonc`));
+      assertEquals(before.tasks[task], undefined);
+      assert(after.tasks[task]);
+      assert(after.tasks.check.dependencies.includes(task));
+    }
+    const fmt = history.find((line) =>
+      line.includes("chore(deno-fmt):")
+    )!.split(" ")[0];
+    assertEquals(
+      JSON.parse(await git(root, "show", `${fmt}:deno.jsonc`)).exports,
+      undefined,
+    );
+    const lib =
+      history.find((line) => line.includes("chore(deno-lib):"))!.split(" ")[0];
+    assertEquals(
+      JSON.parse(await git(root, "show", `${lib}:deno.jsonc`)).exports["."],
+      "./src/lib/mod.ts",
+    );
+    assertEquals(await git(root, "diff", "HEAD", "--"), "");
+    assert(
+      !(await git(root, "ls-tree", "-r", "--name-only", "HEAD")).includes(
+        "coverage/",
+      ),
+    );
+  });
+});
+
+Deno.test("server setup creates its owned lock before a frozen final check and commits its digest", async () => {
+  await fixture(async (root) => {
+    await Deno.writeTextFile(
+      new URL("deno.json", root),
+      JSON.stringify({
+        tasks: {
+          ...denoTaskDefinitions(["deno-typecheck"]),
+          typecheck: { command: "deno check --frozen src/server/server.ts" },
+        },
+      }),
+    );
+    await git(root, "add", "deno.json");
+    await git(root, "commit", "-m", "chore: seed");
+    const result = await runFeatureOperation(
+      root,
+      parseFeatures(
+        ["repo", "features", "--deno-server"],
+        builtInFeatureRegistry,
+      ),
+      builtInFeatureRegistry,
+    );
+    assertStringIncludes(result, "deno task default passed.");
+    const ownership = JSON.parse(
+      await git(root, "show", "HEAD:.hj/deno-lock.json"),
+    );
+    assertEquals(ownership.lock, true);
+    assert(ownership.digest);
+    assertEquals(
+      await git(root, "show", "HEAD:deno.lock"),
+      (await Deno.readTextFile(new URL("deno.lock", root))).trim(),
+    );
+    assertEquals(await git(root, "status", "--porcelain"), "");
+  });
+});
 
 Deno.test("operation runs final task before content commits and commits the validated task output", async () => {
   await fixture(async (root) => {
