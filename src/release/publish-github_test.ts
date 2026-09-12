@@ -279,7 +279,9 @@ test("GitHub publisher waits for a new release to appear without repeating creat
 
 test("GitHub release extraction ignores fenced example headings in custom history", () => {
   const section = "## 1.2.3\n\n### Features\n\n- New entry\n\n";
-  const text = "# History\n\n```md\n## 1.2.3\nexample\n```\n\n" + section +
+  const text =
+    "# History\n\n<!--\n## 1.2.3\n-->\n\n```md\n## 1.2.3\nexample\n```\n\n" +
+    section +
     "## Earlier history\n\nCustom text\n";
   assertEquals(changelogSection(text, "1.2.3"), section);
 });

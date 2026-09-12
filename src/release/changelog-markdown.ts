@@ -3,6 +3,7 @@ export type MarkdownLine = { readonly text: string; readonly offset: number };
 export function changelogLines(text: string): readonly MarkdownLine[] {
   const lines: MarkdownLine[] = [];
   let offset = 0;
+  let comment = false;
   let fence: { character: string; length: number } | undefined;
   for (const line of text.split(/(?<=\n)/)) {
     const value = line.replace(/\r?\n$/, "");
@@ -12,6 +13,13 @@ export function changelogLines(text: string): readonly MarkdownLine[] {
         marker && marker[1][0] === fence.character &&
         marker[1].length >= fence.length && !marker[2].trim()
       ) fence = undefined;
+    } else if (comment || value.replace(/(`+).*?\1/g, "").includes("<!--")) {
+      // Comments can contain example headings and fences; neither is structure.
+      const markers = value.replace(/(`+).*?\1/g, "").match(/<!--|-->/g) ?? [];
+      for (const token of markers) {
+        if (token === "<!--") comment = true;
+        else comment = false;
+      }
     } else if (marker) {
       fence = { character: marker[1][0], length: marker[1].length };
     } else if (!/^ {4}|^\t/.test(value)) {
