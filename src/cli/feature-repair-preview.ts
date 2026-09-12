@@ -1,0 +1,161 @@
+/** @module Read-only previews of the exact plans selected by feature repair. */
+import type { FeatureDetection } from "../api/feature-detection.ts";
+import type { OperationContext } from "../api/repository-context.ts";
+import type { ChangePlan } from "../api/change-plan.ts";
+import { resolveFeatureChanges } from "../features/resolve-feature-changes.ts";
+import { repairFeatureChanges } from "./repair-feature-changes.ts";
+import type { FeatureRegistry } from "../features/feature-registry.ts";
+import { describePlannedChange } from "./describe-planned-change.ts";
+import { reconcileFeaturePlans } from "./reconcile-feature-plans.ts";
+import { repairCompletionDescription } from "./repair-completion-description.ts";
+
+/** Repair changes only drifted features; never infer that disabled means broken. */
+export function repairStateDescription(detection?: FeatureDetection): string {
+  if (detection?.state === "enabled") {
+    return "No repair needed; the enabled configuration matches.";
+  }
+  if (detection?.state === "disabled") {
+    return "No repair needed while disabled; --repair alone leaves it disabled.";
+  }
+  if (detection?.state === "ambiguous") {
+    const resolutions = [
+      ...new Set(
+        detection.issues.map((issue) =>
+          `${issue.subject.identifier}: ${issue.resolution}`
+        ),
+      ),
+    ];
+    return "Repair is blocked until the ambiguous state is resolved manually. " +
+      (resolutions.join(" ") ||
+        "Inspect the reported artifacts and resolve their conflicting state.");
+  }
+  return "Repair could not be determined. Rerun feature inspection and resolve the reported artifacts.";
+}
+
+/** Calls only reader/check/planner contracts: no prompts, preflight or application. */
+export async function featureRepairPreviews(
+  base: OperationContext,
+  registry: FeatureRegistry,
+): Promise<ReadonlyMap<string, string>> {
+  const descriptions = new Map<string, string>();
+  for (const feature of registry.features) {
+    const id = feature.metadata.id;
+    const detection = base.detections.get(id);
+    if (detection?.state !== "drifted") {
+      descriptions.set(id, repairStateDescription(detection));
+      continue;
+    }
+    const request = {
+      changes: [{ featureId: id, enabled: true }],
+      presets: [],
+      defaults: [],
+      applyDefaults: false,
+      repair: { kind: "features" as const, featureIds: [id] },
+    };
+    const resolution = resolveFeatureChanges(
+      registry,
+      Object.fromEntries(base.detections),
+      request,
+    );
+    if (resolution.issues.length) {
+      descriptions.set(
+        id,
+        "Repair is blocked by feature dependencies or conflicts. " +
+          resolution.issues.map((issue) =>
+            [issue.code, issue.featureId, issue.capabilityId, issue.relatedId]
+              .filter(Boolean).join(": ")
+          ).join("; ") +
+          ". Resolve the reported feature states before retrying.",
+      );
+      continue;
+    }
+    const context: OperationContext = {
+      ...base,
+      requestedChanges: request.changes,
+      resolvedChanges: [
+        ...resolution.changes,
+        ...repairFeatureChanges(base.detections, request.repair),
+      ],
+      repair: request.repair,
+    };
+    try {
+      const initialPlans: ChangePlan[] = [];
+      const blockers: string[] = [];
+      const noOps: string[] = [];
+      for (const change of context.resolvedChanges) {
+        const selected = registry.features.find((item) =>
+          item.metadata.id === change.featureId
+        )!;
+        const check =
+          await (change.enabled ? selected.checkEnable : selected.checkDisable)(
+            context,
+          );
+        if (check.result === "blocked") {
+          blockers.push(
+            ...check.blockers.map((blocker) =>
+              `${change.featureId}: ${blocker.message} ${blocker.resolution}`
+            ),
+          );
+        } else if (check.result === "no-op") {
+          noOps.push(check.reason);
+        } else {
+          initialPlans.push(
+            await (change.enabled ? selected.planEnable : selected.planDisable)(
+              context,
+              check,
+            ),
+          );
+        }
+      }
+      if (blockers.length) {
+        descriptions.set(id, `Repair is blocked. ${blockers.join(" ")}`);
+        continue;
+      }
+      const plans = await reconcileFeaturePlans(
+        context,
+        initialPlans,
+        registry,
+      );
+      const changes = plans.flatMap((plan) => plan.changes);
+      if (!changes.length) {
+        descriptions.set(
+          id,
+          `Repair makes no changes. ${
+            noOps.join(" ")
+          } Resolve the reported drift manually.`,
+        );
+        continue;
+      }
+      const actions = await Promise.all(
+        changes.map((change) =>
+          describePlannedChange(change, context.files, context.github)
+        ),
+      );
+      descriptions.set(
+        id,
+        [
+          `Repair (--repair --${id}):`,
+          ...plans.filter((plan) => plan.changes.length).map((plan) =>
+            plan.summary
+          ),
+          ...actions,
+          ...await repairCompletionDescription(context, plans),
+          ...plans.flatMap((plan) =>
+            plan.warnings.map((warning) =>
+              `${warning.message}${
+                warning.resolution ? ` ${warning.resolution}` : ""
+              }`
+            )
+          ),
+        ].join("\n"),
+      );
+    } catch {
+      // Raw planner/transport exceptions can contain file content or credentials.
+      descriptions.set(
+        id,
+        "Repair preview is unavailable. Check access to the reported files and GitHub resources, resolve their configuration, and rerun feature inspection.",
+      );
+    }
+  }
+  return descriptions;
+}

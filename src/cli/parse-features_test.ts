@@ -8,6 +8,14 @@ import {
   parseFeatures,
 } from "./parse-features.ts";
 
+Deno.test("status retains the configured toolchain version for repair previews", () => {
+  const result = parseFeatures(["repo", "features"], builtInFeatureRegistry, {
+    "deno-version": "2.5.0",
+  });
+  assertEquals(result.kind, "status");
+  assertEquals(result.defaultDenoVersion, "2.5.0");
+});
+
 Deno.test("parses built-in features, capability aliases, and defaults", () => {
   assertEquals(
     changeRequest(parseFeatures(

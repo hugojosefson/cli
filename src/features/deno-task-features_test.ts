@@ -69,9 +69,11 @@ Deno.test("real runner composes and removes leaf tasks from one snapshot", async
     assertEquals(config.tasks.check.dependencies, ["format", "typecheck"]);
     await run(root, ["--no-deno-typecheck", "--no-deno-fmt"]);
     assertEquals(
-      (await run(root, [])).split("\n").slice(2).map((line) =>
-        line.trim().split(/ +/).slice(0, 2).join(": ")
-      ).join("\n"),
+      (await run(root, [])).split("\n").slice(2).filter((line) =>
+        /^\S/.test(line)
+      ).map((line) => line.trim().split(/ +/).slice(0, 2).join(": ")).join(
+        "\n",
+      ),
       builtInFeatureRegistry.features.map((feature) => feature.metadata.id)
         .sort().map((id) => `${id}: disabled`).join("\n"),
     );
