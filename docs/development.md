@@ -327,3 +327,10 @@ Run `deno task npm-build` to package this CLI behind a Node.js launcher. Run
 `node .hj/npm/bin/hj.js --help` to inspect its entry point. The build does not
 publish anything and requires Deno on the user's `PATH`. See
 [npm publication](npm-publication.md) for the output contract.
+
+The combined checkout repeated
+`deno task hj repo features --editorconfig --github-repo --yes` without changes.
+The existing repository link and modern CI and release workflows need no
+migration. The local npm build and its installed command passed their help
+checks without publication. The required first scratchpad publication still
+needs npm authentication.
