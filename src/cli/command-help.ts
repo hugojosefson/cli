@@ -179,7 +179,7 @@ export function commandHelp(command?: CommandName, color = false): string {
     "",
     examples,
     "",
-    "GitHub changes require an authenticated gh CLI and an existing repository link.",
+    "GitHub changes require an authenticated gh CLI and --yes. Setup can create and link a repository with explicit or configured visibility.",
     "Use <command> --help for details.",
     "Track proposed changes at https://github.com/hugojosefson/cli/issues.",
   ].join("\n");
