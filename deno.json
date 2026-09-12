@@ -131,8 +131,8 @@
       "command": "deno run --allow-env --allow-run=deno --allow-read scripts/install-local.ts"
     },
     "npm-build": {
-      "description": "Build the optional npm launcher without publishing",
-      "command": "deno run --allow-env=HJ_RELEASE_SHA,PATH --allow-read --allow-write=.hj/npm --allow-run=git scripts/build-npm.ts"
+      "description": "Build the frozen native npm archive without publishing",
+      "command": "deno run --allow-env --allow-read --allow-run=deno scripts/build-npm.ts"
     },
     "readme": {
       "description": "Generate README.md.",

@@ -1,0 +1,9 @@
+{
+  "name": "hj-native-build-tools",
+  "version": "0.0.0",
+  "private": true,
+  "dependencies": {
+    "@types/node": "24.13.4",
+    "npm": "11.11.1"
+  }
+}

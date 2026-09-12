@@ -7,3 +7,6 @@
 
 # Local npm build example
 /.hj/npm/
+
+.hj/npm-tools/
+.hj/npm-packing/
