@@ -58,6 +58,12 @@ count subtests differently. Do not run a focused test command while the matrix
 runs in the same checkout: they share report files. Use a separate worktree for
 concurrent tests.
 
+Complete runs also record the [validation reuse pilot](validation-pilot.md). It
+groups timings from freshly executed tests and records proposed input keys. It
+never skips a test or replaces the full matrix and coverage requirements. Use
+`deno task validation-compare before.json after.json` to compare saved reports
+for the same runtime.
+
 Native test builds require Node and npm on the development or CI host. The build
 uses the separately pinned dnt emitter with no Deno global or test shims.
 Test-only assertions and WebSocket dependencies use a separate frozen npm lock.
