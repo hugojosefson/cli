@@ -46,7 +46,9 @@ blocks an ordinary pull request merge. The runners record executed test and
 subtest names in `.hj/test-results`. The matrix requires identical file and test
 inventories, with every body complete and successful. Missing registrations,
 missing executions, skipped bodies, and failures fail the gate. Printed runner
-totals can differ because the runtimes count subtests differently.
+totals can differ because the runtimes count subtests differently. Do not run a
+focused test command while the matrix runs in the same checkout: they share
+report files. Use a separate worktree for concurrent tests.
 
 Native test builds require Node and npm on the development or CI host. The build
 uses the separately pinned dnt emitter with no Deno global or test shims.

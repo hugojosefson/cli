@@ -1,6 +1,11 @@
 import { test as nativeTest } from "node:test";
 import { trackTests } from "./inventory-test-fixtures.ts";
-import { assert, assertEquals, assertStringIncludes } from "@std/assert";
+import {
+  assert,
+  assertEquals,
+  assertStringIncludes,
+  assertThrows,
+} from "@std/assert";
 import {
   assertMissingFile,
   makeTempDir,
@@ -8,7 +13,7 @@ import {
   remove,
   writeTextFile,
 } from "./files-test-fixtures.ts";
-import { runHostTests } from "./runtime-test-fixtures.ts";
+import { executableModule, runHostTests } from "./runtime-test-fixtures.ts";
 import { runRawCommand as runCommand } from "../runtime/command.ts";
 import {
   compareInventories,
@@ -53,6 +58,54 @@ test("every host propagates body, nested, awaited cleanup, and subprocess failur
     );
     const passed = await runHostTests(file);
     assert(passed.success, new TextDecoder().decode(passed.stderr));
+  } finally {
+    await remove(root, { recursive: true });
+  }
+});
+
+test("every host records native skip and todo calls and rejects their inventory", async () => {
+  const root = await makeTempDir({
+    dir: "/tmp/opencode",
+    prefix: "hj-runner-skip-",
+  });
+  try {
+    const file = `${root}/contract.test.mjs`;
+    const journal = `${root}/inventory.jsonl`;
+    const observer = executableModule(
+      "./inventory-test-fixtures.ts",
+      import.meta.url,
+    );
+    for (const method of ["skip", "todo"]) {
+      await writeTextFile(journal, "");
+      await writeTextFile(
+        file,
+        `
+import { test as nativeTest } from "node:test";
+import process from "node:process";
+import { trackTests, testStep } from ${JSON.stringify(observer.href)};
+process.env.HJ_TEST_INVENTORY = ${JSON.stringify(journal)};
+const test = trackTests("file:///src/contract_test.ts", nativeTest);
+test("contract", async (t) => {
+  await testStep(t, "nested", (nested) => { nested.${method}("expected marker"); });
+});
+`,
+      );
+      const result = await runHostTests(file);
+      assert(result.success, new TextDecoder().decode(result.stderr));
+      const events = (await readTextFile(journal)).trim().split("\n").map((
+        line,
+      ) => JSON.parse(line));
+      assert(
+        events.some(({ state }) =>
+          state === (method === "skip" ? "skipped" : "todo")
+        ),
+      );
+      assertThrows(
+        () => executedInventory(events),
+        Error,
+        "Incomplete or failed test",
+      );
+    }
   } finally {
     await remove(root, { recursive: true });
   }

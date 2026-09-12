@@ -120,7 +120,7 @@ test("every provider renders, detects, repairs, and directly disables exact cont
   }
 });
 
-Deno.test("every provider recognizes reflowed terms and preserves raw attribution validation", async () => {
+test("every provider recognizes reflowed terms and preserves raw attribution validation", async () => {
   for (const provider of licenseCatalog) {
     const text = template(provider.definition).trimEnd() +
       "\n\nComplete license terms.\n";
