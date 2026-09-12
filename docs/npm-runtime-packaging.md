@@ -107,12 +107,14 @@ Package consumers receive the recorded tree. Updating one of its dependencies
 requires rebuilding and releasing the CLI archive.
 
 The fixture uses GNU tar with sorted names, timestamp zero, numeric owner/group
-zero, and GNU format. It runs two clean installs with separate caches and
-compares final archive bytes. Production reproducibility must also account for
-dnt output, generated source maps, and any other build output. Keep archives,
-caches, credentials, tests, and previous outputs outside the explicit file
-allowlist. Inspect the packed tree for the complete graph and licenses before
-publication. Do not silently rely on ignored dependency lifecycle scripts.
+zero, normalized read/write modes that preserve executable files, and GNU
+format. Mode normalization makes the archive independent of the builder's umask.
+It runs two clean installs with separate caches and compares final archive
+bytes. Production reproducibility must also account for dnt output, generated
+source maps, and any other build output. Keep archives, caches, credentials,
+tests, and previous outputs outside the explicit file allowlist. Inspect the
+packed tree for the complete graph and licenses before publication. Do not
+silently rely on ignored dependency lifecycle scripts.
 
 ## Reproduce the package-manager checks
 
