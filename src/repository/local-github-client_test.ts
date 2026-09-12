@@ -3,6 +3,33 @@ import { assertEquals, assertRejects, assertStringIncludes } from "@std/assert";
 import { LocalGithubClient } from "./local-github-client.ts";
 import { mainProtectionDefinition } from "../features/github-protection-definitions.ts";
 
+Deno.test("concurrent GitHub feature reads share requests but later reads stay fresh", async () => {
+  const responses = [
+    json({ nameWithOwner: "owner/repo" }),
+    json({ has_issues: false, has_wiki: true }),
+    undefined,
+    json({ has_issues: true, has_wiki: false }),
+  ];
+  const runner = new FakeRunner(responses);
+  const client = new LocalGithubClient(
+    new URL("file:///tmp/opencode/"),
+    runner,
+  );
+  const settings = () =>
+    Promise.all([
+      client.resource("repository-setting", "has_issues"),
+      client.resource("repository-setting", "has_wiki"),
+    ]);
+  const before = await settings();
+  assertEquals(before.map((value) => value?.definition.value), [false, true]);
+  assertEquals(runner.calls.length, 2);
+  assertEquals(await settings(), [undefined, undefined]);
+  assertEquals(runner.calls.length, 3);
+  const after = await settings();
+  assertEquals(after.map((value) => value?.definition.value), [true, false]);
+  assertEquals(runner.calls.length, 4);
+});
+
 Deno.test("LocalGithubClient checks repository access, reads, and atomically patches settings", async () => {
   const runner = new FakeRunner([
     json({ nameWithOwner: "owner/repo", defaultBranchRef: { name: "main" } }),
