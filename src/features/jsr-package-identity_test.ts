@@ -28,7 +28,7 @@ Deno.test("JSR identity normalizes only a missing package component from the sta
       name: "@owner/fancy-tool",
     });
     assertEquals(
-      (await jsrPackageIdentity({ ...context(root), github: undefined })).kind,
+      (await jsrPackageIdentity({ ...context(root), options: {} })).kind,
       "unavailable",
     );
   });
@@ -49,11 +49,7 @@ Deno.test("JSR identity requires explicit input for invalid fallback and scope",
     assertEquals(
       (await jsrPackageIdentity({
         ...current,
-        github: {
-          ...current.github!,
-          repository: () =>
-            Promise.resolve({ owner: "bad_owner", name: "ignored" }),
-        },
+        options: { jsrScope: "bad_owner" },
       })).kind,
       "unavailable",
     );

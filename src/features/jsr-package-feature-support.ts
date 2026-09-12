@@ -50,7 +50,7 @@ export function context(
       },
     ],
     repair,
-    options: {},
+    options: { jsrScope: "owner" },
   };
 }
 

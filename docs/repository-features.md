@@ -558,9 +558,35 @@ package.
 Without a configured name, `hj` derives the package component from the starting
 directory. It lowercases the name, removes a leading `deno`, replaces
 unsupported character runs with `-`, and trims edge hyphens. For example,
-`deno Fancy_Tool` becomes `fancy-tool`. The GitHub owner supplies the scope, the
-part before `/`. The plan shows the resolved package name. If either component
-is invalid, set an explicit scoped name in the Deno configuration.
+`deno Fancy_Tool` becomes `fancy-tool`. The scope, the part before `/`, comes
+from an explicit `--jsr-scope=<scope>` or authenticated JSR memberships. The
+result shows the resolved package name. If either component is invalid, set an
+explicit scoped name in the Deno configuration.
+
+To discover scopes, supply a JSR user token through the `JSR_TOKEN` environment
+variable. Keep the token in your shell or secret manager. `hj` sends it only as
+bearer authentication and never saves it in generated files or defaults.
+[JSR user tokens](https://jsr.io/docs/api#authentication-tokens) can read
+memberships; GitHub Actions OIDC tokens support publication only.
+
+The [JSR management API](https://api.jsr.io/.well-known/openapi) returns actual
+memberships from `GET /user/scopes`. Both ordinary members and admins qualify;
+pending invitations do not. With one membership, `hj` selects that scope. With
+several, a terminal prompt requires a scope name. In automation, supply
+`--jsr-scope=<scope>`; `--yes` never selects among scopes. For example:
+
+```bash
+hj repo features --jsr-package --deno-lib --jsr-scope=my-team --yes
+```
+
+A configured package name or explicit scope needs no additional selection. If
+`JSR_TOKEN` is supplied, setup validates that scope against the memberships.
+Without a token, an explicit scope allows local configuration only and does not
+prove publishing permission. A conflicting flag cannot rename a configured
+package. Missing authentication during discovery, API failures, and unreadable
+responses stop setup as unresolved. An empty membership list instead explains
+that you need a JSR scope. Setup never creates scopes or infers them from a
+local username or GitHub identity.
 
 The [public JSR naming rules](https://jsr.io/docs/packages) permit 2–58
 characters in package components and 2–20 in scopes. Both permit lowercase

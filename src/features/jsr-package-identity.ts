@@ -1,6 +1,9 @@
 /** @module Authoritative configured identity with a directory-name fallback. */
 
-import type { DetectionContext } from "../api/repository-context.ts";
+import type {
+  DetectionContext,
+  OperationContext,
+} from "../api/repository-context.ts";
 import {
   readPackageMetadata,
   validJsrName,
@@ -11,9 +14,9 @@ export type JsrPackageIdentity =
   | { readonly kind: "available"; readonly name: string }
   | { readonly kind: "unavailable"; readonly observation: string };
 
-/** Keeps configured names; only a missing name uses directory and GitHub scope. */
+/** Keeps configured names; only a missing name uses directory and the resolved JSR scope. */
 export async function jsrPackageIdentity(
-  context: DetectionContext,
+  context: DetectionContext & Partial<Pick<OperationContext, "options">>,
 ): Promise<JsrPackageIdentity> {
   try {
     const metadata = await readPackageMetadata(context);
@@ -26,13 +29,12 @@ export async function jsrPackageIdentity(
             "Set an explicit scoped JSR name in deno.json or deno.jsonc.",
         };
     }
-    const repository = await context.github?.repository();
-    const scope = repository?.owner.toLowerCase();
-    if (!scope || !validScope(scope)) {
+    const scope = context.options?.jsrScope;
+    if (typeof scope !== "string" || !validScope(scope)) {
       return {
         kind: "unavailable",
         observation:
-          "A JSR scope cannot be derived from GitHub. Set an explicit scoped name in deno.json or deno.jsonc.",
+          "JSR scope discovery is unresolved. Supply --jsr-scope=<scope>, authenticate with JSR_TOKEN, or set an explicit scoped name in deno.json or deno.jsonc.",
       };
     }
     return { kind: "available", name: `@${scope}/${metadata.name}` };

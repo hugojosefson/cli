@@ -5,12 +5,14 @@ import type {
   RepairSelection,
 } from "../api/feature-change.ts";
 import type { FeatureRegistry } from "../features/feature-registry.ts";
+import { validScope } from "../package/metadata.ts";
 import { validateWorkflowCli } from "../features/workflow-cli.ts";
 
 interface FeatureRequestArguments {
   readonly request: FeatureChangeRequest;
   readonly confirmation: boolean;
   readonly workflowCli?: string;
+  readonly jsrScope?: string;
 }
 
 export type FeaturesArguments =
@@ -43,7 +45,18 @@ export function parseFeatures(
   let interactive = false;
   let confirmation = false;
   let workflowCli: string | undefined;
+  let jsrScope: string | undefined;
   for (const arg of args.slice(2)) {
+    if (arg.startsWith("--jsr-scope=")) {
+      if (jsrScope !== undefined) throw new Error("duplicate --jsr-scope");
+      jsrScope = arg.slice("--jsr-scope=".length);
+      if (!validScope(jsrScope)) {
+        throw new Error(
+          "--jsr-scope requires a valid JSR scope name without @.",
+        );
+      }
+      continue;
+    }
     if (arg.startsWith("--workflow-cli=")) {
       if (workflowCli !== undefined) {
         throw new Error("duplicate --workflow-cli");
@@ -99,7 +112,8 @@ export function parseFeatures(
   if (interactive) {
     if (
       applyDefaults || repair || requested.size > 0 ||
-      selectedPresets.size > 0 || workflowCli !== undefined
+      selectedPresets.size > 0 || workflowCli !== undefined ||
+      jsrScope !== undefined
     ) {
       throw new Error(
         "`--interactive` cannot be combined with defaults, repair, or feature flags",
@@ -132,6 +146,14 @@ export function parseFeatures(
       "--workflow-cli requires an explicit positive workflow feature or --jsr.",
     );
   }
+  if (
+    jsrScope !== undefined &&
+    (requested.get("jsr-package") === false ||
+      (requested.get("jsr-package") !== true &&
+        !selectedPresets.has("jsr")))
+  ) {
+    throw new Error("--jsr-scope requires --jsr-package or --jsr.");
+  }
   return requested.size === 0 && selectedPresets.size === 0 && !applyDefaults &&
       !repair
     ? { kind: "status", request, confirmation }
@@ -139,6 +161,7 @@ export function parseFeatures(
       kind: "change",
       request,
       confirmation,
+      ...(jsrScope === undefined ? {} : { jsrScope }),
       ...(workflowCli === undefined ? {} : { workflowCli }),
     };
 }
