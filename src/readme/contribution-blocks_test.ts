@@ -58,3 +58,20 @@ Deno.test("badges do not nest ownership markers and customized sections prevent 
     "# X\n\n[![CI](custom)](custom)\n",
   );
 });
+
+Deno.test("ownership tolerates prose wrapping while code string edits remain custom", async () => {
+  const original = await reconcileBlocks("# Package\n", [{
+    id: "deno-lib:example",
+    position: "section",
+    content:
+      '## Example usage\n\nAn example with a visible result.\n\n```typescript\nconst result = "one two";\nconsole.dir({ result });\n```',
+  }]);
+  const wrapped = original.replace(
+    "An example with a visible result.",
+    "An example with a\nvisible result.",
+  ).replace(" -->\n", " -->\n\n").replace("\n<!-- /hj", "\n\n<!-- /hj");
+  assertEquals(await unchangedBlocks(wrapped), new Set(["deno-lib:example"]));
+  const edited = wrapped.replace('"one two"', '"one  two"');
+  assertEquals((await unchangedBlocks(edited)).size, 0);
+  assertEquals(await reconcileBlocks(edited, []), edited);
+});
