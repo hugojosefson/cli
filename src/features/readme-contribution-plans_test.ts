@@ -33,6 +33,12 @@ async function runCli(root: URL, args: readonly string[]) {
     parseFeatures(args, registry),
     registry,
     () => [],
+    {
+      runFinalTask: () => Promise.resolve(undefined),
+      jsrScopes: {
+        scopes: () => Promise.resolve({ kind: "missing-authentication" }),
+      },
+    },
   );
 }
 

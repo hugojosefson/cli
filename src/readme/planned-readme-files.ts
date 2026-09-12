@@ -6,7 +6,7 @@ import type { FileReader } from "../api/repository-context.ts";
 import type { PlannedChange } from "../api/planned-change.ts";
 import { blockHash } from "./contribution-blocks.ts";
 
-export class PlannedReadmeFiles {
+export class PlannedReadmeFiles implements FileReader {
   readonly preconditions: Precondition[] = [];
   readonly changes: PlannedChange[] = [];
   readonly #observed = new Map<string, ArtifactObservation>();
@@ -75,6 +75,30 @@ export class PlannedReadmeFiles {
       throw new Error(`README contribution needs a regular file: ${path}`);
     }
     return value.kind === "file" ? value.content : undefined;
+  }
+  readText(path: string): Promise<string | undefined> {
+    return this.read(path);
+  }
+  async exists(path: string): Promise<boolean> {
+    return (await this.observe(path)).kind !== "absent";
+  }
+  async readJson(path: string) {
+    const value = await this.observe(path);
+    return value.kind === "file"
+      ? { value: JSON.parse(value.content), digest: value.digest }
+      : undefined;
+  }
+  async digest(path: string) {
+    const value = await this.observe(path);
+    return value.kind === "file" ? value.digest : undefined;
+  }
+  async directoryStateDigest(path: string) {
+    const value = await this.observe(path);
+    return value.kind === "directory" ? value.stateDigest : undefined;
+  }
+  async mode(path: string) {
+    const value = await this.observe(path);
+    return value.kind === "file" ? value.mode : undefined;
   }
   async write(
     path: string,
