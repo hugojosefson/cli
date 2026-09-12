@@ -12,6 +12,7 @@ test("the complete built-in registry validates", () => {
   assertEquals(
     builtInFeatureRegistry.features.map((feature) => feature.metadata.id),
     [
+      "changelog",
       "deno-cli",
       "deno-fmt",
       "deno-config-version",
