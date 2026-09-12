@@ -85,3 +85,7 @@ presets take precedence. The setting never changes an existing repository.
 Without a flag or default, setup asks in a terminal and fails with input
 instructions in automation. See
 [repository creation](repository-features.md#create-a-github-repository).
+
+Local project Deno requirements are separate from these defaults. See
+[local Deno selection and caching](local-deno-runtime.md) for per-command
+overrides, project pins, compatible ranges, and offline use.

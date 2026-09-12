@@ -140,6 +140,18 @@ const featureExamples = [
   ],
 ] as const;
 
+const localRuntimeFlags = [
+  [
+    "--runtime-deno=<version/range>",
+    "Choose Deno for local project tasks; workflows are unchanged.",
+  ],
+  [
+    "--runtime-deno-preferred=<version>",
+    "Choose the exact version to download for a local range.",
+  ],
+  ["--offline", "Reuse installed or cached Deno; never download it."],
+] as const;
+
 export function commandHelp(command?: CommandName, color = false): string {
   const examples = formatTable(
     ["Example", "Effect"],
@@ -154,11 +166,20 @@ export function commandHelp(command?: CommandName, color = false): string {
     const entry = commandDefinitions[command];
     const flags = "flags" in entry
       ? "\n\n" +
-        formatTable(["Flag", "Effect"], entry.flags, undefined, {
+        formatTable(
+          ["Flag", "Effect"],
+          [...entry.flags, ...localRuntimeFlags],
+          undefined,
+          {
+            color,
+            columns: ["cyan"],
+          },
+        )
+      : "\n\n" +
+        formatTable(["Flag", "Effect"], localRuntimeFlags, undefined, {
           color,
           columns: ["cyan"],
-        })
-      : "";
+        });
     return `${
       colorText(entry.usage, "cyan", color)
     }\n\n${entry.description}\n\n${entry.details}${flags}${
@@ -180,6 +201,12 @@ export function commandHelp(command?: CommandName, color = false): string {
     examples,
     "",
     "GitHub changes require an authenticated gh CLI and --yes. Setup can create and link a repository with explicit or configured visibility.",
+    formatTable(
+      ["Local runtime option", "Effect"],
+      localRuntimeFlags,
+      undefined,
+      { color, columns: ["cyan"] },
+    ),
     "Use <command> --help for details.",
     "Track proposed changes at https://github.com/hugojosefson/cli/issues.",
   ].join("\n");

@@ -135,6 +135,10 @@ not prove live GitHub ruleset, event, or OIDC behavior. The
 [live validation record](live-validation.md) describes the opt-in scratchpad
 fixtures, completed checks, and remaining checks.
 
+For native CLI project tasks, see
+[local Deno selection and caching](local-deno-runtime.md). The workflow version
+setting remains separate from local runtime selection.
+
 ## Code structure
 
 The source follows the flow from a request to a guarded change:
