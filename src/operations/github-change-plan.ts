@@ -9,6 +9,7 @@ import type {
   GithubRulesetExpectation,
   GithubRulesetTransitionChange,
 } from "../api/planned-change.ts";
+import { defaultProjectResource } from "../repository/github-default-project.ts";
 import { canonical } from "../repository/canonical-ruleset.ts";
 
 export async function preflightGithubChangePlan(
@@ -33,7 +34,8 @@ export async function preflightGithubChangePlan(
     if (
       change.kind === "upsert-github-resource" &&
       change.resource !== "repository-setting" &&
-      change.resource !== "repository-ruleset"
+      change.resource !== "repository-ruleset" &&
+      change.resource !== defaultProjectResource
     ) {
       throw new Error("unsupported GitHub resource");
     }
@@ -94,7 +96,8 @@ export async function applyGithubChangePlans(
       if (change.kind !== "upsert-github-resource") continue;
       if (
         change.resource !== "repository-setting" &&
-        change.resource !== "repository-ruleset"
+        change.resource !== "repository-ruleset" &&
+        change.resource !== defaultProjectResource
       ) {
         throw new Error("unsupported GitHub resource");
       }
@@ -143,6 +146,13 @@ export async function applyGithubChangePlans(
   )
     .sort((left, right) => left.name.localeCompare(right.name));
   if (settings.length) await github.upsertResources(settings);
+  for (
+    const project of resources.filter((item) =>
+      item.resource === defaultProjectResource
+    )
+  ) {
+    await github.upsertResources([project]);
+  }
   // Main protection must be current before tag rules enter a transition state.
   for (const ruleset of rulesets) await github.upsertResources([ruleset]);
   for (const transition of transitions) {

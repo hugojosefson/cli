@@ -114,8 +114,7 @@ The initial release includes these capabilities.
 | Terminal output  | Show structured results in tables with terminal-aware colors.                                                              |
 
 Linux is the supported test platform. The package exposes a CLI, with no
-supported library API. Global configuration and an npm publisher are planned.
-GitHub repository creation is also planned.
+supported library API.
 
 Live GitHub release tests passed in disposable repositories. JSR publication and
 installation from JSR are being validated through the first-release pipeline.

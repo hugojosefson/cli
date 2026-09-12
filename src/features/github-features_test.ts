@@ -252,6 +252,24 @@ class FakeGithub implements GithubWriter {
     kind: string,
     name: string,
   ): Promise<GithubResource | undefined> {
+    if (kind === "repository-default-project") {
+      return {
+        kind,
+        name,
+        stateDigest: "project",
+        definition: {
+          candidates: 1,
+          projectId: "project",
+          url: "https://github.com/users/owner/projects/1",
+          linked: true,
+          closed: false,
+          fieldConflict: false,
+          hasStatus: true,
+          hasPriority: true,
+          missingIssues: 0,
+        },
+      };
+    }
     if (kind !== "repository-setting" || this.missing.has(name)) {
       return undefined;
     }

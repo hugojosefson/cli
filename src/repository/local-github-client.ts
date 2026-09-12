@@ -33,6 +33,11 @@ import type {
 import type { JsonObject, RepositoryPath } from "../api/json.ts";
 import { digestBytes } from "./digest-bytes.ts";
 
+import {
+  defaultProjectResource,
+  GithubDefaultProjectClient,
+} from "./github-default-project.ts";
+
 const gitOid = /^[0-9a-f]{40}(?:[0-9a-f]{24})?$/;
 
 /** Uses `gh` without exposing its credentials to arguments or environment. */
@@ -343,6 +348,20 @@ export class LocalGithubClient implements GithubWriter {
   ): Promise<GithubResource | undefined> {
     const repository = await this.repository();
     if (!repository) return undefined;
+    if (kind === defaultProjectResource) {
+      if (name !== "default") return undefined;
+      try {
+        return await new GithubDefaultProjectClient(this.#runner, repository)
+          .resource();
+      } catch (error) {
+        this.#diagnostics.add(
+          error instanceof Error
+            ? error.message
+            : "Cannot read GitHub projects.",
+        );
+        return undefined;
+      }
+    }
     if (kind === "actions-workflow-permission") {
       return await this.#actionsWorkflowPermission(repository, name);
     }
@@ -366,6 +385,20 @@ export class LocalGithubClient implements GithubWriter {
   async upsertResources(
     resources: readonly GithubResourceUpsert[],
   ): Promise<void> {
+    const projects = resources.filter((item) =>
+      item.resource === defaultProjectResource
+    );
+    if (projects.length) {
+      if (resources.length !== 1) {
+        throw new Error("incompatible GitHub resources");
+      }
+      const repository = await this.repository();
+      if (!repository) throw new Error("GitHub repository unavailable");
+      await new GithubDefaultProjectClient(this.#runner, repository).upsert(
+        projects[0],
+      );
+      return;
+    }
     const settings = resources.filter((item) =>
       item.resource === "repository-setting"
     );

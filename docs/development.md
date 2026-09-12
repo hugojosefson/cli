@@ -177,7 +177,8 @@ GitHub access, so an unauthenticated visitor can receive different results.
 | `github-main-review`            | Disabled       | Required human reviews would interrupt the automatic release flow.                                        |
 | `github-merge-commit`           | Disabled       | The project requires linear history without merge commits.                                                |
 | `github-private`                | Disabled       | The source is public. Disabled private visibility is intentional.                                         |
-| `github-projects`               | Enabled        | GitHub project integration is available. This does not claim that a project board exists.                 |
+| `github-default-project`        | Enabled        | The linked `cli` project contains all repository issues.                                                  |
+| `github-projects`               | Enabled        | The Projects setting is enabled. The default-project feature manages the linked project.                  |
 | `github-protected-tags`         | Enabled        | Managed tag rules prevent release changes. The CLI enforces exact SemVer.                                 |
 | `github-rebase-merge`           | Enabled        | Rebase merging preserves individual commits and linear history.                                           |
 | `github-release-publish-github` | Enabled        | The generated workflow publishes GitHub Releases.                                                         |
@@ -222,8 +223,7 @@ project's custom file selections and runner scripts. A configured task is not
 proof that its checks pass. The CI result supplies that proof.
 
 Keep the static README. It links to separate guides and has no duplicated
-fragments that need includes. Reconsider `readme-build` only when shared
-fragments or generated reference material remove repeated maintenance.
+fragments that need includes.
 
 ## First public release
 
@@ -272,3 +272,22 @@ generated `default` task rebuilds and fixes files before checks. Its `check`
 task is the normal aggregate, and `all` adds publishing checks when selected.
 Generated lint tasks fix locally and check without fixes in CI. These names
 differ from this repository's local development tasks above.
+
+## Issue tracking
+
+Keep proposed work and conditional ideas in
+[GitHub issues](https://github.com/hugojosefson/cli/issues). The
+[`cli` project](https://github.com/users/hugojosefson/projects/10/views/2)
+contains every issue. Use area labels to identify affected code and `idea` for
+proposals that need a decision. Record rejected alternatives as closed, not
+planned issues with the `decision` label.
+
+The project has Work, Board, Ideas, and Decisions views. `P1` identifies
+foundational work, `P2` normal work, and `P3` optional work. Issue dependencies
+identify prerequisites. Use short issue titles and put details in the body.
+
+```bash
+gh issue create --repo hugojosefson/cli --project cli
+```
+
+Use `hj repo features --github-default-project --yes` to add missing issues.

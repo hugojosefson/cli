@@ -27,6 +27,23 @@ export const commandDefinitions = {
       ["--yes", "Accept plan warnings that need confirmation."],
     ],
   },
+  "repo project-auto-add": {
+    usage: "hj repo project-auto-add --yes",
+    description: "Auto-add issues to the default GitHub project.",
+    details:
+      "Uses a signed-in Firefox automation session. Start a dedicated Firefox profile with --remote-debugging-port=9222 first.\nTries GitHub's internal endpoint, then its workflow controls when the endpoint is unavailable.",
+    flags: [
+      ["--yes", "Enable auto-add for all repository issues."],
+      [
+        "--method=auto|endpoint|browser",
+        "Choose the setup route (default: auto).",
+      ],
+      [
+        "--browser-url=<url>",
+        "Firefox connection (default: ws://127.0.0.1:9222/session).",
+      ],
+    ],
+  },
   "readme build": {
     usage: "hj readme build [input]",
     description: "Build a README from Markdown includes.",
@@ -118,6 +135,6 @@ export function commandHelp(command?: CommandName, color = false): string {
     "",
     "GitHub changes require an authenticated gh CLI and an existing repository link.",
     "Use <command> --help for details.",
-    "Global configuration and npm publication are planned, not implemented.",
+    "Track proposed changes at https://github.com/hugojosefson/cli/issues.",
   ].join("\n");
 }
