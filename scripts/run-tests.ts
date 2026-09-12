@@ -310,6 +310,30 @@ try {
     );
   }
   if (nativeObservation) {
+    const snapshot = nativeObservation.snapshot;
+    console.log(`Native input summary: ${
+      JSON.stringify({
+        runtime: label,
+        cacheEligible: false,
+        context: snapshot.context,
+        groups: Object.fromEntries(
+          Object.entries(snapshot.groups).map(([name, group]) => [name, {
+            key: group.key,
+            inputs: Object.fromEntries(
+              ["configuration", "packages", "dependencies", "tools"].map((
+                input,
+              ) => [
+                input,
+                group.inputs[input],
+              ]),
+            ),
+          }]),
+        ),
+        buildMs: snapshot.buildMs,
+        buildObservationMs: snapshot.buildObservationMs,
+        observationMs: nativeObservation.observationMs,
+      })
+    }`);
     console.log(
       `Native input observation: ${
         nativeObservationMs.toFixed(1)
