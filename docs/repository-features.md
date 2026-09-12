@@ -274,6 +274,9 @@ to Deno tests, for example `deno task test --filter "my test"`. Run one coverage
 collection at a time. The generated default task and GitHub CI both reach this
 same test task through `check`.
 
+Generated formatting tasks ignore `coverage/`. This keeps parallel checks from
+reading or changing reports while tests generate them.
+
 The generated `dev` task runs `deno test --parallel --trace-leaks --watch`.
 Watch mode runs continuously and does not collect coverage. If a server or
 custom task already uses `dev`, test watching uses `dev:test`. Removing the
@@ -382,6 +385,11 @@ Recognition is a file-management check, not a legal assessment.
 A contribution is a README block supplied by one feature. The selected README
 provider collects these blocks during feature operations. Existing headings,
 introductions, license sections, and custom blocks stay intact.
+
+Feature change requests refresh contributions from active features, including
+when the requested feature already has its requested state. Bare status
+inspection does not change the README. If GitHub observations are unavailable,
+the existing CI badge stays intact.
 
 | Owner                         | Contribution                                                     |
 | ----------------------------- | ---------------------------------------------------------------- |

@@ -7,6 +7,7 @@ import {
 import { runFeatureOperation } from "../cli/run-features.ts";
 import { parseFeatures } from "../cli/parse-features.ts";
 import { buildReadme } from "../readme/build-readme.ts";
+import { reconcileBlocks } from "../readme/contribution-blocks.ts";
 import { LocalFileReader } from "../repository/local-file-reader.ts";
 import { LocalGitReader } from "../repository/local-git-reader.ts";
 import { reconcileReadmePlans } from "./readme-contribution-plans.ts";
@@ -541,5 +542,50 @@ Deno.test("formatted README contributions remain owned after package rename", as
       "deno run --reload jsr:@sample/renamed/example-usage",
     );
     assertStringIncludes(output, 'from "@sample/renamed"');
+  });
+});
+
+Deno.test("unavailable GitHub observations preserve an owned CI badge until explicit disable", async () => {
+  await fixture(async (root) => {
+    const source = await reconcileBlocks("# Project\n", [{
+      id: "github-ci:badge",
+      content:
+        "[![CI](https://example.invalid/badge.svg)](https://example.invalid/workflow)",
+      position: "badges",
+    }]);
+    await Deno.writeTextFile(new URL("README.md", root), source);
+    const files = new LocalFileReader(root);
+    for (const state of ["enabled", "ambiguous"] as const) {
+      const context = {
+        repositoryRoot: root,
+        files,
+        git: new LocalGitReader(root),
+        detections: new Map([
+          ["readme-static", { state: "enabled" as const, evidence: [] }],
+          ["github-ci", { state, evidence: [], issues: [] }],
+        ]),
+        requestedChanges: [],
+        resolvedChanges: [],
+        repair: undefined,
+        options: {},
+      };
+      const plans = await reconcileReadmePlans(context, []);
+      assertEquals(plans.flatMap((plan) => plan.changes).length, 0);
+      const disabled = await reconcileReadmePlans({
+        ...context,
+        resolvedChanges: [{
+          featureId: "github-ci",
+          enabled: false,
+          reason: { kind: "explicit-request" },
+        }],
+      }, []);
+      const write = disabled.flatMap((plan) => plan.changes)
+        .find((change) =>
+          change.kind === "write-file" && change.path === "README.md"
+        );
+      assert(write?.kind === "write-file");
+      assertEquals(write.content.includes("github-ci:badge"), false);
+    }
+    assertEquals(await files.readText("README.md"), source);
   });
 });

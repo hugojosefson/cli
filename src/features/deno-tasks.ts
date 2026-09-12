@@ -61,8 +61,14 @@ export function denoTaskDefinitions(
     ...(publishCheck ? [publishCheckName] : []),
   ];
   return {
-    fmt: { description: "Fix formatting.", command: "deno fmt" },
-    format: { description: "Check formatting.", command: "deno fmt --check" },
+    fmt: {
+      description: "Fix formatting.",
+      command: "deno fmt --ignore=coverage",
+    },
+    format: {
+      description: "Check formatting.",
+      command: "deno fmt --check --ignore=coverage",
+    },
     check: { description: "Run project checks.", dependencies },
     ...(readmeBuild
       ? {
@@ -73,8 +79,8 @@ export function denoTaskDefinitions(
     default: {
       description: "Fix formatting, then run checks.",
       command: readmeBuild
-        ? "deno task --if-present package-metadata && deno fmt && deno task readme && deno task check"
-        : "deno task --if-present package-metadata && deno fmt && deno task check",
+        ? "deno task --if-present package-metadata && deno fmt --ignore=coverage && deno task readme && deno task check"
+        : "deno task --if-present package-metadata && deno fmt --ignore=coverage && deno task check",
     },
     all: { description: "Run all checks.", dependencies: ["check"] },
   };
