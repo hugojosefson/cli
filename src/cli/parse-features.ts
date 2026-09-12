@@ -198,6 +198,7 @@ export function parseFeatures(
         "github-release-publish-tag",
         "github-release-publish-jsr",
         "github-release-publish-github",
+        "github-release-publish-npm",
       ].includes(change.featureId)
     ) && !selectedPresets.has("jsr")
   ) {

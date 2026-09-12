@@ -110,6 +110,13 @@ export const commandDefinitions = {
     details:
       "Workflow command. Requires GitHub OIDC and the release environment.",
   },
+  "release publish-npm": {
+    usage: "hj release publish-npm",
+    release: "publish-npm",
+    description: "Build, publish, or verify a tagged npm package.",
+    details:
+      "Workflow command. Requires an npm-build task and npm authentication.",
+  },
   "release publish-github": {
     usage: "hj release publish-github",
     release: "publish-github",

@@ -4,3 +4,6 @@
 .*.swp
 # hj:git-ignore /coverage/
 /coverage/
+
+# Local npm build example
+/.hj/npm/

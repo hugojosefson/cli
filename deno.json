@@ -7,7 +7,9 @@
   },
   "minimumDependencyAge": {
     "age": 1440,
-    "exclude": ["jsr:@hugojosefson/cli"]
+    "exclude": [
+      "jsr:@hugojosefson/cli"
+    ]
   },
   "exports": {
     ".": "./src/cli/cli.ts",
@@ -127,6 +129,10 @@
     "install-local": {
       "description": "Install hj from this checkout",
       "command": "deno run --allow-env --allow-run=deno --allow-read scripts/install-local.ts"
+    },
+    "npm-build": {
+      "description": "Build the optional npm launcher without publishing",
+      "command": "deno run --allow-env=HJ_RELEASE_SHA,PATH --allow-read --allow-write=.hj/npm --allow-run=git scripts/build-npm.ts"
     }
   },
   "coverage": {

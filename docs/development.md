@@ -187,6 +187,7 @@ GitHub access, so an unauthenticated visitor can receive different results.
 | `github-protected-tags`         | Enabled        | Managed tag rules prevent release changes. The CLI enforces exact SemVer.                                 |
 | `github-rebase-merge`           | Enabled        | Rebase merging preserves individual commits and linear history.                                           |
 | `github-release-publish-github` | Enabled        | The generated workflow publishes GitHub Releases.                                                         |
+| `github-release-publish-npm`    | Disabled       | The npm build example runs locally. Public npm publication for this CLI is not configured.                |
 | `github-release-publish-jsr`    | Enabled        | The generated workflow publishes packages to JSR.                                                         |
 | `github-release-publish-tag`    | Enabled        | The generated workflow prepares release PRs and protected tags.                                           |
 | `github-repo`                   | Enabled        | The authenticated CLI can read the linked GitHub repository.                                              |
@@ -215,11 +216,11 @@ GitHub access, so an unauthenticated visitor can receive different results.
 | `readme-build`                  | Disabled       | The static README has no shared fragments or generated sections that need a build.                        |
 | `readme-static`                 | Enabled        | Visitors read the maintained root README directly.                                                        |
 
-All four managed workflow features are enabled. They can pin an earlier exact
-CLI version without being drifted. Detection still compares the complete
-workflow with its managed template. Changing permissions, commands, actions, or
-other content requires repair. To select the current CLI version explicitly, use
-the
+The CI, tag, GitHub Release, and JSR workflow features are enabled. They can pin
+an earlier exact CLI version without being drifted. Detection still compares the
+complete workflow with its managed template. Changing permissions, commands,
+actions, or other content requires repair. To select the current CLI version
+explicitly, use the
 [workflow source option](releases.md#bootstrap-before-the-first-registry-version).
 
 `check` runs non-mutating checks. `all` depends on `ci`, which enforces coverage
@@ -319,3 +320,10 @@ The EditorConfig feature was applied to this checkout with
 `deno task hj repo features --editorconfig --yes`. Detection reported enabled,
 and a second enable produced no changes. Its lifecycle tests cover custom
 sections, edited values, removal, repair, and stale file guards.
+
+## Local npm build example
+
+Run `deno task npm-build` to package this CLI behind a Node.js launcher. Run
+`node .hj/npm/bin/hj.js --help` to inspect its entry point. The build does not
+publish anything and requires Deno on the user's `PATH`. See
+[npm publication](npm-publication.md) for the output contract.

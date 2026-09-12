@@ -13,6 +13,7 @@ import { workflowCliArtifact } from "./workflow-cli.ts";
 import {
   publishGithubWorkflow,
   publishJsrWorkflow,
+  publishNpmWorkflow,
   publishTagWorkflow,
 } from "../release/names.ts";
 
@@ -122,7 +123,7 @@ jobs:
 function publisherArtifact(
   path: string,
   name: string,
-  job: "jsr" | "github",
+  job: "jsr" | "github" | "npm",
   command: string,
   permissions: string,
   allowRun: string,
@@ -167,7 +168,17 @@ ${
       - uses: ${deno}
         with:
           deno-version: ${workflowDenoVersion}
-      - name: Configure Git authentication
+${
+      job === "npm"
+        ? `      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '24'
+          registry-url: https://registry.npmjs.org
+      - name: Select npm CLI
+        run: npm install --global npm@11.11.1 --ignore-scripts
+`
+        : ""
+    }      - name: Configure Git authentication
         env:
           GH_TOKEN: \${{ github.token }}
         run: gh auth setup-git
@@ -179,7 +190,11 @@ ${
           HJ_RELEASE_SHA: \${{ github.event.client_payload.releaseSha }}
           HJ_RELEASE_TAG: \${{ github.event_name == 'repository_dispatch' && github.event.client_payload.tag || inputs.tag }}
           HJ_RELEASE_VERSION: \${{ github.event.client_payload.version }}
-        run: >-
+${
+      job === "npm"
+        ? "          NODE_AUTH_TOKEN: \${{ secrets.NPM_TOKEN }}\n"
+        : ""
+    }        run: >-
           deno run --no-lock
           --allow-env=GITHUB_REPOSITORY,GITHUB_SHA,HJ_RELEASE_ROUTE,HJ_RELEASE_SCHEMA,HJ_RELEASE_SHA,HJ_RELEASE_TAG,HJ_RELEASE_VERSION
           --allow-read=.
@@ -228,6 +243,16 @@ export const publishGithubArtifact = publisherArtifact(
   "release publish-github",
   "  contents: write",
   "gh,git",
+);
+
+export const publishNpmArtifact = publisherArtifact(
+  publishNpmWorkflow,
+  "Publish npm package",
+  "npm",
+  "release publish-npm",
+  "  contents: read\n  id-token: write",
+  "deno,git,npm",
+  "          --allow-net=registry.npmjs.org",
 );
 
 export async function inspectReleaseArtifact(

@@ -765,3 +765,10 @@ later setup fails, the repository remains linked; fix the reported problem and
 rerun the same feature request. A failed or uncertain creation request is never
 retried automatically. If creation succeeds but linking fails, the error gives
 the remote command to recover without creating or deleting another repository.
+
+## npm publication
+
+Select `--github-release-publish-npm` to add an independent npm publisher after
+release-tag success. Define and test the `npm-build` task first. The
+[npm publication guide](npm-publication.md) describes package output,
+authentication, and retries.
