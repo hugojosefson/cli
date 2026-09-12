@@ -48,7 +48,11 @@ export async function planEnableDenoFmt(
         kind: "set-json",
         path: state.config.path,
         jsonPath: ["tasks"],
-        value: (await initialDenoConfig(context, {}, denoFmtFeatureId)).tasks!,
+        value: (await initialDenoConfig(
+          context,
+          state.config.value,
+          denoFmtFeatureId,
+        )).tasks!,
         expected: undefined,
       });
     } else if (tasks.kind === "tasks") {

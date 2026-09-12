@@ -151,7 +151,7 @@ and explains how to set it.
 | `deno-fmt`            | Formatting tasks and minimal configuration; create `deno.jsonc` if needed. | None.                                          |
 | `deno-lint`           | A `lint` task that fixes locally and checks without fixes in CI.           | `deno-fmt`.                                    |
 | `deno-typecheck`      | A `typecheck` task.                                                        | `deno-fmt`.                                    |
-| `deno-test`           | A `test` task.                                                             | `deno-fmt`.                                    |
+| `deno-test`           | Test coverage and test watching tasks.                                     | `deno-fmt`.                                    |
 | `deno-lib`            | Library source and export.                                                 | `deno-fmt`.                                    |
 | `deno-cli`            | Executable source and command registry.                                    | `deno-fmt`.                                    |
 | `deno-server`         | A `deno serve` module with `serve` and `dev` tasks.                        | `deno-fmt`; integrates with an enabled CLI.    |
@@ -205,6 +205,27 @@ unchanged. The supported references are:
 Registry references require a configured scoped name. Included TypeScript
 examples use package imports only for exact exports of that configured package.
 Source files and references remain available for the next build.
+
+## Run tests with coverage
+
+The generated `test` task removes the previous `coverage/` directory before each
+run. It runs `deno test --parallel --trace-leaks --coverage=coverage`, then
+`deno coverage coverage`. Coverage shows which source lines the tests run. The
+report includes available coverage when tests fail. A test failure keeps its
+exit code. If tests pass but the report fails, the task fails.
+
+Run `deno task test` for tests and a fresh report. The `coverage` task calls the
+same task, so `deno task coverage` also starts a fresh run. Extra arguments pass
+to Deno tests, for example `deno task test --filter "my test"`. Run one coverage
+collection at a time. The generated default task and GitHub CI both reach this
+same test task through `check`.
+
+The generated `dev` task runs `deno test --parallel --trace-leaks --watch`.
+Watch mode runs continuously and does not collect coverage. If a server or
+custom task already uses `dev`, test watching uses `dev:test`. Removing the
+server restores test watching to `dev`. Existing custom test commands remain
+configured. To update an older generated test task, run
+`hj repo features --deno-test --repair`.
 
 ## Start a Deno server
 

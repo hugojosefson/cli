@@ -1,5 +1,6 @@
 /** @module Inspection and detection for independent Deno tasks. */
 
+import { denoTestTasks, hasServer } from "./deno-test-tasks.ts";
 import { configuredDenoTask } from "./configured-deno-task.ts";
 import type { DetectionContext } from "../api/repository-context.ts";
 import { sameJson } from "../operations/local-plan-state.ts";
@@ -49,18 +50,32 @@ export async function inspectDenoTask(
     };
   }
   const exact = sameJson(actual, leafTaskDefinitions[id]);
+  const legacyTest = id === "deno-test" && sameJson(actual, {
+    description: "Run tests.",
+    command: "deno test --parallel --trace-leaks",
+  });
+  const auxiliary = id !== "deno-test" ||
+    Object.entries(denoTestTasks(tasks, hasServer(config.value))).every((
+      [name, definition],
+    ) => sameJson(tasks[name], definition));
   return {
     kind: "tasks" as const,
+    auxiliary,
     config,
     tasks,
     present: actual !== undefined,
-    configured: await configuredDenoTask(
-      context,
-      tasks,
-      leafTaskNames[id],
-      id === "deno-typecheck" ? "check" : id === "deno-lint" ? "lint" : "test",
-      leafTaskDefinitions[id].command as string,
-    ),
+    configured: !legacyTest && (!exact || auxiliary) &&
+      await configuredDenoTask(
+        context,
+        tasks,
+        leafTaskNames[id],
+        id === "deno-typecheck"
+          ? "check"
+          : id === "deno-lint"
+          ? "lint"
+          : "test",
+        leafTaskDefinitions[id].command as string,
+      ),
     exact,
     aggregate: sameJson(
       tasks.check,

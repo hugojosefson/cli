@@ -4,6 +4,10 @@ import { parse } from "jsonc-parser";
 import { parseFeatures } from "../cli/parse-features.ts";
 import { runFeatures } from "../cli/run-features.ts";
 import { builtInFeatureRegistry } from "./built-in-feature-registry.ts";
+import {
+  coverageTaskDefinition,
+  testWatchTaskDefinition,
+} from "./deno-test-tasks.ts";
 import { denoServerTasks } from "./deno-server-tasks.ts";
 import { denoTaskDefinitions, leafTaskDefinitions } from "./deno-tasks.ts";
 
@@ -91,6 +95,8 @@ Deno.test("composes task and code features initially", async () => {
       ...denoTaskDefinitions(taskIds),
       "package-metadata": packageMetadataTask,
       ...denoServerTasks,
+      coverage: coverageTaskDefinition,
+      "dev:test": testWatchTaskDefinition,
       lint: leafTaskDefinitions["deno-lint"],
       typecheck: leafTaskDefinitions["deno-typecheck"],
       test: leafTaskDefinitions["deno-test"],

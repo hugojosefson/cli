@@ -1,5 +1,6 @@
 /** @module Ordered Deno server change plans. */
 
+import { planTestTasks } from "./deno-test-tasks.ts";
 import { removeLegacyServerAdapter } from "./deno-server-legacy.ts";
 import { denoServerTasks } from "./deno-server-tasks.ts";
 import { sameJson } from "../operations/local-plan-state.ts";
@@ -96,6 +97,11 @@ export async function planEnableDenoServer(
       }
     }
   }
+  if (config.kind === "config") {
+    changes.push(
+      ...planTestTasks(context, config.value, config.path, "deno-server", true),
+    );
+  }
   for (const path of ["src", "src/server", "test"]) {
     if ((await context.files.observe(path)).kind === "absent") {
       changes.push({ kind: "create-directory", path });
@@ -176,6 +182,17 @@ export async function planDisableDenoServer(
     addServerCliArtifacts(
       changes,
       await inspectDenoCliArtifacts(context, false),
+    );
+  }
+  if (config.kind === "config") {
+    changes.push(
+      ...planTestTasks(
+        context,
+        config.value,
+        config.path,
+        "deno-server",
+        false,
+      ),
     );
   }
   // Keep the feature visible until task and registry cleanup succeeds.

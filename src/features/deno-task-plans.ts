@@ -7,6 +7,7 @@ import type {
 } from "../api/feature-operation.ts";
 import type { PlannedChange } from "../api/planned-change.ts";
 import type { OperationContext } from "../api/repository-context.ts";
+import { planTestTasks, testTaskTransition } from "./deno-test-tasks.ts";
 import { denoFmtSubject } from "./deno-fmt-inspection.ts";
 import { inspectDenoTask } from "./deno-task-inspection.ts";
 import {
@@ -36,6 +37,21 @@ export async function checkDenoTask(
       warnings: [],
     };
   }
+  if (id === "deno-test" && enable && state.kind === "tasks") {
+    const { conflicts } = testTaskTransition(
+      context,
+      state.config.value,
+      id,
+      enable,
+    );
+    if (conflicts.length && !selected(context, id)) {
+      return blocked(
+        `Deno task ${
+          conflicts[0]
+        } conflicts. Re-run with --repair to replace it.`,
+      );
+    }
+  }
   if (state.kind === "tasks" && !state.aggregate && !selected(context, id)) {
     return blocked(
       "The check aggregate conflicts. Re-run with --repair to replace it.",
@@ -53,7 +69,8 @@ export async function checkDenoTask(
     !enable && state.kind === "tasks" && state.present && !state.exact
   ) return blocked("Deno task definition conflicts and cannot be removed.");
   if (
-    (enable && state.kind === "tasks" && state.exact && state.aggregate) ||
+    (enable && state.kind === "tasks" && state.exact && state.aggregate &&
+      state.auxiliary) ||
     (!enable && (!state.exact || state.kind === "absent"))
   ) {
     return {
@@ -90,6 +107,17 @@ export async function planDenoTask(
         expected: leafTaskDefinitions[id],
       });
     }
+  }
+  if (state.kind === "tasks" && id === "deno-test") {
+    changes.push(
+      ...planTestTasks(
+        context,
+        state.config.value,
+        state.config.path,
+        id,
+        enable,
+      ),
+    );
   }
   if (state.kind === "tasks" && ownsAggregate(context, id)) {
     const enabled = desiredTaskIds(context, state.tasks);
