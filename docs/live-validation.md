@@ -472,8 +472,95 @@ registry and local publisher, but did not run an authenticated npm publication
 inside GitHub Actions. The [npm publication guide](npm-publication.md) describes
 the workflow authentication contract.
 
-This repository also uses the non-publishing `npm-build` example. Its packed
-archive installed locally and the installed `hj --help` command included
-`release publish-npm`. The CLI launcher requires Deno on `PATH`. The local
-runner grants npm subprocess and registry access specifically for the npm
-publication command.
+The earlier local CLI archive used a Deno launcher. The native package checks
+below replace that launch contract. The scratchpad evidence above still records
+the separate library publication test.
+
+## Native CLI publication, 2026-09-12
+
+The first native CLI release is
+[0.11.0](https://github.com/hugojosefson/cli/releases/tag/0.11.0), published to
+[JSR](https://jsr.io/@hugojosefson/cli@0.11.0) and
+[npm](https://registry.npmjs.org/@hugojosefson%2fcli/0.11.0). Its lightweight
+tag points to source commit `012e74de5664d81be549bced9f8b488430227f11`. The
+[tag workflow](https://github.com/hugojosefson/cli/actions/runs/34699166616) and
+[JSR publication](https://github.com/hugojosefson/cli/actions/runs/34700185052)
+succeeded. The published JSR manifest and its public provenance connect this
+exact tag to the source that contains the native implementation.
+
+For release 0.11.0, the shared suite ran in Deno 2.9.6, Node.js 24.21.0, Node.js
+26.2.0, and Bun 1.4.2 on Linux x64 with glibc. Each runtime executed the same
+729 test bodies across 113 files. Deno coverage measured 90.9% lines, 92.0%
+branches, and 94.9% functions, above the unchanged project thresholds.
+
+The public npm package contains its JSR dependencies. Fresh and reused npm 11,
+npm 12, and Bun caches passed the advertised package-name commands without
+consumer JSR registry configuration. Help, repository inspection, and a local
+EditorConfig repair ran with no Deno executable available. A project task then
+obtained Deno 2.9.6, used that executable for its nested task, and reused the
+cache with the CLI's offline option. Bun also ran without Node or npm in PATH.
+An isolated npm prefix passed global installation, update, execution, and
+removal without changing the user's global installation.
+
+The released JSR npm-compatibility package also passed help and local repository
+inspection under Node.js 24, Node.js 26, and Bun with normal JSR client registry
+configuration. This check covered its converted source entry and JSON assets. It
+is separate from the bundled npm package.
+
+The first npm upload used the archive validated by the guarded publisher from
+the clean release tag. A personal npm web login and publication approval
+authorized the upload. Public metadata matches the release source and this
+archive integrity:
+
+```text
+sha512-AMUt0aAcNT34cA5P/RGLk9SXLKlRMxEDhHjdmx9kl+rZRTO//i8NiVgmBYCHQOb13Q/ffZXsu5Zaw2cach1lVg==
+```
+
+During the initial publication audit, the installed CLI, checkout CLI, and
+public npm command produced identical feature output: 53 features, with 27
+enabled and 26 intentionally disabled. No feature reported drift or ambiguity.
+
+After public runtime checks passed, the JSR management API accepted the runtime
+update. A public read on 2026-09-12 confirmed Deno, Node, and Bun as supported;
+browser and Workers remained unsupported.
+
+Repeating the guarded publisher from the clean 0.11.0 tag rebuilt the archive
+and verified identical public bytes without another upload. npm trust is
+configured for repository `hugojosefson/cli` and workflow
+`hj-release-publish-npm.yaml`, with no environment. Its saved permissions allow
+publication.
+
+[PR #106](https://github.com/hugojosefson/cli/pull/106) updated the artifact
+actions to upload v7.0.1 and download v8.0.1, which use Node 24. Its
+[final CI run](https://github.com/hugojosefson/cli/actions/runs/34702476496)
+passed all six checks with no annotations. Each runtime executed the same 736
+test bodies across 114 files. The merged fix is
+`7ab05a025521ef1ebda0bb2451f1abbd95941061`.
+
+The first automated npm upload published
+[0.12.0](https://registry.npmjs.org/@hugojosefson%2fcli/0.12.0) through the
+[trusted workflow](https://github.com/hugojosefson/cli/actions/runs/34703513866).
+The job used GitHub Actions identity through npm trust, with no repository npm
+token. The exact release tag, registry `gitHead`, workflow source, and signed
+provenance all identify `ec9fb8eafc9ad315cb90c298a84d93f1384d1254`.
+`npm audit signatures` passed for an isolated installation. The public archive's
+integrity matches its attestation:
+
+```text
+sha512-jRatvFbmAmMuUTBkJK0T2z7FXiPBhUNh1T23POtZ6bAKGwFYk2fNaFVxY8duqDjHH/yTWmJiVRdb4nauoaRCvg==
+```
+
+The matching
+[JSR publication](https://github.com/hugojosefson/cli/actions/runs/34703513968)
+also succeeded. Its public provenance connects the pinned manifest to that exact
+source and includes the artifact-action fix. The version-pinned generator
+contains the new action references and neither old reference.
+
+A final audit used the public 0.12.0 package under Node.js 24 and Bun against
+the release checkout with these documentation changes. Both outputs matched
+`deno task hj repo features` exactly: 54 features, with 28 enabled and 26
+intentionally disabled. No feature reported drift or ambiguity. Help and the
+full repository inspection ran without Deno in PATH or an acquired Deno cache.
+The installed CLI also matched the checkout before the final release-version
+update. The grouped changelog feature accounts for the additional enabled
+feature since the initial publication audit.
