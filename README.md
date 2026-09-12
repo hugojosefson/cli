@@ -45,7 +45,7 @@ Choose one of the supported runtimes:
 
 ### Node.js
 
-Inspect the current repository without a global install:
+Inspect the current directory without a global install:
 
 ```bash
 npx @hugojosefson/cli repo features
@@ -61,7 +61,7 @@ Run this command again to upgrade to the latest release.
 
 ### Bun
 
-Inspect the current repository without a global install:
+Inspect the current directory without a global install:
 
 ```bash
 bunx --bun --package @hugojosefson/cli hj repo features
