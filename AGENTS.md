@@ -24,6 +24,9 @@ When implementing Project issues, follow these rules:
     `main`.
 12. Make sure that the Project moves closed issues to `Done`.
 13. Enable auto-merge with the rebase method for completed pull requests.
+14. Use each implemented feature on this repository where relevant and
+    non-destructive. Apply useful examples, such as README badges, and record
+    the checks. This includes previously completed and future issue work.
 
 Use Conventional Commit subjects, such as
 `feat(package): resolve package identity`.
