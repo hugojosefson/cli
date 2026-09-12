@@ -1,6 +1,7 @@
 import { assertEquals } from "@std/assert";
 import type { ArtifactObservation } from "../api/artifact-inspection.ts";
 import type { OperationContext } from "../api/repository-context.ts";
+import { createLicenseApache20Feature } from "./license-apache-2.0-feature.ts";
 import { createLicenseMitFeature } from "./license-mit-feature.ts";
 
 const template = "Copyright <year> <copyright holders>\nterms\n";
@@ -168,12 +169,194 @@ function file(content: string, mode = 0o644): ArtifactObservation {
 }
 function readme(observation: ArtifactObservation): ArtifactObservation {
   if (observation.kind !== "file") return { kind: "absent" };
-  const label = observation.content.startsWith("Copyright")
-    ? "MIT"
-    : "Apache-2.0";
-  return file(`## License\n\n[${label}](./LICENSE)\n\n`);
+  const label =
+    /^(?:Copyright|MIT License)/.test(observation.content.trimStart())
+      ? "MIT"
+      : "Apache-2.0";
+  return file(`## License\n\n[${label}](./LICENSE)\n`);
 }
 
 function source(value: string) {
   return () => Promise.resolve(value);
 }
+
+// Pinned SPDX MIT text and the reported repository LICENSE, respectively.
+const mitTemplate = `MIT License
+
+Copyright (c) <year> <copyright holders>
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and
+associated documentation files (the "Software"), to deal in the Software without restriction, including
+without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the
+following conditions:
+
+The above copyright notice and this permission notice shall be included in all copies or substantial
+portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT
+LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO
+EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+USE OR OTHER DEALINGS IN THE SOFTWARE.
+`;
+const reportedMit = `MIT License
+
+Copyright © 2025 Hugo Josefson
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of
+this software and associated documentation files (the "Software"), to deal in
+the Software without restriction, including without limitation the rights to
+use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+the Software, and to permit persons to whom the Software is furnished to do so,
+subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+`;
+
+Deno.test("MIT recognizes equivalent copyright markers and line formatting without rewriting", async (t) => {
+  const canonical = mitTemplate.replace("<year>", "2025").replace(
+    "<copyright holders>",
+    "Hugo Josefson",
+  );
+  const cases = new Map([
+    ["copyright marker only", canonical.replace("(c)", "©")],
+    ["line wrapping only", reportedMit.replace("©", "(c)")],
+    ["reported copyright and wrapping", reportedMit],
+    ["CRLF", reportedMit.replaceAll("\n", "\r\n")],
+    ["missing final newline", reportedMit.trimEnd()],
+    [
+      "blank lines and surrounding whitespace",
+      `\n${reportedMit.replaceAll("\n\n", "\n\n\n")}\n`,
+    ],
+    ["single line", canonical.replaceAll(/\s+/g, " ").trim()],
+  ]);
+  for (const [name, content] of cases) {
+    await t.step(name, async () => {
+      const feature = createLicenseMitFeature(
+        source(mitTemplate),
+        source(apacheTemplate),
+      );
+      const current = context(file(content));
+      assertEquals((await feature.detect(current)).state, "enabled");
+      assertEquals((await feature.checkEnable(current)).result, "no-op");
+      const drift = context(file(content, 0o444), {}, {
+        kind: "features",
+        featureIds: ["license-mit"],
+      });
+      const repair = await feature.checkEnable(drift);
+      if (repair.result !== "allowed") throw new Error("expected repair");
+      const plan = await feature.planEnable(drift, repair);
+      assertEquals(plan.changes, [{
+        kind: "set-file-mode",
+        path: "LICENSE",
+        mode: 0o644,
+        expectedMode: 0o444,
+      }]);
+      assertEquals(plan.preconditions, [{
+        kind: "file-digest",
+        path: "LICENSE",
+        digest: "digest",
+      }]);
+    });
+  }
+  const symbolTemplate = createLicenseMitFeature(
+    source(mitTemplate.replace("(c)", "©")),
+    source(apacheTemplate),
+  );
+  assertEquals(
+    (await symbolTemplate.detect(context(file(canonical)))).state,
+    "enabled",
+  );
+});
+
+Deno.test("MIT rejects substantive edits and unsafe attribution despite equivalent formatting", async (t) => {
+  const feature = createLicenseMitFeature(
+    source(mitTemplate),
+    source(apacheTemplate),
+  );
+  const cases = new Map([
+    ["changed terms", reportedMit.replace("free of charge", "for a fee")],
+    ["missing terms", reportedMit.replace("sublicense, ", "")],
+    [
+      "added terms",
+      reportedMit.replace(
+        "subject to the following conditions:",
+        "subject to the following conditions: Payment is required.",
+      ),
+    ],
+    [
+      "added paragraph after holder",
+      reportedMit.replace(
+        "Hugo Josefson",
+        "Hugo Josefson\nPayment is required.",
+      ),
+    ],
+    ["added trailing terms", reportedMit + "Payment is required.\n"],
+    ["invalid year", reportedMit.replace("2025", "25")],
+    ["missing holder", reportedMit.replace("Hugo Josefson", "")],
+    [
+      "multiline holder",
+      reportedMit.replace("Hugo Josefson", "Hugo\nJosefson"),
+    ],
+    ["CRLF holder", reportedMit.replace("Hugo Josefson", "Hugo\r\nJosefson")],
+    ["slash in holder", reportedMit.replace("Hugo Josefson", "Hugo/Josefson")],
+    [
+      "backslash in holder",
+      reportedMit.replace("Hugo Josefson", "Hugo\\Josefson"),
+    ],
+    ["NUL in holder", reportedMit.replace("Hugo Josefson", "Hugo\0Josefson")],
+    ["dot holder", reportedMit.replace("Hugo Josefson", ".")],
+    ["parent holder", reportedMit.replace("Hugo Josefson", "..")],
+    ["joined words", reportedMit.replace("free of", "freeof")],
+  ]);
+  for (const [name, content] of cases) {
+    await t.step(name, async () => {
+      const current = context(file(content));
+      assertEquals((await feature.detect(current)).state, "ambiguous");
+      assertEquals((await feature.checkEnable(current)).result, "blocked");
+      assertEquals((await feature.checkDisable(current)).result, "blocked");
+    });
+  }
+});
+
+Deno.test("alternate providers recognize equivalent MIT text and guard replacement with its digest", async () => {
+  const feature = createLicenseApache20Feature(
+    source(apacheTemplate),
+    source(mitTemplate),
+  );
+  const current = context(file(reportedMit), {
+    licenseHolder: "Ada",
+    licenseYear: "2026",
+  });
+  assertEquals((await feature.detect(current)).state, "disabled");
+  const check = await feature.checkEnable(current);
+  if (check.result !== "allowed") throw new Error("expected replacement");
+  const plan = await feature.planEnable(current, check);
+  assertEquals(plan.preconditions, [{
+    kind: "file-digest",
+    path: "LICENSE",
+    digest: "digest",
+  }]);
+  assertEquals(plan.changes[0], {
+    kind: "write-file",
+    path: "LICENSE",
+    content: "Apache 2026 Ada\nterms\n",
+    mode: 0o644,
+    expectedDigest: "digest",
+  });
+  assertEquals(
+    (await feature.detect(
+      context(file(reportedMit.replace("free of charge", "for a fee"))),
+    )).state,
+    "ambiguous",
+  );
+});
