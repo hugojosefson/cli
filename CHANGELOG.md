@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.14.1
+
+### Fixes
+
+#### readme
+
+- order all badges after the first paragraph
+  ([5d01d2b](https://github.com/hugojosefson/cli/commit/5d01d2b7d235af3a94739e94cab25387dc526e2b))
+- keep badge rows outside owned guide sections
+  ([b06e4b5](https://github.com/hugojosefson/cli/commit/b06e4b59ac533f25b582c13a8856f2f7d7a3f54c))
+
 ## 0.14.0
 
 ### Features
