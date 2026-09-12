@@ -45,13 +45,7 @@ Choose one of the supported runtimes:
 
 ### Node.js
 
-Inspect the current directory without a global install:
-
-```bash
-npx @hugojosefson/cli repo features
-```
-
-Or install the `hj` command globally:
+Install the `hj` command globally:
 
 ```bash
 npm install --global @hugojosefson/cli@latest
@@ -61,13 +55,7 @@ Run this command again to upgrade to the latest release.
 
 ### Bun
 
-Inspect the current directory without a global install:
-
-```bash
-bunx --bun --package @hugojosefson/cli hj repo features
-```
-
-Or install the `hj` command globally:
+Install the `hj` command globally:
 
 ```bash
 bun add --global @hugojosefson/cli@latest
@@ -79,13 +67,7 @@ Use `bun run --bun hj` in place of `hj` in the examples below.
 
 ### Deno
 
-Inspect the current directory without a global install:
-
-```bash
-deno run --allow-all jsr:@hugojosefson/cli repo features
-```
-
-Or install `hj` from [JSR](https://jsr.io/@hugojosefson/cli) globally:
+Install `hj` from [JSR](https://jsr.io/@hugojosefson/cli) globally:
 
 ```bash
 deno install --global --allow-all --reload --force --name hj jsr:@hugojosefson/cli
@@ -96,11 +78,41 @@ Run this command again to upgrade to the latest release.
 If needed, add the binary directory printed by Deno to your `PATH`. The command
 grants full Deno permissions so `hj` can manage files and run external tools.
 
-Deno delays new dependencies for 24 hours by default. To use a release
-immediately, add `--min-dep-age=0` to either Deno command above. This skips the
+Deno delays new dependencies for 24 hours by default. For immediate use, add
+`--min-dep-age=0` to the Deno installation or execution command. This skips the
 delay for that command. See the
 [Deno installation reference](https://docs.deno.com/runtime/reference/cli/install/)
 for more options.
+
+## Non-install
+
+<details>
+
+<summary>Run without a global installation</summary>
+
+Inspect the current directory without a global install:
+
+### Node.js
+
+```bash
+npx @hugojosefson/cli repo features
+```
+
+### Bun
+
+```bash
+bunx --bun --package @hugojosefson/cli hj repo features
+```
+
+### Deno
+
+```bash
+deno run --allow-all jsr:@hugojosefson/cli repo features
+```
+
+For newly published releases, see the [Deno dependency-age note](#deno).
+
+</details>
 
 ## Start here
 
