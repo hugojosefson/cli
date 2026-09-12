@@ -1,5 +1,28 @@
 # Changelog
 
+## 0.6.0
+
+- fix(readme): attribute cumulative guide blocks to their features
+- feat(readme): generate feature-owned package guides
+- fix(readme): project complete file observations for feature planning
+- feat(config): add non-secret global defaults
+- docs(config): clarify default feature selection
+- fix(readme): retain block ownership after formatting
+- test(readme): verify package guide commits and require repository examples
+- fix(readme): preserve unchanged formatted contribution blocks
+- feat(readme): migrate legacy README sources
+- chore: use final project checks during repository feature updates
+- chore(git-ignore): enable feature
+- chore(jsr-package): enable feature
+- chore(github-ci): enable feature
+- fix(readme): preserve custom Install sections during repository adoption
+- chore(jsr-package): enable feature
+- chore(github-ci): enable feature
+- fix(features): preserve offline badges and ignore generated coverage during
+  formatting
+- test(install): expect generated coverage formatting exclusion
+- chore(github-ci): enable feature
+
 ## 0.5.0
 
 - feat(cli): run final project tasks before feature commits
