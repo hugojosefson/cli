@@ -9,7 +9,7 @@ import {
 import { test as nativeTest } from "node:test";
 import { trackTests } from "../testing/inventory-test-fixtures.ts";
 const test = trackTests(import.meta.url, nativeTest);
-import { runCommand } from "../runtime/command.ts";
+import { runRawCommand as runCommand } from "../runtime/command.ts";
 import {
   assert,
   assertEquals,
@@ -606,7 +606,7 @@ test("unavailable GitHub observations preserve an owned CI badge until explicit 
 });
 
 for (const provider of ["readme-static", "readme-build"]) {
-  Deno.test(`${provider} migrates legacy API sections to library ownership and removes them from CLI packages`, async () => {
+  test(`${provider} migrates legacy API sections to library ownership and removes them from CLI packages`, async () => {
     await fixture(async (root) => {
       await enable(root, provider);
       const path = provider === "readme-build"
@@ -616,13 +616,13 @@ for (const provider of ["readme-static", "readme-build"]) {
         "hj:readme deno-lib:api",
         "hj:readme jsr-package:api",
       );
-      await Deno.writeTextFile(new URL(path, root), legacy);
+      await writeTextFile(new URL(path, root), legacy);
       await runCli(root, ["repo", "features", "--deno-lib", "--yes"]);
       const output = await read(root, "README.md");
       assertStringIncludes(output, "hj:readme deno-lib:api");
       assertEquals(output.match(/## API/g)?.length, 1);
       assertEquals(output.includes("hj:readme jsr-package:api"), false);
-      await Deno.writeTextFile(
+      await writeTextFile(
         new URL(path, root),
         (await read(root, path)).replace(
           "hj:readme deno-lib:api",
@@ -637,7 +637,7 @@ for (const provider of ["readme-static", "readme-build"]) {
   });
 }
 
-Deno.test("customized legacy API sections survive ownership migration", async () => {
+test("customized legacy API sections survive ownership migration", async () => {
   await fixture(async (root) => {
     await enable(root, "readme-static");
     const source = (await read(root, "README.md"))
@@ -646,7 +646,7 @@ Deno.test("customized legacy API sections survive ownership migration", async ()
         "See the API documentation on",
         "Our custom API documentation is on",
       );
-    await Deno.writeTextFile(new URL("README.md", root), source);
+    await writeTextFile(new URL("README.md", root), source);
     await runCli(root, ["repo", "features", "--deno-lib", "--yes"]);
     const output = await read(root, "README.md");
     assertStringIncludes(output, "Our custom API documentation is on");

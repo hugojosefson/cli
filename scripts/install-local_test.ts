@@ -7,7 +7,7 @@ import {
   readTextFile,
   remove,
 } from "../src/testing/files-test-fixtures.ts";
-import { runCommand } from "../src/runtime/command.ts";
+import { runRawCommand as runCommand } from "../src/runtime/command.ts";
 import { assertEquals, assertStringIncludes } from "@std/assert";
 
 test("installed hj keeps the caller directory and works outside the checkout", async () => {

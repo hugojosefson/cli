@@ -1,4 +1,6 @@
-import { test } from "node:test";
+import { test as nativeTest } from "node:test";
+import { trackTests } from "../testing/inventory-test-fixtures.ts";
+const test = trackTests(import.meta.url, nativeTest);
 import {
   assertEquals,
   assertRejects,

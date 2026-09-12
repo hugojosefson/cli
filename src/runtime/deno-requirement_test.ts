@@ -1,5 +1,7 @@
-import { test } from "node:test";
-import { runCommand } from "./command.ts";
+import { test as nativeTest } from "node:test";
+import { trackTests } from "../testing/inventory-test-fixtures.ts";
+const test = trackTests(import.meta.url, nativeTest);
+import { runRawCommand as runCommand } from "./command.ts";
 import { assert, assertEquals, assertRejects, assertThrows } from "@std/assert";
 import * as fs from "node:fs/promises";
 import { join } from "node:path";

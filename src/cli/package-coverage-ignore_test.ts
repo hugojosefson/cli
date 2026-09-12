@@ -9,7 +9,7 @@ import {
   remove,
   writeTextFile,
 } from "../testing/files-test-fixtures.ts";
-import { runCommand } from "../runtime/command.ts";
+import { runRawCommand as runCommand } from "../runtime/command.ts";
 import { assert, assertEquals, assertStringIncludes } from "@std/assert";
 import { fromFileUrl, toFileUrl } from "@std/path";
 import { builtInFeatureRegistry } from "../features/built-in-feature-registry.ts";

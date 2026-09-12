@@ -1,8 +1,11 @@
+import { test as nativeTest } from "node:test";
+import { trackTests } from "../testing/inventory-test-fixtures.ts";
+const test = trackTests(import.meta.url, nativeTest);
 import { assertEquals, assertStringIncludes } from "@std/assert";
 import { featureRecommendations } from "./feature-recommendations.ts";
 import type { ChangePlan } from "../api/change-plan.ts";
 
-Deno.test("auto-add recommendation belongs only to a changed enabled default project", () => {
+test("auto-add recommendation belongs only to a changed enabled default project", () => {
   const plan: ChangePlan = {
     featureId: "github-default-project",
     action: "enable",
