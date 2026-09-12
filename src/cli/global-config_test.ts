@@ -262,7 +262,7 @@ Deno.test("configured interactive selections take priority over remaining prompt
     kind: "capability" as const,
     capabilityId: "readme",
   }];
-  const request = interactiveFeatureRequest(
+  const request = await interactiveFeatureRequest(
     registry,
     detections,
     defaults,
@@ -281,7 +281,7 @@ Deno.test("configured interactive selections take priority over remaining prompt
   assertEquals(request.defaults, defaults);
   assertEquals(request.applyDefaults, true);
   assertEquals(request.changes, [{ featureId: "git", enabled: true }]);
-  assertThrows(
+  await assertRejects(
     () =>
       interactiveFeatureRequest(
         registry,
@@ -293,19 +293,19 @@ Deno.test("configured interactive selections take priority over remaining prompt
     "conflicts",
   );
   assertEquals(
-    interactiveFeatureRequest(registry, detections, undefined, () => [])
+    (await interactiveFeatureRequest(registry, detections, undefined, () => []))
       .applyDefaults,
     false,
   );
   assertEquals(
-    interactiveFeatureRequest(
+    (await interactiveFeatureRequest(
       { features: [], capabilities: [] },
       new Map(),
       [],
       () => {
         throw new Error("unexpected prompt");
       },
-    ).changes,
+    )).changes,
     [],
   );
 });

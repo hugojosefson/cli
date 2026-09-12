@@ -72,6 +72,27 @@ To change features, append feature flags from the
 needed by the CLI. Each command still applies its own checks and confirmation
 rules.
 
+## Interactive prompts
+
+All application prompts use the pinned `@inquirer/core` dependency. The terminal
+adapter loads the library only for TTY input. Help, repository inspection, and
+noninteractive text fallbacks do not read prompt-specific environment variables.
+
+Feature selection supports literal, case-insensitive filtering, arrow
+navigation, space to toggle, and Enter to confirm. Selections survive filter
+changes and keep selection order. Ctrl+C, Escape, and EOF cancel without
+applying any actions or configured defaults. Text prompts require an explicit
+answer and keep the existing visibility, scope, and attribution validation in
+their callers.
+
+Run `deno task test src/cli/terminal-prompt_test.ts` for stream-based keyboard,
+cancellation, and cleanup checks. Before changing the prompt dependency, repeat
+those cases in a pseudo-terminal on the supported Deno, Node, and Bun versions.
+Check nonmatching filters, punctuation, repeated toggles, text backspace,
+Ctrl+C, Ctrl+D, terminal raw-mode restoration, and the command's exit status.
+The test runner grants `TERM` and `CLI_WIDTH` for the library's terminal
+rendering.
+
 ## Package checks
 
 `deno task publish-check` runs `deno publish --dry-run` with full type checks

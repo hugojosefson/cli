@@ -12,11 +12,11 @@ import type {
 import { FeatureCommitSession } from "./git-feature-commit.ts";
 import type { GithubSetupArguments } from "./parse-features.ts";
 
-export type VisibilityPrompt = () => string | null;
-export function promptGithubVisibility(): string | null {
-  return Deno.stdin.isTerminal()
-    ? globalThis.prompt("GitHub repository visibility (public or private)")
-    : null;
+import { promptTerminalText } from "./terminal-prompt.ts";
+
+export type VisibilityPrompt = () => string | null | Promise<string | null>;
+export function promptGithubVisibility(): Promise<string | null> {
+  return promptTerminalText("GitHub repository visibility (public or private)");
 }
 
 export async function setupGithubRepository(
@@ -52,7 +52,7 @@ export async function setupGithubRepository(
     : request.presets.includes("github")
     ? "private"
     : args.defaultGithubVisibility ??
-      (args.confirmation ? undefined : prompt()?.trim());
+      (args.confirmation ? undefined : (await prompt())?.trim());
   if (visibility !== "public" && visibility !== "private") {
     throw new Error(
       "GitHub visibility is unresolved. Supply --github-private or --github-public, or set hj config set github-visibility public (or private). --yes does not select visibility.",

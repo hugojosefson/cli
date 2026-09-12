@@ -7,7 +7,7 @@ Deno.test("interactive selection fails clearly when stdin is not a terminal", as
       "eval",
       `import { promptFeatureActions } from ${
         JSON.stringify(module)
-      }; promptFeatureActions([{ label: "Enable Git", value: "git" }]);`,
+      }; await promptFeatureActions([{ label: "Enable Git", value: "git" }]);`,
     ],
     stdin: "null",
     stdout: "piped",

@@ -7,12 +7,17 @@ import {
 } from "../package/metadata.ts";
 import type { JsrScopeReader } from "../repository/jsr-scope-reader.ts";
 
-export type JsrScopePrompt = (scopes: readonly string[]) => string | null;
+import { promptTerminalText } from "./terminal-prompt.ts";
+
+export type JsrScopePrompt = (
+  scopes: readonly string[],
+) => string | null | Promise<string | null>;
 
 /** An empty answer never selects the first scope, including with --yes. */
-export function promptJsrScope(scopes: readonly string[]): string | null {
-  if (!Deno.stdin.isTerminal()) return null;
-  return globalThis.prompt(`Select a JSR scope (${scopes.join(", ")})`);
+export function promptJsrScope(
+  scopes: readonly string[],
+): Promise<string | null> {
+  return promptTerminalText(`Select a JSR scope (${scopes.join(", ")})`);
 }
 
 export async function resolveJsrScope(
@@ -66,7 +71,7 @@ export async function resolveJsrScope(
     );
   }
   if (result.scopes.length === 1) return { jsrScope: result.scopes[0] };
-  const choice = prompt?.(result.scopes)?.trim();
+  const choice = (await prompt?.(result.scopes))?.trim();
   if (choice && result.scopes.includes(choice)) return { jsrScope: choice };
   throw new Error(
     `Select a JSR scope with --jsr-scope=<scope>. Available scopes: ${
