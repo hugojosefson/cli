@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.15.0
+
+### Features
+
+#### ci
+
+- record native inputs with read-only PR caches
+  ([727698c](https://github.com/hugojosefson/cli/commit/727698c7d08f954b5d335e2c9b8dd89981a3b3c0))
+
+### Other
+
+#### ci
+
+- pin workflow source and record cache decision
+  ([1fd6af8](https://github.com/hugojosefson/cli/commit/1fd6af80df569b78a140050942a69b50d0bef51b))
+
 ## 0.14.3
 
 ### Fixes
