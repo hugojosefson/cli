@@ -1,3 +1,22 @@
+# Pull requests and release completion
+
+These rules apply to every repository fix, including fixes requested directly in
+chat without a Project issue.
+
+1. Create a pull request for the fix.
+2. Enable auto-merge with the rebase method when the fix passes its required
+   checks.
+3. Monitor the pull request through review, checks, and merger. Address relevant
+   feedback and failed checks until the pull request merges.
+4. After merger, monitor the release workflow until publication to JSR succeeds.
+   Investigate and resolve release failures within the authorized scope.
+5. Verify that a stable JSR package version contains the merged fix. Inspect the
+   version-pinned package files or publication provenance that connects to the
+   merged source. A higher version or a GitHub release alone does not suffice.
+6. Report the fix as complete only after this verification. Include the pull
+   request and JSR version links. If an external blocker prevents progress,
+   report the blocker and keep the release work pending.
+
 # Repository issue work
 
 Read [docs/development.md](docs/development.md) before changing the code. Use
