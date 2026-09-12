@@ -1,7 +1,7 @@
 /** @module Release-version changes for Deno JSON and JSONC configuration. */
 
 import { applyEdits, modify, parse, type ParseError } from "jsonc-parser";
-import type { DenoConfigPath } from "../features/deno-config.ts";
+import type { DenoConfigPath } from "../repository/read-deno-config.ts";
 import { parseSemver } from "./semver.ts";
 
 /** Replaces the top-level version without discarding JSONC comments or layout. */

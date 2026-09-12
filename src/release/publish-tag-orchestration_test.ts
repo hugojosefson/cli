@@ -15,7 +15,10 @@ import {
   assertStringIncludes,
 } from "@std/assert";
 import { fromFileUrl, toFileUrl } from "@std/path";
-import { publishTagPrepare } from "./publish-tag-prepare.ts";
+import {
+  isolatedReleaseProcess as localReleaseProcess,
+  prepareReleaseFixture as publishTagPrepare,
+} from "./release-core-test-fixtures.ts";
 import {
   publishTagApply,
   type PublishTagApplyGithub,
@@ -29,11 +32,7 @@ import {
   parseReleaseOwnershipMarker,
   type ReleaseOwnership,
 } from "./release-pr.ts";
-import {
-  localReleaseProcess,
-  type ReleaseProcess,
-  runOrThrow,
-} from "./release-process.ts";
+import { type ReleaseProcess, runOrThrow } from "./release-process.ts";
 import {
   releaseCheckIntegrationId,
   type SyntheticCheckRun,

@@ -3,7 +3,7 @@ import { isNotFound } from "../runtime/errors.ts";
 import * as fs from "node:fs/promises";
 import { digestBytes } from "../repository/digest-bytes.ts";
 import { LocalFileReader } from "../repository/local-file-reader.ts";
-import { inspectDenoConfig } from "../features/deno-config.ts";
+import { readDenoConfig } from "../repository/read-deno-config.ts";
 import {
   applyBundleChangelog,
   type ReleaseBundle,
@@ -74,7 +74,7 @@ async function revalidatePreviousRelease(
   process: ReleaseProcess,
   bundle: ReleaseBundle,
 ): Promise<void> {
-  const config = await inspectDenoConfig({
+  const config = await readDenoConfig({
     files: new LocalFileReader(root, false),
   });
   if (config.kind !== "config" || typeof config.value.version !== "string") {
