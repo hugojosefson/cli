@@ -172,7 +172,7 @@ ${
       job === "npm"
         ? `      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
-          node-version: '24'
+          node-version: "24"
           registry-url: https://registry.npmjs.org
       - name: Select npm CLI
         run: npm install --global npm@11.11.1 --ignore-scripts
