@@ -45,6 +45,10 @@
     ]
   },
   "tasks": {
+    "default": {
+      "description": "Format project files, then run all checks",
+      "command": "deno task fmt && deno task all"
+    },
     "fmt": {
       "description": "Format project source",
       "command": "deno fmt"

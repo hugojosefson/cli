@@ -14,6 +14,7 @@ Tasks provide the supported development interface:
 | Command                                                        | Purpose                                                       |
 | -------------------------------------------------------------- | ------------------------------------------------------------- |
 | `deno task hj --help`                                          | Show the local CLI commands.                                  |
+| `deno task default`                                            | Format files, then run all checks with coverage.              |
 | `deno task fmt`                                                | Format source, tooling, workflows, and documentation.         |
 | `deno task all`                                                | Run all checks without coverage collection.                   |
 | `deno task typecheck`                                          | Type-check source and scripts with frozen dependencies.       |
