@@ -11,15 +11,17 @@ import {
   selectedFeatureActionsToRequest,
 } from "./feature-actions.ts";
 
-export function interactiveFeatureRequest(
+export async function interactiveFeatureRequest(
   registry: FeatureRegistry,
   detections: ReadonlyMap<string, FeatureDetection>,
   defaults: readonly DefaultSelection[] | undefined,
-  select: (actions: readonly FeatureAction[]) => readonly string[],
-): FeatureChangeRequest {
+  select: (
+    actions: readonly FeatureAction[],
+  ) => readonly string[] | Promise<readonly string[]>,
+): Promise<FeatureChangeRequest> {
   if (defaults === undefined) {
     return selectedFeatureActionsToRequest(
-      select(featureActions(registry, detections)),
+      await select(featureActions(registry, detections)),
     );
   }
   const reserved = new Set<string>();
@@ -53,7 +55,7 @@ export function interactiveFeatureRequest(
     !reserved.has(action.value.slice(action.value.indexOf(":") + 1))
   );
   const permitted = new Set(available.map((action) => action.value));
-  const values = available.length ? select(available) : [];
+  const values = available.length ? await select(available) : [];
   if (values.some((value) => !permitted.has(value))) {
     throw new Error(
       "Interactive selection conflicts with configured defaults.",

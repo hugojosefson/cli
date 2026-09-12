@@ -4,6 +4,8 @@ import {
   assertRejects,
   assertStringIncludes,
 } from "@std/assert";
+import { PromptCancelled } from "./prompt-cancelled.ts";
+import { LocalGithubClient } from "../repository/local-github-client.ts";
 import type { FeatureRegistry } from "../features/feature-registry.ts";
 import { builtInFeatureRegistry } from "../features/built-in-feature-registry.ts";
 import { denoFmtFeature } from "../features/deno-fmt-feature.ts";
@@ -707,3 +709,31 @@ async function deniedServe(root: URL): Promise<void> {
     "Network permission denied.",
   );
 }
+
+Deno.test("interactive cancellation preserves its exit meaning and never applies saved defaults", async () => {
+  await withRepository(async (root) => {
+    class DiagnosticGithub extends LocalGithubClient {
+      override get diagnostics(): readonly string[] {
+        return ["GitHub inspection unavailable."];
+      }
+    }
+    const github = new DiagnosticGithub(root);
+    await assertRejects(
+      () =>
+        runFeatureOperation(
+          root,
+          {
+            kind: "interactive",
+            confirmation: false,
+            configuredDefaults: [{ kind: "feature", featureId: "deno-fmt" }],
+          },
+          builtInFeatureRegistry,
+          () => Promise.reject(new PromptCancelled()),
+          { github },
+        ),
+      PromptCancelled,
+    );
+    assertEquals(await fileExists(root, "deno.jsonc"), false);
+    assertEquals(await fileExists(root, ".git"), false);
+  });
+});

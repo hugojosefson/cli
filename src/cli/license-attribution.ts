@@ -2,7 +2,13 @@
 
 import type { GithubIdentityReader } from "../api/repository-context.ts";
 
-export type AttributionPrompt = () => string | null | undefined;
+import { promptTerminalText } from "./terminal-prompt.ts";
+
+export type AttributionPrompt = () =>
+  | string
+  | null
+  | undefined
+  | Promise<string | null | undefined>;
 export interface AttributionContext {
   readonly githubIdentity?: GithubIdentityReader;
   readonly git: { userName?(): Promise<string | undefined> };
@@ -12,10 +18,11 @@ export interface AttributionContext {
 export async function resolveLicenseAttribution(
   context: AttributionContext,
   prompt: AttributionPrompt = () =>
-    globalThis.prompt("License copyright holder"),
+    promptTerminalText("License copyright holder"),
 ): Promise<{ readonly licenseHolder: string; readonly licenseYear: string }> {
   const viewer = await context.githubIdentity?.viewer();
-  const holder = viewer?.name || await context.git.userName?.() || prompt();
+  const holder = viewer?.name || await context.git.userName?.() ||
+    await prompt();
   if (!holder || !safe(holder)) {
     throw new Error("License attribution is required.");
   }

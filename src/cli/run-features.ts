@@ -46,6 +46,7 @@ import {
 } from "../operations/github-change-plan.ts";
 import { formatFeatureResult, formatFeatureStatus } from "./format-features.ts";
 import { FeatureCommitSession } from "./git-feature-commit.ts";
+import { PromptCancelled } from "./prompt-cancelled.ts";
 import { CommandFailure } from "./command-failure.ts";
 import { runFinalProjectTask } from "./final-project-task.ts";
 import type { FeaturesArguments } from "./parse-features.ts";
@@ -66,7 +67,7 @@ import {
 } from "./license-attribution.ts";
 export type FeatureSelector = (
   actions: readonly FeatureAction[],
-) => readonly string[];
+) => readonly string[] | Promise<readonly string[]>;
 
 export interface FeatureOperationServices {
   readonly colors?: OutputColors;
@@ -151,7 +152,7 @@ export async function runFeatureOperation(
       return await status(detections);
     }
     const request = args.kind === "interactive"
-      ? interactiveFeatureRequest(
+      ? await interactiveFeatureRequest(
         registry,
         detections,
         args.configuredDefaults,
@@ -395,6 +396,7 @@ export async function runFeatureOperation(
       services.colors?.stdout,
     );
   } catch (error) {
+    if (error instanceof PromptCancelled) throw error;
     if (
       error instanceof Error && github instanceof LocalGithubClient &&
       github.diagnostics.length
