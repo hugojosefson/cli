@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.7.5
+
+- fix(git-ignore): preserve valid entries before custom lines
+
 ## 0.7.4
 
 - fix(github): detect repository features during GraphQL outages
