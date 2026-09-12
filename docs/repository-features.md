@@ -429,6 +429,17 @@ For existing `git-hj-init` output, use the
 | `readme-build`  | Build the root README from Markdown includes; requires `deno-fmt`. |
 | `license-*`     | Manage one recognized license and its README link.                 |
 
+Both README providers place all badges on one horizontal line immediately after
+the first prose paragraph, before tables or later sections. Publishing badges
+come first, ordered by publishing feature ID (JSR uses
+`github-release-publish-jsr`), followed by other owned badges in feature ID
+order. Unowned badges come last, retaining their relative order and links.
+Ownership comments can appear inline between badges. Formatter directives keep
+the badge row on one source line. Misplaced or reordered badges are drift;
+`--repair --readme-static` or `--repair --readme-build` moves them without
+replacing the surrounding README text. If no prose paragraph exists, the row
+follows the title.
+
 Only one README provider and one license provider can be enabled at a time. The
 license catalog covers these families:
 

@@ -1,8 +1,10 @@
 /** @module Individually owned README blocks that preserve user edits. */
 import { digestBytes } from "../repository/digest-bytes.ts";
 
-const pattern =
-  /<!-- hj:readme ([\w:-]+) ([a-f0-9]+) -->\n([\s\S]*?)\n<!-- \/hj:readme -->\n?/g;
+import {
+  contributionPattern as pattern,
+  layoutBadges,
+} from "./badge-layout.ts";
 export interface ReadmeContribution {
   readonly id: string;
   readonly content: string;
@@ -79,9 +81,8 @@ export async function reconcileBlocks(
     if (item) text = text.replace(match[0], await wrap(item));
     else {
       const at = text.indexOf(match[0]);
-      const before = text.slice(0, at).replace(/\n+$/, "");
-      const after = text.slice(at + match[0].length).replace(/^\n+/, "");
-      text = before + (after ? "\n\n" + after : "\n");
+      text = text.slice(0, at) + text.slice(at + match[0].length);
+      text = text.replace(/\n{3,}/g, "\n\n").replace(/\n+$/, "\n");
     }
   }
   for (const item of pending.values()) {
@@ -99,27 +100,12 @@ export async function reconcileBlocks(
         ? text.includes("[![JSR")
         : item.id === "github-ci:badge"
         ? text.includes("[![CI]")
-        : npmBadgeImages(text).length > 0)
+        : item.id === "github-release-publish-npm:badge" &&
+          npmBadgeImages(text).length > 0)
     ) continue;
     const block = await wrap(item);
     if (item.position === "badges") {
-      const section = text.search(/^## /m);
-      const marker = text.indexOf("<!-- hj:readme ");
-      let at = Math.min(
-        section < 0 ? text.length : section,
-        marker < 0 ? text.length : marker,
-      );
-      const order = [
-        "jsr-package:badges",
-        "github-release-publish-npm:badge",
-        "github-ci:badge",
-      ];
-      const earlier = [...text.matchAll(pattern)].filter((match) =>
-        order.indexOf(match[1]) >= 0 &&
-        order.indexOf(match[1]) < order.indexOf(item.id)
-      ).at(-1);
-      if (earlier) at = earlier.index! + earlier[0].length;
-      text = insert(text, at, block);
+      text = insert(text, text.length, block);
     } else {
       const order = [
         "readme:requirements",
@@ -136,13 +122,13 @@ export async function reconcileBlocks(
       text = insert(text, at, block);
     }
   }
-  return text;
+  return layoutBadges(text);
 }
 
 async function wrap(item: ReadmeContribution): Promise<string> {
   return `<!-- hj:readme ${item.id} ${await contributionHash(
     item.content,
-  )} -->\n${item.content}\n<!-- /hj:readme -->\n`;
+  )} -->\n${item.content}\n<!-- /hj:readme -->`;
 }
 function insert(text: string, at: number, block: string): string {
   const before = text.slice(0, at).replace(/\n*$/, "");

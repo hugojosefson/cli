@@ -1,5 +1,6 @@
 /** @module Guarded generated README change plans. */
 
+import { layoutBadges } from "../readme/badge-layout.ts";
 import { fileAccess, repairFileMode } from "../repository/file-access.ts";
 import { legacyReadmePreview } from "./readme-build-checks.ts";
 import type { ChangePlan } from "../api/change-plan.ts";
@@ -41,10 +42,10 @@ export async function planEnableReadmeBuild(
   const initialSource = state.source.kind === "file"
     ? state.source.content
     : state.initialSource;
-  const sourceContent = buildSourceContent(
+  const sourceContent = layoutBadges(buildSourceContent(
     context,
     state.legacy.kind === "recognized" ? state.legacy.source : initialSource,
-  );
+  ));
   if (state.source.kind === "absent") {
     changes.push({ kind: "create-directory", path: readmeBuildDirectoryPath }, {
       kind: "write-file",

@@ -409,3 +409,44 @@ async function assertReadOnly(root: URL): Promise<void> {
   assert(observed.kind === "file");
   assertEquals(fileAccess(observed).writable, false);
 }
+
+test("readme-build reports badge drift and repairs source and generated output", async () => {
+  await withRepository(async (root) => {
+    await runCli(root, ["repo", "features", "--readme-build"]);
+    const source =
+      "# Project\n\n[![Status](https://example.org/badge.svg)](https://example.org)\n\nIntroduction.\n\n| Area | Details |\n| --- | --- |\n| Code | Tools |\n";
+    await write(root, "readme/README.md", source);
+    await chmod(new URL("README.md", root), 0o644);
+    await write(root, "README.md", source);
+    await chmod(new URL("README.md", root), 0o444);
+    const inspection = await runCli(root, ["repo", "features"]);
+    assertStringIncludes(
+      inspection.output.replace(/ +/g, " "),
+      "readme-build drifted",
+    );
+    assertStringIncludes(inspection.output, "first paragraph");
+    assertEquals(await read(root, "readme/README.md"), source);
+    await assertRejects(() =>
+      runCli(root, ["repo", "features", "--readme-build"])
+    );
+    await runCli(root, [
+      "repo",
+      "features",
+      "--repair",
+      "--readme-build",
+      "--yes",
+    ]);
+    const fixed = await read(root, "readme/README.md");
+    assert(fixed.indexOf("Introduction.") < fixed.indexOf("[![Status]"));
+    assert(fixed.indexOf("[![Status]") < fixed.indexOf("| Area"));
+    assertStringIncludes(await read(root, "README.md"), "[![Status]");
+    const repeat = await runCli(root, [
+      "repo",
+      "features",
+      "--repair",
+      "--readme-build",
+      "--yes",
+    ]);
+    assertStringIncludes(repeat.output, "No changes.");
+  });
+});

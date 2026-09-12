@@ -1,5 +1,6 @@
 /** @module Generated README feature detection. */
 
+import { badgeLayoutDetection } from "./readme-badge-layout.ts";
 import { fileAccess } from "../repository/file-access.ts";
 import type {
   DetectionEvidence,
@@ -52,6 +53,11 @@ export async function detectReadmeBuild(
     state.root.kind === "file" && !fileAccess(state.root).writable &&
     state.source.kind === "file" && fileAccess(state.source).writable
   ) {
+    const badges = badgeLayoutDetection(
+      state.source.content,
+      "readme/README.md",
+    );
+    if (badges) return badges;
     return {
       state: "enabled" as const,
       evidence: [{

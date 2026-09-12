@@ -1,5 +1,6 @@
 /** @module Generated README operation safety checks. */
 
+import { layoutBadges } from "../readme/badge-layout.ts";
 import { fileAccess } from "../repository/file-access.ts";
 import type {
   OperationCheck,
@@ -19,7 +20,10 @@ export async function checkEnableReadmeBuild(
   context: OperationContext,
 ): Promise<OperationCheck> {
   const state = await inspectReadmeBuild(context);
-  if (exact(state)) {
+  if (
+    exact(state) && state.source.kind === "file" &&
+    layoutBadges(state.source.content) === state.source.content
+  ) {
     return noOp("Generated README is already adopted.");
   }
   if (state.legacy.kind === "conflict") return blocked(state.legacy.reason);
