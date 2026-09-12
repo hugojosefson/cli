@@ -451,10 +451,18 @@ packed the project, then accepted the existing version only after its release
 SHA and archive integrity matched. The repeated commands did not need another
 publication approval.
 
-Installation by the package name with `--prefer-online` still received a 404
-from npm's full package metadata endpoint during this check. The exact version
-endpoint and public archive were available and passed the checks above.
-Package-name installation remains unverified in this record.
+The full package metadata endpoint initially returned 404, then became
+available. A standard installation by package name subsequently passed with a
+fresh npm cache and `--prefer-online`:
+
+```bash
+npm install --prefix /tmp/hj-npm-public-install \
+  --cache /tmp/hj-npm-resolved-cache --prefer-online --ignore-scripts \
+  --no-audit --no-fund --registry=https://registry.npmjs.org/ \
+  @hugojosefson/scratchpad@3.0.20-npm.0
+```
+
+Both library exports passed the same Node.js checks from this installation.
 
 The
 [scratchpad fixture branch](https://github.com/hugojosefson/scratchpad/tree/test/npm-publisher)
