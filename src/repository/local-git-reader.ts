@@ -128,9 +128,21 @@ export class LocalGitReader implements GitReader {
     return name || undefined;
   }
 
-  #git(args: readonly string[]): Promise<Deno.CommandOutput> {
-    return new Deno.Command("git", { args: [...args], cwd: this.#root.path })
-      .output();
+  async #git(args: readonly string[]): Promise<Deno.CommandOutput> {
+    try {
+      return await new Deno.Command("git", {
+        args: [...args],
+        cwd: this.#root.path,
+      }).output();
+    } catch (error) {
+      if (error instanceof Deno.errors.NotFound) {
+        throw new Error(
+          "Git is required to inspect repositories. Install Git and retry.",
+          { cause: error },
+        );
+      }
+      throw error;
+    }
   }
 }
 
