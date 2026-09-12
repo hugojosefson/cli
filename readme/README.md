@@ -49,8 +49,10 @@ npx @hugojosefson/cli repo features
 Or install the `hj` command globally:
 
 ```bash
-npm install --global @hugojosefson/cli
+npm install --global @hugojosefson/cli@latest
 ```
+
+Run this command again to upgrade to the latest release.
 
 ### Bun
 
@@ -65,8 +67,10 @@ bunx --bun --package @hugojosefson/cli hj repo features
 Install `hj` from [JSR](https://jsr.io/@hugojosefson/cli):
 
 ```bash
-deno install --global --allow-all --name hj jsr:@hugojosefson/cli
+deno install --global --allow-all --reload --force --name hj jsr:@hugojosefson/cli
 ```
+
+Run this command again to upgrade to the latest release.
 
 If needed, add the binary directory printed by Deno to your `PATH`. The command
 grants full Deno permissions so `hj` can manage files and run external tools.
@@ -137,14 +141,12 @@ Feature operations apply to the current directory. The
 [feature guide](../docs/repository-features.md) explains selection and
 confirmation.
 
-## Update or remove
+## Remove
 
-| Action                           | Command                                                                              |
-| -------------------------------- | ------------------------------------------------------------------------------------ |
-| Update the npm installation      | `npm install --global @hugojosefson/cli@latest`                                      |
-| Remove the npm installation      | `npm uninstall --global @hugojosefson/cli`                                           |
-| Update to the latest JSR release | `deno install --global --allow-all --reload --force --name hj jsr:@hugojosefson/cli` |
-| Remove the Deno installation     | `deno uninstall --global hj`                                                         |
+| Installation | Command                                    |
+| ------------ | ------------------------------------------ |
+| npm          | `npm uninstall --global @hugojosefson/cli` |
+| Deno         | `deno uninstall --global hj`               |
 
 ## Documentation
 
