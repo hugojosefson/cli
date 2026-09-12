@@ -1,4 +1,13 @@
 /** @module Repository detection, resolution, planning, and local application. */
+import {
+  AuthenticatedJsrScopeReader,
+  type JsrScopeReader,
+} from "../repository/jsr-scope-reader.ts";
+import {
+  type JsrScopePrompt,
+  promptJsrScope,
+  resolveJsrScope,
+} from "./jsr-scope.ts";
 import type { OutputColors } from "./terminal-colors.ts";
 import { formatTable } from "./format-table.ts";
 
@@ -62,6 +71,8 @@ export interface FeatureOperationServices {
   readonly promptAttribution?: AttributionPrompt;
   readonly githubIdentity?: GithubIdentityReader;
   readonly github?: GithubWriter;
+  readonly jsrScopes?: JsrScopeReader;
+  readonly promptJsrScope?: JsrScopePrompt;
 }
 
 /** Runs the built-in repository feature operation at one local root. */
@@ -167,10 +178,30 @@ export async function runFeatureOperation(
         }
         : request.repair,
     };
+    const jsrOptions = changes.some((change) =>
+        change.enabled && change.featureId === "jsr-package"
+      ) ||
+        request.changes.some((change) =>
+          change.enabled && change.featureId === "jsr-package"
+        ) ||
+        (request.presets.includes("jsr") && !request.changes.some((change) =>
+          !change.enabled && change.featureId === "jsr-package"
+        ))
+      ? await resolveJsrScope(
+        baseContext,
+        services.jsrScopes ?? new AuthenticatedJsrScopeReader(),
+        "jsrScope" in args ? args.jsrScope : undefined,
+        args.confirmation
+          ? undefined
+          : services.promptJsrScope ?? promptJsrScope,
+      )
+      : {};
     const licenseOptions = changes.some((change) =>
         change.enabled &&
         detections.get(change.featureId)?.state === "disabled" &&
-        licenseCatalog.find((provider) => provider.id === change.featureId)
+        licenseCatalog.find((provider) =>
+          provider.id === change.featureId
+        )
           ?.definition.placeholders.some(({ kind }) =>
             kind === "year" || kind === "holder"
           )
@@ -182,6 +213,7 @@ export async function runFeatureOperation(
       options: {
         confirmation: args.confirmation,
         ...licenseOptions,
+        ...jsrOptions,
         ...("workflowCli" in args && args.workflowCli !== undefined
           ? { workflowCli: args.workflowCli }
           : {}),

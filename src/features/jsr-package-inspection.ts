@@ -13,7 +13,6 @@ import {
   publishCheckDefinition,
   publishCheckName,
 } from "./jsr-package-config.ts";
-import { jsrPackageIdentity } from "./jsr-package-identity.ts";
 
 const semver =
   /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-(?:(?:0|[1-9]\d*)|(?:\d*[A-Za-z-][0-9A-Za-z-]*))(?:\.(?:(?:0|[1-9]\d*)|(?:\d*[A-Za-z-][0-9A-Za-z-]*)))*)?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/;
@@ -68,10 +67,6 @@ export async function inspectJsrPackage(
       "The package name is not a valid scoped JSR name.",
     );
   }
-  const identity = await jsrPackageIdentity(context);
-  if (identity.kind === "unavailable") {
-    return simple("ambiguous", identity.observation);
-  }
   if (
     config.value.version !== undefined &&
     (typeof config.value.version !== "string" ||
@@ -121,7 +116,7 @@ export async function inspectJsrPackage(
     state: "enabled",
     observation: ownedOnly
       ? "JSR package metadata and publish check are adopted."
-      : "Local JSR metadata and a publishing check are configured.",
+      : `Local JSR package ${config.value.name} and a publishing check are configured.`,
     config: config.value,
     path: config.path,
   };
