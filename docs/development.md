@@ -173,7 +173,7 @@ Details column explains custom configuration that cannot be adopted.
 | `readme-build`          | Disabled       | The README does not need includes or generated sections.                                                          |
 | Other license providers | Disabled       | MIT is the chosen license.                                                                                        |
 | `github-ci`             | Enabled        | Managed CI runs the project coverage checks and provides dependency updates.                                      |
-| GitHub release features | Prepared       | The publication branch contains generated tag, JSR, and GitHub Release workflows.                                 |
+| GitHub release features | Enabled        | Main contains generated tag, JSR, and GitHub Release workflows.                                                   |
 | GitHub configuration    | Enabled        | The public repository uses rebase merging, auto-merge, and main and tag protection.                               |
 
 The local task names now match the feature conventions. `check` runs all
@@ -199,20 +199,14 @@ feature states with `hj repo features` because GitHub configuration can change.
 
 ## First public release
 
-The README describes installation after the first JSR release. Registry
-installation is not yet available. The owner authorized publication on
-2026-09-12. Complete these checks before announcing the release:
+The first public release is `0.2.0`. The [release record](first-release.md)
+links the source PR, release PR, package, and live checks. The README installs
+from JSR. GitHub CI enforces coverage and a package dry run on Linux.
 
-| Preparation                  | State or next action                                                                                                     |
-| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
-| Package identity and license | The package name, executable exports, and MIT license are present.                                                       |
-| First version                | `0.1.0` is the current baseline. Tag preparation selects the release version. No tag exists here.                        |
-| Release notes                | [CHANGELOG.md](../CHANGELOG.md) records supported features and known limits.                                             |
-| Local validation             | CI includes coverage and a package dry run. Linux installation is tested.                                                |
-| GitHub validation            | Disposable repositories exercise configuration and real release workflows. See the [record](live-validation.md).         |
-| Bootstrap                    | Use [pinned first-release loading](releases.md#bootstrap-before-the-first-registry-version) until the CLI exists on JSR. |
-| Publication                  | Follow the [first-release procedure](first-release.md) under the recorded owner authorization.                           |
-| JSR validation               | The owner confirmed package access and scope configuration. Registry publication and installation remain untested.       |
+Merges to `main` start the generated release pipeline. GitHub and JSR
+publication use protected tags and rebase merges. The
+[release guide](releases.md) owns configuration and retry instructions. The
+[live validation record](live-validation.md) records tested behavior and limits.
 
 ## Git history
 

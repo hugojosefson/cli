@@ -27,9 +27,14 @@ permissions so `hj` can manage files and run external tools. See the
 [Deno installation reference](https://docs.deno.com/runtime/reference/cli/install/)
 for installation options.
 
+Deno delays new dependencies for 24 hours by default. To install a release
+immediately, add `--min-dep-age=0` to the command. This disables the age delay
+for that installation. Otherwise, wait until the release is 24 hours old.
+
 ## Start here
 
-Change to the directory you want to manage. Inspect its features:
+Install [Git](https://git-scm.com/) before using repository commands. Change to
+the directory you want to manage. Inspect its features:
 
 ```bash
 hj repo features

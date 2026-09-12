@@ -2,7 +2,7 @@
 
 Items in this guide are not available features or completed validation. The
 [feature guide](repository-features.md) describes the implemented behavior. The
-source is public, and the first registry release is in progress. The
+source and the CLI package are public. The
 [`git-hj-init` assessment](git-hj-init.md) assesses missing behavior that this
 plan does not already cover, with reasons and proposed README additions.
 
@@ -38,15 +38,10 @@ choose defaults.
 
 ## Package distribution and npm
 
-The JSR package name is `@hugojosefson/cli`. Package metadata, the MIT license,
-the executable export, and a local installation task are present. CI validates
-the package with a dry run. Generated workflows read the package name and
-version from `deno.json`. Version `0.1.0` is the initial baseline. The README is
-prepared for the first public JSR release; its registry command becomes
-available after publication. The [development guide](development.md) describes
-current local installation. The
-[first-release checklist](development.md#first-public-release) tracks the
-remaining preparation.
+The CLI is published on JSR as `@hugojosefson/cli`. Follow the
+[README](../README.md#install) to install it. The implemented release features
+publish new versions after source merges. The [release guide](releases.md)
+describes that pipeline.
 
 An npm publisher is planned. There is no npm feature, command, or workflow. Its
 proposed trigger is the same tag-success event that starts the GitHub Release
@@ -55,26 +50,18 @@ publication.
 
 The implemented
 [bootstrap option](releases.md#bootstrap-before-the-first-registry-version)
-loads the CLI from a pinned public GitHub commit. The first-release plan uses
-that option until registry loading is available.
+loads the CLI from a pinned public GitHub commit. The first release used that
+option before registry loading was available.
 
 ## Remaining live validation
 
-Local tests use real temporary Git repositories with injected GitHub responses.
-The [live validation record](live-validation.md) covers real GitHub workflow
-runs in disposable repositories. Early runs used a local CLI copy on isolated
-Linux runners. Later runs load a pinned commit from the public CLI repository.
+The [live validation record](live-validation.md) covers real GitHub
+configuration, release workflows, JSR publication, provenance, and registry
+installation on Linux. Local tests also use temporary Git repositories with
+injected GitHub responses. Keep live publication checks outside normal local CI.
 
-The owner authorized publication and confirmed the JSR package configuration.
-The first upload must complete these checks:
-
-| Scenario                  | Required check                                                                        |
-| ------------------------- | ------------------------------------------------------------------------------------- |
-| JSR publication           | Link an authorized package, publish it, and compare module digests and provenance.    |
-| Repeated JSR publication  | Accept identical content and reject a conflicting version.                            |
-| Registry installation     | Install the released CLI in clean Linux, then run help and a local feature operation. |
-| Registry workflow loading | Run the generated workflows with their exact published JSR reference.                 |
-
-The local-copy runs prove the GitHub release path, but they do not prove JSR
-credentials or registry distribution. Keep live publication checks outside local
-CI. See the [first-release procedure](first-release.md) for the order.
+| Scenario                  | Status or limit                                                                                                            |
+| ------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| Registry workflow loading | The migration from the bootstrap source uses the first published CLI version. Confirm its CI and next release runs.        |
+| Conflicting JSR version   | Local tests reject conflicting metadata and provenance. A conflicting public package version is not deliberately uploaded. |
+| Other operating systems   | Linux is the current test target. Windows and macOS live validation remain planned.                                        |
