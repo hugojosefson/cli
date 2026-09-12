@@ -16,6 +16,7 @@ export interface CommandOptions {
   readonly cwd?: string | URL;
   readonly env?: Readonly<Record<string, string>>;
   readonly input?: string | Uint8Array;
+  readonly signal?: AbortSignal;
   readonly stdin?: "null" | "inherit";
   readonly stdout?: "piped" | "inherit";
   readonly stderr?: "piped" | "inherit";
@@ -24,6 +25,7 @@ export interface CommandOptions {
 interface DenoCommandConstructor {
   new (command: string, options: {
     args: string[];
+    signal?: AbortSignal;
     cwd?: string | URL;
     env?: Readonly<Record<string, string>>;
     stdin: "null" | "inherit" | "piped";
@@ -37,8 +39,20 @@ interface DenoCommandConstructor {
   };
 }
 
-/** Keep Deno's narrow permission grants; its node spawn adapter reads all env. */
+/** Resolve genuine Deno tasks without involving ordinary native commands. */
 export async function runCommand(
+  command: string,
+  options: CommandOptions = {},
+): Promise<CommandResult> {
+  if (command === "deno") {
+    const { runExternalDeno } = await import("./external-deno.ts");
+    return await runExternalDeno(options);
+  }
+  return await runRawCommand(command, options);
+}
+
+/** Keep Deno's narrow permission grants; its node spawn adapter reads all env. */
+export async function runRawCommand(
   command: string,
   options: CommandOptions = {},
 ): Promise<CommandResult> {
@@ -68,7 +82,13 @@ export async function runCommand(
       }
     };
     // Drain output while writing, so large bidirectional streams cannot deadlock.
-    const [result] = await Promise.all([child.output(), writeInput()]);
+    const [output, input] = await Promise.allSettled(
+      [child.output(), writeInput()] as const,
+    );
+    options.signal?.throwIfAborted();
+    if (output.status === "rejected") throw output.reason;
+    if (input.status === "rejected") throw input.reason;
+    const result = output.value;
     return {
       success: result.success,
       code: result.code,
@@ -79,6 +99,7 @@ export async function runCommand(
   return await new Promise<CommandResult>((resolve, reject) => {
     const child = spawn(command, [...options.args ?? []], {
       cwd: options.cwd,
+      signal: options.signal,
       env: options.env ? { ...process.env, ...options.env } : undefined,
       stdio: [
         options.input === undefined
@@ -92,9 +113,23 @@ export async function runCommand(
     const stderr: Uint8Array[] = [];
     child.stdout?.on("data", (chunk: Uint8Array) => stdout.push(chunk));
     child.stderr?.on("data", (chunk: Uint8Array) => stderr.push(chunk));
-    child.on("error", reject);
-    child.stdin?.on("error", reject);
+    let failure: Error | undefined;
+    child.on("error", (error) => {
+      failure = error;
+    });
+    child.stdin?.on("error", (error) => {
+      failure = error;
+      child.kill();
+    });
     child.on("close", (code, signal) => {
+      if (options.signal?.aborted) {
+        reject(options.signal.reason);
+        return;
+      }
+      if (failure) {
+        reject(failure);
+        return;
+      }
       const exitCode = code ?? (signal ? 128 + constants.signals[signal] : 1);
       resolve({
         success: exitCode === 0,

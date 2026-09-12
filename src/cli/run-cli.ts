@@ -1,4 +1,5 @@
 /** Parse commands before constructing services or starting effects. */
+import { parseDenoOptions, withDenoOptions } from "../runtime/deno-options.ts";
 import { colorText, type OutputColors } from "./terminal-colors.ts";
 import type { CliResult } from "./cli-result.ts";
 import type { ReleaseServices } from "./run-release.ts";
@@ -8,7 +9,20 @@ import {
   type CommandName,
 } from "./command-help.ts";
 
+/** Run each command with isolated local Deno options. */
 export async function runCli(
+  root: URL,
+  args: readonly string[],
+  services: Parameters<typeof runParsedCli>[2] = {},
+): Promise<CliResult> {
+  const parsed = parseDenoOptions(args);
+  return await withDenoOptions(
+    parsed.options,
+    () => runParsedCli(root, parsed.args, services),
+  );
+}
+
+async function runParsedCli(
   root: URL,
   args: readonly string[],
   services: ReleaseServices & {

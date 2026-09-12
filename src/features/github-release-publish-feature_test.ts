@@ -586,3 +586,52 @@ Deno.test("npm workflow authenticates independently after tag success and accept
   assertEquals(publishTagArtifact.content.includes("NPM_TOKEN"), false);
   assertEquals(publishTagArtifact.content.includes("npm-build"), false);
 });
+
+Deno.test("release task templates detect missing PATH and tar grants as repairable drift", async () => {
+  for (
+    const artifact of [
+      publishTagArtifact,
+      publishJsrArtifact,
+      publishNpmArtifact,
+    ]
+  ) {
+    assertStringIncludes(artifact.content, "--allow-env=PATH,");
+    const legacy = artifact.content.replaceAll(
+      "--allow-env=PATH,",
+      "--allow-env=",
+    );
+    const saved = context({ [artifact.path]: exact(legacy) });
+    const older = context({
+      [artifact.path]: exact(
+        legacy.replace(
+          "--allow-run=deno,git,npm,tar",
+          "--allow-run=deno,git,npm",
+        ),
+      ),
+    });
+    assertEquals(
+      (await inspectReleaseArtifact(older, artifact)).result,
+      "differs",
+    );
+    assertEquals(
+      (await inspectReleaseArtifact(saved, artifact)).result,
+      "differs",
+    );
+    assertEquals(
+      (await inspectReleaseArtifact({
+        ...saved,
+        options: { workflowCli: "jsr" },
+      } as OperationContext, artifact)).result,
+      "differs",
+    );
+    const changed = context({
+      [artifact.path]: exact(
+        legacy.replace("--allow-env=", "--allow-env=UNEXPECTED,"),
+      ),
+    });
+    assertEquals(
+      (await inspectReleaseArtifact(changed, artifact)).result,
+      "differs",
+    );
+  }
+});
