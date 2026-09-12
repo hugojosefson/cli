@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.7.3
+
+- docs: require repository feature detection and repair checks
+
 ## 0.7.2
 
 - docs(release): record verified npm publication
