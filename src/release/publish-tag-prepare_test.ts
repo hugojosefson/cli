@@ -113,8 +113,19 @@ test("usual preparation creates and outputs a validated candidate bundle", async
     ]);
     const calls: string[] = [];
     const recordingProcess: ReleaseProcess = {
-      run: (command, args, options) => {
+      run: async (command, args, options) => {
         calls.push(`${command} ${args.join(" ")}`);
+        if (command === "deno" && args.join(" ") === "task all") {
+          assertEquals(
+            JSON.parse(await readTextFile(new URL("deno.json", root)))
+              .version,
+            "0.1.0",
+          );
+          assertStringIncludes(
+            await readTextFile(new URL("CHANGELOG.md", root)),
+            "feat: initial release",
+          );
+        }
         return command === "deno" &&
             JSON.stringify(args) ===
               JSON.stringify([
@@ -161,8 +172,9 @@ test("usual preparation creates and outputs a validated candidate bundle", async
     const contribution = calls.indexOf(
       "deno publish --dry-run --allow-dirty --check=all",
     );
-    assertEquals(all.length, 2);
-    assert(contribution > all[1]);
+    assertEquals(all.length, 1);
+    assert(all[0] > calls.indexOf("deno fmt deno.json CHANGELOG.md"));
+    assert(contribution > all[0]);
     assert(contribution < calls.indexOf("git diff --name-only -z"));
   } finally {
     await remove(parent, { recursive: true });
@@ -198,6 +210,56 @@ test("recovery rebuilds a first release with or without its lightweight tag", as
       );
       assertEquals(bundle.previousTag, null);
       assertEquals(bundle.nextVersion, "0.1.0");
+    });
+  }
+});
+
+test("candidate validation failures and mutations cannot produce a release bundle", async () => {
+  for (const outcome of ["failure", "deno.json", "CHANGELOG.md", "extra.txt"]) {
+    await withReleaseSource(async (root, process, parent) => {
+      const output = `${parent}/failed-output`;
+      let validations = 0;
+      const guardedProcess: ReleaseProcess = {
+        async run(command, args, options) {
+          if (command === "deno" && args.join(" ") === "task all") {
+            validations++;
+            assertEquals(
+              JSON.parse(await readTextFile(new URL("deno.json", root)))
+                .version,
+              "0.1.0",
+            );
+            if (outcome !== "failure") {
+              await writeTextFile(new URL(outcome, root), "changed\n");
+            }
+            return {
+              success: outcome !== "failure",
+              code: outcome === "failure" ? 1 : 0,
+              stdout: new Uint8Array(),
+              stderr: new Uint8Array(),
+            };
+          }
+          return await process.run(command, args, options);
+        },
+      };
+      await assertRejects(
+        () =>
+          publishTagPrepare(root, {
+            get: (name) =>
+              name === "HJ_RELEASE_ROUTE"
+                ? "usual"
+                : name === "GITHUB_OUTPUT"
+                ? output
+                : undefined,
+          }, guardedProcess),
+        Error,
+        outcome === "failure"
+          ? "Release command failed: deno task"
+          : outcome === "extra.txt"
+          ? "Release preparation changed an unexpected path."
+          : "Candidate validation changed release data.",
+      );
+      assertEquals(validations, 1);
+      await assertRejects(() => readTextFile(output));
     });
   }
 });
@@ -300,6 +362,24 @@ async function withPreparedRelease(
     parent: string,
   ) => Promise<void>,
 ): Promise<void> {
+  await withReleaseSource(async (root, process, parent) => {
+    await publishTagPrepare(root, {
+      get: (name) => name === "HJ_RELEASE_ROUTE" ? "usual" : undefined,
+    }, process);
+    await runOrThrow(process, "git", ["add", "deno.json", "CHANGELOG.md"]);
+    await runOrThrow(process, "git", ["commit", "-m", "chore(release): 0.1.0"]);
+    await runOrThrow(process, "git", ["push", "origin", "HEAD:main"]);
+    await action(root, process, parent);
+  });
+}
+
+async function withReleaseSource(
+  action: (
+    root: URL,
+    process: ReturnType<typeof localReleaseProcess>,
+    parent: string,
+  ) => Promise<void>,
+): Promise<void> {
   const parent = await makeTempDir({
     dir: "/tmp/opencode",
     prefix: "hj-recovery-",
@@ -325,12 +405,6 @@ async function withPreparedRelease(
     await runOrThrow(process, "git", ["commit", "-m", "feat: initial release"]);
     await runOrThrow(process, "git", ["remote", "add", "origin", remote]);
     await runOrThrow(process, "git", ["push", "-u", "origin", "main"]);
-    await publishTagPrepare(root, {
-      get: (name) => name === "HJ_RELEASE_ROUTE" ? "usual" : undefined,
-    }, process);
-    await runOrThrow(process, "git", ["add", "deno.json", "CHANGELOG.md"]);
-    await runOrThrow(process, "git", ["commit", "-m", "chore(release): 0.1.0"]);
-    await runOrThrow(process, "git", ["push", "origin", "HEAD:main"]);
     await action(root, process, parent);
   } finally {
     await remove(parent, { recursive: true });
