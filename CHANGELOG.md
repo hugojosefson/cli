@@ -1,5 +1,78 @@
 # Changelog
 
+## 0.12.0
+
+### Features
+
+#### changelog
+
+- group releases and offer optional history migration
+  ([063433c](https://github.com/hugojosefson/cli/commit/063433c6aa86eb7c8a01371efdc702ca4d584e11))
+
+#### release
+
+- publish native CLI archives to npm
+  ([281233b](https://github.com/hugojosefson/cli/commit/281233b36eb8b27663ca9028f4e75a6d55d2965c))
+
+### Fixes
+
+#### changelog
+
+- ignore headings inside HTML comments
+  ([e223fef](https://github.com/hugojosefson/cli/commit/e223fef9a91db60e0b386f81662979479a25113b))
+
+#### ci
+
+- declare matrix command helper at module scope
+  ([727d6ec](https://github.com/hugojosefson/cli/commit/727d6ec1f9fac420d7149007afd8c3d181d42fed))
+- replace runtime artifacts when retrying jobs
+  ([e6c999d](https://github.com/hugojosefson/cli/commit/e6c999d111505d119ab1cb8011521aa8335215bd))
+- use Node 24 artifact actions
+  ([7ab05a0](https://github.com/hugojosefson/cli/commit/7ab05a025521ef1ebda0bb2451f1abbd95941061))
+
+#### package
+
+- pin changelog libraries in native dependency locks
+  ([fff884f](https://github.com/hugojosefson/cli/commit/fff884f2d66ee10a59b027708f24fa2d6e476624))
+
+### Other
+
+#### changelog
+
+- verify registry and published grouped release data
+  ([c87da86](https://github.com/hugojosefson/cli/commit/c87da86ab601f09aef2a53971e8bb72789e3776c))
+
+#### ci
+
+- run shared runtime suites in parallel
+  ([8e1aca5](https://github.com/hugojosefson/cli/commit/8e1aca58d3ff947ea1c2730f5ce9f1a62b9346ad))
+- cancel superseded pull request checks
+  ([c990b1a](https://github.com/hugojosefson/cli/commit/c990b1a4ac41661002f1bbbd58a098e380fe5567))
+- cache dependency downloads across workflows
+  ([ac3d058](https://github.com/hugojosefson/cli/commit/ac3d0580c9366f2680bbb7cb8d88589745eacb5b))
+- apply download caches with precise repair previews
+  ([24f27af](https://github.com/hugojosefson/cli/commit/24f27af363070abfe8318d9c828a1229801768e9))
+- use Node 24 download caching for the integrated workflows
+  ([3d2c2a4](https://github.com/hugojosefson/cli/commit/3d2c2a411df0f3f8d745851e448ee1a84cb5c201))
+
+#### cli
+
+- freeze dependency graph in lazy import isolation
+  ([8076e8a](https://github.com/hugojosefson/cli/commit/8076e8a85e82d8400f37bb608b462313f2338630))
+
+#### release
+
+- validate each release candidate once
+  ([015de6c](https://github.com/hugojosefson/cli/commit/015de6c016bdd3acde6954a63fc0076bd58d28ac))
+- pin publisher with candidate-only validation
+  ([a1c22de](https://github.com/hugojosefson/cli/commit/a1c22de97f85698d89e2d88a81b2f65b95cbf98e))
+- pin publisher with integrated dependency caches
+  ([d388001](https://github.com/hugojosefson/cli/commit/d388001ef499bc6bc4eaef67f73ee2ab8e27185b))
+- adopt grouped changelog publishers
+  ([cd208d0](https://github.com/hugojosefson/cli/commit/cd208d0f18f3e5a41846ed034c896f6f16d23d12))
+- retain integrated publisher improvements
+  ([0f289f7](https://github.com/hugojosefson/cli/commit/0f289f7b116f0cdd825ef1e850c3bef0f49604ba))
+
 ## 0.11.0
 
 ### Features
