@@ -141,6 +141,7 @@ export function localDenoHost(
   path = process.env.PATH ?? "",
   signal?: AbortSignal,
   environment: Readonly<Record<string, string | undefined>> = process.env,
+  run: typeof runRawCommand = runRawCommand,
 ): DenoResolverHost {
   return {
     path,
@@ -163,16 +164,15 @@ export function localDenoHost(
       }
       return join(home, ".cache/hj");
     },
-    assertPlatform: async () => {
+    assertPlatform: () => {
       if (process.platform !== "linux" || process.arch !== "x64") {
         throw new Error(
           "Automatic Deno acquisition supports Linux x64 with glibc.",
         );
       }
       const glibc = process.versions.deno
-        ? /\/libc\.so\.6(?:\s|$)/m.test(
-          await fs.readFile("/proc/self/maps", "utf8"),
-        )
+        ? (globalThis as { Deno?: { build: { target: string } } }).Deno
+          ?.build.target.endsWith("-linux-gnu")
         : !!(process.report.getReport() as {
           header?: { glibcVersionRuntime?: string };
         }).header?.glibcVersionRuntime;
@@ -181,10 +181,11 @@ export function localDenoHost(
           "Automatic Deno acquisition requires glibc; musl/Alpine is not supported.",
         );
       }
+      return Promise.resolve();
     },
     version: async (binary) => {
       try {
-        const result = await runRawCommand(binary, {
+        const result = await run(binary, {
           args: ["--version"],
           signal: signal
             ? AbortSignal.any([signal, AbortSignal.timeout(5000)])
@@ -212,6 +213,7 @@ export function localDenoHost(
         version,
         process.versions.bun ? "bun" : "npm",
         signal,
+        run,
       ),
     report: (message) => {
       process.stderr.write(message);
