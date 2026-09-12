@@ -361,6 +361,7 @@ test("tag publication has exact dependencies and fails closed when protection is
     ),
     [
       "git",
+      "changelog",
       "github-repo",
       "github-ci",
       "github-main-protection",

@@ -27,6 +27,26 @@ flags also select changes independently:
 hj repo features --deno-lib --deno-cli --no-deno-server
 ```
 
+## Changelog
+
+The independent `changelog` feature manages the presence of `CHANGELOG.md`.
+Enable it with `hj repo features --changelog`. An absent file becomes an empty
+`# Changelog` heading. An existing readable regular file remains unchanged,
+whatever its format. The tag publication feature requires this feature.
+
+Flat and mixed history remains enabled without repair. Status output offers an
+optional `hj changelog migrate` preview when flat entries are present. Grouped
+and custom history show their detection evidence. Migration checks the original
+Git history only when you request it. See
+[changelog choices](releases.md#changelog-choices) for preview and write
+commands.
+
+Disabling the feature removes only the exact empty starter. The feature refuses
+to delete history or custom content. To remove such a file, disable dependent
+release publication, archive the history, and remove `CHANGELOG.md` manually.
+Unreadable files and non-regular paths need the specific manual action shown in
+status output. Formatting alone never causes drift.
+
 ## Output
 
 `hj` prints aligned tables for structured results. Status words remain visible

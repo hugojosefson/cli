@@ -83,6 +83,22 @@ export const commandDefinitions = {
     details:
       "Write package metadata JSON to stdout from deno.json or deno.jsonc.",
   },
+  "changelog migrate": {
+    usage: "hj changelog migrate [--write] [--repository=owner/repo]",
+    description: "Preview or migrate flat changelog release sections.",
+    details:
+      "Optional: normal releases extend the current changelog without changing old content, whatever its format.\nThis command prints a migration preview. It requires complete Git history and original hj release tags; custom sections remain intact.",
+    flags: [
+      [
+        "--write",
+        "Apply the migration to CHANGELOG.md after reviewing the preview.",
+      ],
+      [
+        "--repository=owner/repo",
+        "GitHub link target (default: origin remote).",
+      ],
+    ],
+  },
   "readme build": {
     usage: "hj readme build [input]",
     description: "Build a README from Markdown includes.",

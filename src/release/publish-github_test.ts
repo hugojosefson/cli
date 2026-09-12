@@ -276,3 +276,10 @@ test("GitHub publisher waits for a new release to appear without repeating creat
   assertEquals(creates, 1);
   assertEquals(sleeps, [5000, 5000]);
 });
+
+test("GitHub release extraction ignores fenced example headings in custom history", () => {
+  const section = "## 1.2.3\n\n### Features\n\n- New entry\n\n";
+  const text = "# History\n\n```md\n## 1.2.3\nexample\n```\n\n" + section +
+    "## Earlier history\n\nCustom text\n";
+  assertEquals(changelogSection(text, "1.2.3"), section);
+});

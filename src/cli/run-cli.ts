@@ -104,6 +104,20 @@ async function runParsedCli(
       terminalNewline: true,
     };
   }
+  if (command === "changelog migrate") {
+    const { parseChangelogMigration, runChangelogMigration } = await import(
+      "./run-changelog.ts"
+    );
+    const options = parseChangelogMigration(args.slice(2));
+    return {
+      output: await runChangelogMigration(
+        root,
+        options,
+        services.releaseProcess,
+      ),
+      terminalNewline: options.write,
+    };
+  }
   const usage = commandDefinitions[command].usage;
   if (command === "package build") {
     if (args.length !== 2) throw new Error(`expected \`${usage}\``);

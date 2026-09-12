@@ -376,6 +376,10 @@ test("loads fork-version only for usual tag preparation", async () => {
           "@std/assert": "jsr:@std/assert@^1.0.19",
           "@std/path": "jsr:@std/path@^1.1.3",
           "fork-version": "./trap.ts",
+          "conventional-commits-parser":
+            "npm:conventional-commits-parser@7.1.2",
+          "conventional-changelog-writer":
+            "npm:conventional-changelog-writer@9.2.1",
           "jsonc-parser": "npm:jsonc-parser@3.3.1",
         },
       }),
