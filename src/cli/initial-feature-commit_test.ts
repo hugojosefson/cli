@@ -53,11 +53,37 @@ Deno.test("fresh feature setup commits only generated paths and is safe to repea
         "test/server_test.ts",
       ].join("\n"),
     );
+    assert(
+      !(await git(root, "show", "HEAD~1:README.md")).includes("## License"),
+    );
+    assert((await git(root, "show", "HEAD:README.md")).includes("## License"));
     assertEquals(await git(root, "status", "--porcelain"), "?? keep.txt");
     const again = await run(root, env, featureFlags);
     assert(again.success, text(again.stderr));
     assertStringIncludes(text(again.stdout), "No changes.");
     assertEquals(await git(root, "rev-list", "--count", "HEAD"), "6");
+  });
+});
+
+Deno.test("generated README license content belongs to the license commit", async () => {
+  await withDirectory(async (root, env) => {
+    const result = await run(root, env, [
+      "--readme-build",
+      "--license-mit",
+      "--git",
+    ]);
+    assert(result.success, text(result.stderr));
+    assertEquals(
+      await git(root, "log", "-1", "--format=%s"),
+      "chore(license-mit): enable feature",
+    );
+    for (const path of ["README.md", "readme/README.md"]) {
+      assert(
+        !(await git(root, "show", `HEAD~1:${path}`)).includes("## License"),
+      );
+      assert((await git(root, "show", `HEAD:${path}`)).includes("## License"));
+    }
+    assertEquals(await git(root, "status", "--porcelain"), "");
   });
 });
 

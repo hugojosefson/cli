@@ -49,6 +49,7 @@ import {
 } from "./feature-file-snapshot.ts";
 import { LocalGitReader } from "../repository/local-git-reader.ts";
 import { partitionFeatureConfig } from "./partition-feature-config.ts";
+import { partitionFeatureReadme } from "./partition-feature-readme.ts";
 
 interface FeatureSnapshot {
   readonly plan: ChangePlan;
@@ -171,6 +172,7 @@ export class FeatureCommitSession {
       this.#features,
       final,
     );
+    partitionFeatureReadme(this.#baseline, this.#features);
     await this.#attributeTaskChanges(final);
     const replayed = new Map<string, FileVersion | undefined>();
     for (const feature of this.#features) {
