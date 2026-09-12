@@ -27,6 +27,20 @@ When implementing Project issues, follow these rules:
 14. Use each implemented feature on this repository where relevant and
     non-destructive. Apply useful examples, such as README badges, and record
     the checks. This includes previously completed and future issue work.
+15. Run `hj repo features` on this repository and inspect every feature's
+    output. Use `deno task hj repo features` to assess changes from the current
+    checkout.
+16. Make sure that every feature correctly detects this repository without
+    ambiguity or drift. Disabled features are valid when they match the project.
+17. If a feature reports ambiguity or drift, improve detection, add or improve
+    repair, or change this repository's contents as appropriate. Combine these
+    approaches when needed. Preserve intentional custom behavior.
+18. Make sure that `hj repo features` states each feature's specific repair
+    actions. Name affected files, configuration values, or remote resources. If
+    repair is unnecessary or unsupported, state that and explain any required
+    manual action. Do not present a generic repair hint as a repair description.
+19. After changes, repeat the feature inspection and record the results. Apply
+    these requirements to all existing and future features.
 
 Use Conventional Commit subjects, such as
 `feat(package): resolve package identity`.
