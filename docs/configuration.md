@@ -12,10 +12,10 @@ file or its directories.
 | `hj config set <key> <value>` | Save one value. Preserve the other values.          |
 | `hj config unset <key>`       | Remove one value and restore its built-in fallback. |
 
-The supported keys are `features` and `deno-version`. Unknown keys and invalid
-values fail without changing the file. `hj` does not store tokens, passwords, or
-other secrets in this file. If the file contains invalid JSON, repair the file
-before changing defaults.
+The supported keys are `features`, `deno-version`, and `github-visibility`.
+Unknown keys and invalid values fail without changing the file. `hj` does not
+store tokens, passwords, or other secrets in this file. If the file contains
+invalid JSON, repair the file before changing defaults.
 
 ## Feature selections
 
@@ -70,3 +70,18 @@ package. Existing exact workflows keep their recorded version when defaults
 change. To change an existing workflow version, select its feature with
 `--deno-version` and `--repair`. Other workflow changes still require explicit
 repair.
+
+## GitHub visibility
+
+Set the default visibility for new GitHub repositories:
+
+```bash
+hj config set github-visibility private
+hj repo features --github-repo --yes
+```
+
+`github-visibility` accepts `public` or `private`. Explicit visibility flags and
+presets take precedence. The setting never changes an existing repository.
+Without a flag or default, setup asks in a terminal and fails with input
+instructions in automation. See
+[repository creation](repository-features.md#create-a-github-repository).

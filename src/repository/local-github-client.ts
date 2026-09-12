@@ -57,6 +57,12 @@ export class LocalGithubClient implements GithubWriter {
     return [...this.#diagnostics];
   }
 
+  /** Refresh after an explicitly confirmed repository link change. */
+  refreshRepository(): void {
+    this.#repository = undefined;
+    this.#pendingReads.clear();
+  }
+
   repository(): Promise<GithubRepository | undefined> {
     this.#repository ??= this.#loadRepository();
     return this.#repository;

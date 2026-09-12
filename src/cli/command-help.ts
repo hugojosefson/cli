@@ -6,7 +6,7 @@ export const commandDefinitions = {
     usage: "hj repo features",
     description: "Inspect or change repository features.",
     details:
-      "With no flags, report status without changes.\nPresets select a group of features with one flag. Explicit feature flags override presets.\nGitHub changes require an authenticated gh CLI, an existing repository link, and --yes.",
+      "With no flags, report status without changes.\nPresets select a group of features with one flag. Explicit feature flags override presets.\nGitHub changes require an authenticated gh CLI and --yes. Repository creation requires explicit or configured visibility.",
     flags: [
       ["--defaults", "Select configured features (fallback: Git and README)."],
       [
@@ -23,6 +23,8 @@ export const commandDefinitions = {
         "Override the Deno version for selected workflows.",
       ],
       ["--github", "Apply common GitHub repository settings (private)."],
+      ["--github-owner=<owner>", "Select the owner for repository creation."],
+      ["--github-name=<name>", "Select the name for repository creation."],
       ["--github-protection", "Protect the default branch and tags."],
       [
         "--github-public",
@@ -39,13 +41,13 @@ export const commandDefinitions = {
     usage: "hj config get <key>",
     description: "Read one saved default.",
     details:
-      "Keys: features, deno-version. Values come from the XDG hj/config.json file.",
+      "Keys: features, deno-version, github-visibility. Values come from the XDG hj/config.json file.",
   },
   "config set": {
     usage: "hj config set <key> <value>",
     description: "Save a non-secret default.",
     details:
-      "features takes a JSON array of feature or capability IDs. deno-version takes an exact stable version.",
+      "features takes a JSON array of feature or capability IDs. deno-version takes an exact stable version. github-visibility takes public or private.",
   },
   "config list": {
     usage: "hj config list",

@@ -432,11 +432,12 @@ heading stays unchanged.
 ## GitHub features
 
 GitHub operations require [GitHub CLI](https://cli.github.com/) authentication
-and an existing repository link. These features do not create repositories.
+and confirmation with `--yes`. If no remote is linked, setup can create an empty
+repository before planning the requested GitHub features.
 
 | Feature                         | Behavior                                                                                                     |
 | ------------------------------- | ------------------------------------------------------------------------------------------------------------ |
-| `github-repo`                   | Detect authenticated access to the linked GitHub repository.                                                 |
+| `github-repo`                   | Detect GitHub access; create and link a repository during confirmed setup.                                   |
 | `github-default-project`        | Link a default project and add all repository issues; requires `github-projects` and GitHub project access.  |
 | `github-*` settings             | Manage individual repository settings. See the preset table below.                                           |
 | `github-ci`                     | Add PR checks and nightly or manual dependency updates; requires `github-repo` and `deno-fmt`.               |
@@ -684,3 +685,38 @@ Attribution is resolved in this order:
 
 Setup stops if required attribution remains unresolved. For release setup and
 removal, read the [release guide](releases.md).
+
+### Create a GitHub repository
+
+Run setup from the project directory:
+
+```bash
+hj repo features --github-repo --github-public --yes
+hj repo features --github-repo --github-private --github-owner=my-team --github-name=my-project --yes
+```
+
+The default owner is the authenticated GitHub login. The default name is the
+project directory name. Creation prints the owner, name, visibility, and new
+`origin` URL before the request. It creates an empty repository, initializes Git
+on `main` if needed, and links an HTTPS remote. It does not push source files.
+GitHub's [repository API](https://docs.github.com/en/rest/repos/repos) handles
+personal and organization creation through separate endpoints.
+
+Visibility comes from an explicit private-setting flag, the `--github-public` or
+`--github` preset, then `github-visibility` in global configuration. If none is
+set, a terminal prompt asks for public or private. A missing answer stops setup.
+In automation, supply a visibility flag or configure the default; `--yes` does
+not choose visibility. Creation still requires `--yes` after an interactive
+choice, so include the same visibility flag when rerunning.
+
+Existing linked repositories keep their identity and remote. Creation options
+apply only to a new link; use the separate visibility feature to change an
+existing repository. If any remote exists but GitHub access is unavailable,
+setup stops and preserves the remote. An existing repository with the planned
+owner and name also stops setup. Link it explicitly or choose another name.
+
+Creation is a separate confirmed step before the remaining feature plans. If
+later setup fails, the repository remains linked; fix the reported problem and
+rerun the same feature request. A failed or uncertain creation request is never
+retried automatically. If creation succeeds but linking fails, the error gives
+the remote command to recover without creating or deleting another repository.

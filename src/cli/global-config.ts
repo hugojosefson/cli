@@ -6,6 +6,7 @@ import { validateDenoVersion } from "../features/workflow-deno.ts";
 export interface GlobalConfig {
   readonly features?: readonly string[];
   readonly "deno-version"?: string;
+  readonly "github-visibility"?: "public" | "private";
 }
 
 export function globalConfigFile(
@@ -23,9 +24,11 @@ export function globalConfigFile(
 }
 
 export function configKey(key: string): keyof GlobalConfig {
-  if (key === "features" || key === "deno-version") return key;
+  if (
+    key === "features" || key === "deno-version" || key === "github-visibility"
+  ) return key;
   throw new Error(
-    "Unknown configuration key. Use features or deno-version. Secrets are not supported.",
+    "Unknown configuration key. Use features, deno-version, or github-visibility. Secrets are not supported.",
   );
 }
 
@@ -39,7 +42,11 @@ function validateConfig(
   for (const [key, item] of Object.entries(value)) {
     configKey(key);
     if (key === "deno-version") validateDenoVersion(item);
-    else {
+    else if (key === "github-visibility") {
+      if (item !== "public" && item !== "private") {
+        throw new Error("github-visibility must be public or private.");
+      }
+    } else {
       if (!Array.isArray(item) || !item.every((id) => typeof id === "string")) {
         throw new Error(
           "features must be a JSON array of feature or capability IDs.",
