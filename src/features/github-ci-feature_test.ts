@@ -25,6 +25,11 @@ import { applyLocalChangePlan } from "../operations/local-change-plan.ts";
 import { LocalFileReader } from "../repository/local-file-reader.ts";
 import { githubCiArtifacts, githubCiMarker } from "./github-ci-artifacts.ts";
 import { githubCiFeature } from "./github-ci-feature.ts";
+import {
+  githubCiRuntimeMatrix,
+  githubCiRuntimeMatrixMarker,
+} from "./github-ci-runtime-matrix.ts";
+import { parse as parseYaml } from "yaml";
 
 function context(
   observations: Record<string, ArtifactObservation>,
@@ -784,5 +789,86 @@ test("legacy CI selection migrates through the feature operation without repair"
     );
   } finally {
     await remove(directory, { recursive: true });
+  }
+});
+
+test("github-ci runtime matrix is explicit, gated, formatted and repairable", async () => {
+  const path = githubCiArtifacts[0].path;
+  const content = githubCiRuntimeMatrix(githubCiArtifacts[0].content);
+  const jobs = parseYaml(content).jobs;
+  assertEquals(jobs.native.strategy.matrix.runtime, [
+    "node24",
+    "node26",
+    "bun",
+  ]);
+  assertEquals(jobs.native.strategy["fail-fast"], false);
+  assertEquals(jobs.check.needs, ["deno", "native"]);
+  assertEquals(jobs.check.if, "${{ always() }}");
+  assertEquals(jobs.check.steps[0].env, {
+    DENO_RESULT: "${{ needs.deno.result }}",
+    NATIVE_RESULT: "${{ needs.native.result }}",
+  });
+  assertEquals(
+    jobs.check.steps[0].run,
+    'test "$DENO_RESULT" = success && test "$NATIVE_RESULT" = success',
+  );
+  assertStringIncludes(jobs.check.steps.at(-1).run, "--compare-only");
+  for (const job of [jobs.deno, jobs.native]) {
+    const upload = job.steps.at(-1);
+    assertEquals(upload.with["if-no-files-found"], "error");
+    assertEquals(upload.with["include-hidden-files"], true);
+    assertEquals(upload.if, undefined);
+  }
+  assertEquals(
+    jobs["hj-release-commit-validation"],
+    parseYaml(githubCiArtifacts[0].content)
+      .jobs["hj-release-commit-validation"],
+  );
+  assertEquals(
+    githubCiArtifacts[0].content.includes(githubCiRuntimeMatrixMarker),
+    false,
+  );
+  const adopted = Object.fromEntries(
+    githubCiArtifacts.map(({ path }) => [path, exact(path)]),
+  );
+  adopted[path] = { ...adopted[path], content };
+  assertEquals(
+    (await githubCiFeature.detect(context(adopted))).state,
+    "enabled",
+  );
+  const altered = {
+    ...adopted,
+    [path]: {
+      ...adopted[path],
+      content: content.replace("needs: [deno, native]", "needs: [deno]"),
+    },
+  };
+  assertEquals(
+    (await githubCiFeature.detect(context(altered))).state,
+    "drifted",
+  );
+  const repair = context(altered, {
+    kind: "features",
+    featureIds: ["github-ci"],
+  });
+  const allowed = await githubCiFeature.checkEnable(repair);
+  if (allowed.result !== "allowed") {
+    throw new Error("Expected repair to be allowed");
+  }
+  const plan = await githubCiFeature.planEnable(repair, allowed);
+  assertStringIncludes(JSON.stringify(plan), "needs: [deno, native]");
+  const root = await makeTempDir({
+    dir: "/tmp/opencode",
+    prefix: "hj-matrix-yaml-",
+  });
+  try {
+    const file = `${root}/ci.yaml`;
+    await writeTextFile(file, content);
+    assertEquals(
+      (await runCommand("deno", { args: ["fmt", "--check", file] })).success,
+      true,
+    );
+  } finally {
+    await remove(root, { recursive: true });
   }
 });

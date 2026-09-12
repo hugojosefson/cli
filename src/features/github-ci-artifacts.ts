@@ -3,6 +3,10 @@
 import { legacyCiCheckCompatibility } from "./github-ci-legacy.ts";
 import { workflowDenoVersion } from "./workflow-toolchain.ts";
 import { hjPackageReference } from "./hj-package.ts";
+import {
+  githubCiRuntimeMatrix,
+  githubCiRuntimeMatrixMarker,
+} from "./github-ci-runtime-matrix.ts";
 
 import type {
   ArtifactObservation,
@@ -132,6 +136,18 @@ export function renderGithubCiArtifact(
   context: DetectionContext,
   observation: ArtifactObservation,
 ): { readonly path: string; readonly content: string } {
+  if (
+    artifact.path === githubCiArtifacts[0].path &&
+    observation.kind === "file" &&
+    observation.content.split("\n").includes(
+      githubCiRuntimeMatrixMarker.trimEnd(),
+    )
+  ) {
+    artifact = {
+      ...artifact,
+      content: githubCiRuntimeMatrix(artifact.content),
+    };
+  }
   const migrated = artifact.path === githubCiArtifacts[0].path &&
     observation.kind === "file" &&
     observation.content.includes(
