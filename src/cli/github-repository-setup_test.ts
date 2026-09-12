@@ -11,6 +11,7 @@ import type {
   GithubRepositoryTarget,
 } from "../repository/github-repository-setup.ts";
 import { LocalGitReader } from "../repository/local-git-reader.ts";
+import { LocalGithubClient } from "../repository/local-github-client.ts";
 import { parseFeatures } from "./parse-features.ts";
 import { builtInFeatureRegistry as registry } from "../features/built-in-feature-registry.ts";
 import { runFeatureOperation } from "./run-features.ts";
@@ -421,6 +422,9 @@ Deno.test("status never invokes repository creation or visibility prompts", asyn
       {
         github: github(setup),
         githubRepositorySetup: setup,
+        ensureGithubAuthentication: () => {
+          throw new Error("status must not authenticate");
+        },
         promptGithubVisibility: () => {
           throw new Error("must not prompt");
         },
@@ -428,6 +432,82 @@ Deno.test("status never invokes repository creation or visibility prompts", asyn
     );
     assertEquals(setup.calls, []);
     assertEquals(await new LocalGitReader(root).isRepository(), false);
+  });
+});
+
+Deno.test("a GitHub preset signs in before resolving an unreadable existing remote and refreshes failed reads", async () => {
+  await fixture(async (root) => {
+    for (
+      const args of [["init"], [
+        "remote",
+        "add",
+        "origin",
+        "https://github.com/person/project.git",
+      ]]
+    ) {
+      assertEquals(
+        (await new Deno.Command("git", { args, cwd: root }).output()).success,
+        true,
+      );
+    }
+    const beforeRemotes = await new LocalGitReader(root).remotes();
+    let signedIn = false;
+    let authentications = 0;
+    const client = new LocalGithubClient(root, {
+      run: () =>
+        Promise.resolve({
+          success: signedIn,
+          code: signedIn ? 0 : 1,
+          stdout: new TextEncoder().encode(
+            signedIn
+              ? JSON.stringify({
+                nameWithOwner: "person/project",
+                defaultBranchRef: { name: "main" },
+              })
+              : "{}",
+          ),
+        }),
+    });
+    const features = {
+      features: [githubRepoFeature],
+      capabilities: [],
+      presets: [{
+        id: "github",
+        name: "GitHub",
+        summary: "GitHub",
+        changes: [{ featureId: "github-repo", enabled: true }],
+      }],
+    };
+    const output = await runFeatureOperation(
+      root,
+      parseFeatures(["repo", "features", "--github", "--yes"], features),
+      features,
+      () => [],
+      {
+        github: client,
+        ensureGithubAuthentication: () => {
+          authentications++;
+          signedIn = true;
+          return Promise.resolve();
+        },
+        githubRepositorySetup: {
+          ...new Setup(),
+          viewerLogin: () => {
+            throw new Error("existing remote must remain linked");
+          },
+          assertAbsent: () => {
+            throw new Error("unexpected creation");
+          },
+          create: () => {
+            throw new Error("unexpected creation");
+          },
+        },
+      },
+    );
+    assertEquals(authentications, 1);
+    assertStringIncludes(output, "No changes.");
+    assertEquals(client.diagnostics, []);
+    assertEquals(await new LocalGitReader(root).remotes(), beforeRemotes);
   });
 });
 

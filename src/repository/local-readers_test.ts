@@ -1,4 +1,10 @@
-import { assert, assertEquals, assertRejects, assertThrows } from "@std/assert";
+import {
+  assert,
+  assertEquals,
+  assertRejects,
+  assertStringIncludes,
+  assertThrows,
+} from "@std/assert";
 import { LocalFileReader } from "./local-file-reader.ts";
 import { LocalGitReader } from "./local-git-reader.ts";
 
@@ -22,7 +28,7 @@ Deno.test("repository commands explain missing Git before optional GitHub checks
     assertEquals(output.success, false);
     assertEquals(
       new TextDecoder().decode(output.stderr).trim(),
-      "Git is required to inspect repositories. Install Git and retry.",
+      "Git (git) is required. Install it from https://git-scm.com/downloads/, add git to PATH, then retry.",
     );
     assertEquals(await new LocalFileReader(root).exists("deno.json"), false);
   });
@@ -56,6 +62,63 @@ Deno.test("LocalFileReader reads regular files and observes exact artifact kinds
     });
     assertEquals(await reader.readText("link"), undefined);
     assertEquals(await reader.observe("missing"), { kind: "absent" });
+  });
+});
+
+Deno.test("the CLI reports missing gh and unattended sign-in before GitHub setup writes", async () => {
+  await withRepository(async (root) => {
+    const bin = new URL("bin/", root);
+    await Deno.mkdir(bin);
+    const gitPath = await new Deno.Command("sh", {
+      args: ["-c", "command -v git"],
+      stdout: "piped",
+    }).output();
+    const link = await new Deno.Command("sh", {
+      args: [
+        "-c",
+        'ln -s "$1" "$2"',
+        "hj-test",
+        new TextDecoder().decode(gitPath.stdout).trim(),
+        new URL("git", bin).pathname,
+      ],
+    }).output();
+    assertEquals(link.success, true);
+    const run = () =>
+      new Deno.Command(Deno.execPath(), {
+        args: [
+          "run",
+          "--allow-all",
+          "--cached-only",
+          `--config=${new URL("../../deno.json", import.meta.url).pathname}`,
+          new URL("../cli/cli.ts", import.meta.url).pathname,
+          "repo",
+          "features",
+          "--github-repo",
+          "--yes",
+        ],
+        cwd: root,
+        env: { PATH: bin.pathname },
+        stdin: "null",
+      }).output();
+    const missing = await run();
+    assertEquals(missing.success, false);
+    assertStringIncludes(
+      new TextDecoder().decode(missing.stderr),
+      "GitHub CLI (gh) is required. Install it from https://cli.github.com/",
+    );
+    await Deno.writeTextFile(
+      new URL("gh", bin),
+      '#!/bin/sh\nif [ "$1" = "--version" ]; then exit 0; fi\nexit 1\n',
+    );
+    await Deno.chmod(new URL("gh", bin), 0o755);
+    const unsigned = await run();
+    assertEquals(unsigned.success, false);
+    assertStringIncludes(
+      new TextDecoder().decode(unsigned.stderr),
+      "Run `gh auth login` in a terminal, then retry.",
+    );
+    assertEquals(await new LocalGitReader(root).isRepository(), false);
+    assertEquals(await new LocalFileReader(root).exists("deno.json"), false);
   });
 });
 

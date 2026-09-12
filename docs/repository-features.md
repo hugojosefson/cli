@@ -454,13 +454,13 @@ when the requested feature already has its requested state. Bare status
 inspection does not change the README. If GitHub observations are unavailable,
 the existing CI badge stays intact.
 
-| Owner                         | Contribution                                                     |
-| ----------------------------- | ---------------------------------------------------------------- |
-| `jsr-package`                 | JSR version and score badges, API link, and `readme/install.sh`. |
-| `github-ci`                   | CI badge for the linked repository and `hj-ci.yaml`.             |
-| Deno features                 | A requirement for Deno, through the active README provider.      |
-| `deno-cli` with `jsr-package` | Command installation when the package has a `./cli` export.      |
-| `deno-lib` with `jsr-package` | A runnable example, its public export, and a link to the tests.  |
+| Owner                         | Contribution                                                  |
+| ----------------------------- | ------------------------------------------------------------- |
+| `jsr-package`                 | JSR version and score badges, and `readme/install.sh`.        |
+| `github-ci`                   | CI badge for the linked repository and `hj-ci.yaml`.          |
+| Deno features                 | A requirement for Deno, through the active README provider.   |
+| `deno-cli` with `jsr-package` | Command installation when the package has a `./cli` export.   |
+| `deno-lib` with `jsr-package` | API link, runnable example, its public export, and test link. |
 
 Static READMEs contain the installation commands and example code directly.
 Built READMEs keep standalone include directives in `readme/README.md`. The
@@ -476,9 +476,9 @@ deno run --reload jsr:@scope/package/example-usage
 ```
 
 From a clone, readers can run `deno run readme/example-usage.ts`. Command-only
-packages omit library examples. Existing example files and export targets stay
-intact. Custom libraries need an existing example because `hj` cannot infer
-which public function to call.
+packages omit the API section and library examples. Existing example files and
+export targets stay intact. Custom libraries need an existing example because
+`hj` cannot infer which public function to call.
 
 Ownership markers identify each generated block and its original content. The
 `.hj/readme.json` file records the original installation and example files. Keep
@@ -497,6 +497,19 @@ heading stays unchanged.
 GitHub operations require [GitHub CLI](https://cli.github.com/) authentication
 and confirmation with `--yes`. If no remote is linked, setup can create an empty
 repository before planning the requested GitHub features.
+
+When a required executable is missing, `hj` stops with an installation link and
+retry instructions. It checks Git before repository inspection and GitHub CLI
+before GitHub requests. Missing GitHub CLI does not block local feature changes.
+
+When a requested GitHub change needs sign-in, `hj` offers to run `gh auth login`
+if all three standard streams connect to a terminal. With redirected input or
+output, it stops with instructions for terminal sign-in or unattended
+credentials. The `--yes` flag does not answer the sign-in prompt. After sign-in,
+`hj` reads repository state again before planning changes. Status inspection
+never opens a sign-in prompt. See
+[GitHub sign-in](https://cli.github.com/manual/gh_auth_login) for supported
+authentication methods.
 
 | Feature                         | Behavior                                                                                                     |
 | ------------------------------- | ------------------------------------------------------------------------------------------------------------ |
@@ -633,7 +646,8 @@ Create an issue with its project selected:
 gh issue create --project <project-title>
 ```
 
-To assign new issues automatically, use the optional browser command:
+After default-project setup changes the project, `hj` recommends the optional
+browser command for automatic assignment of future issues:
 
 ```bash
 hj repo project-auto-add --yes

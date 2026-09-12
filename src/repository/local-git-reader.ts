@@ -1,6 +1,6 @@
 /** @module Local read-only implementation of the Git reader contract. */
 import { type CommandResult, runCommand } from "../runtime/command.ts";
-import { isNotFound } from "../runtime/errors.ts";
+import { requireExternalTool } from "../runtime/external-tool.ts";
 
 import type { RepositoryPath } from "../api/json.ts";
 import type {
@@ -18,6 +18,7 @@ import {
 /** Reads Git state by running Git with fixed argument arrays. */
 export class LocalGitReader implements GitReader {
   readonly #root: RepositoryRoot;
+  #available?: Promise<void>;
 
   constructor(root: URL) {
     this.#root = repositoryRoot(root);
@@ -131,20 +132,11 @@ export class LocalGitReader implements GitReader {
   }
 
   async #git(args: readonly string[]): Promise<CommandResult> {
-    try {
-      return await runCommand("git", {
-        args: [...args],
-        cwd: this.#root.path,
-      });
-    } catch (error) {
-      if (isNotFound(error)) {
-        throw new Error(
-          "Git is required to inspect repositories. Install Git and retry.",
-          { cause: error },
-        );
-      }
-      throw error;
-    }
+    await (this.#available ??= requireExternalTool("git"));
+    return await runCommand("git", {
+      args: [...args],
+      cwd: this.#root.path,
+    });
   }
 }
 

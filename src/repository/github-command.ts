@@ -1,5 +1,9 @@
 /** GitHub subprocess transport and credential-free failure diagnostics. */
 import { runCommand } from "../runtime/command.ts";
+import {
+  ExternalToolError,
+  requireExternalTool,
+} from "../runtime/external-tool.ts";
 export type GithubCommandResult = {
   readonly success: boolean;
   readonly stdout: Uint8Array;
@@ -12,8 +16,10 @@ export interface GithubCommandRunner {
 }
 
 export function localGithubCommand(root: URL): GithubCommandRunner {
+  let available: Promise<void> | undefined;
   return {
     async run(args, stdin) {
+      await (available ??= requireExternalTool("gh"));
       const result = await runCommand("gh", {
         args: [...args],
         cwd: root,
@@ -31,7 +37,9 @@ export function localGithubCommand(root: URL): GithubCommandRunner {
 export function githubCommandFailure(
   args: readonly string[],
   result?: GithubCommandResult,
+  cause?: unknown,
 ): string {
+  if (cause instanceof ExternalToolError) return cause.message;
   const command = args[0] === "api" ? "API request" : "repository lookup";
   const status = result?.stderr &&
     /\bHTTP ([1-5][0-9]{2})\b/.exec(new TextDecoder().decode(result.stderr))
@@ -86,5 +94,5 @@ export function githubCommandFailure(
     ? `GitHub ${command} failed${
       details.length ? ` (${details.join(", ")})` : ""
     }. Run \`gh auth status\` to check access.`
-    : "Could not start the GitHub CLI. Check that `gh` is installed and can run.";
+    : "Could not start the GitHub CLI. Make sure that `gh` can run and the repository directory exists. Install or repair `gh` from https://cli.github.com/, then retry.";
 }

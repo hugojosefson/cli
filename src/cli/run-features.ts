@@ -19,6 +19,8 @@ import {
 } from "./github-repository-setup.ts";
 import type { OutputColors } from "./terminal-colors.ts";
 import { formatTable } from "./format-table.ts";
+import { ensureGithubAuthentication } from "./github-authentication.ts";
+import { featureRecommendations } from "./feature-recommendations.ts";
 
 import type { ChangePlan, PlannedValidation } from "../api/change-plan.ts";
 import type { OperationContext } from "../api/repository-context.ts";
@@ -70,6 +72,8 @@ export type FeatureSelector = (
 ) => readonly string[] | Promise<readonly string[]>;
 
 export interface FeatureOperationServices {
+  /** Supplied by the CLI; isolated operation tests can keep GitHub offline. */
+  readonly ensureGithubAuthentication?: (root: URL) => Promise<void>;
   readonly colors?: OutputColors;
   readonly githubRepositorySetup?: GithubRepositorySetup;
   readonly promptGithubVisibility?: VisibilityPrompt;
@@ -95,7 +99,7 @@ export async function runFeatures(
     args,
     builtInFeatureRegistry,
     selectActions,
-    { colors },
+    { colors, ensureGithubAuthentication },
   );
 }
 
@@ -116,7 +120,7 @@ export async function runFeatureOperation(
     // All feature operations inspect Git state before planning file commits.
     // Report this prerequisite before starting optional GitHub reads.
     await git.isRepository();
-    const detections = await detect(root, files, git, github, registry);
+    let detections = await detect(root, files, git, github, registry);
     const status = async (results: typeof detections) => {
       const table = formatFeatureStatus(
         registry,
@@ -165,11 +169,27 @@ export async function runFeatureOperation(
     ) {
       return await status(detections);
     }
-    const resolution = resolveFeatureChanges(
+    let resolution = resolveFeatureChanges(
       registry,
       Object.fromEntries(detections),
       request,
     );
+    const githubNeeded = [
+      ...resolution.changes,
+      ...resolution.issues,
+      ...requestedDriftedChanges(detections, request),
+      ...repairFeatureChanges(detections, request.repair),
+    ].some((item) => item.featureId?.startsWith("github-"));
+    if (githubNeeded && services.ensureGithubAuthentication) {
+      if (github instanceof LocalGithubClient) github.refreshRepository();
+      await services.ensureGithubAuthentication(root);
+      detections = await detect(root, files, git, github, registry);
+      resolution = resolveFeatureChanges(
+        registry,
+        Object.fromEntries(detections),
+        request,
+      );
+    }
     if (resolution.issues.length) {
       throw new Error(
         "resolution failed:\n" + formatTable(
@@ -384,7 +404,7 @@ export async function runFeatureOperation(
         change.kind === "github-ruleset-transition"
       )
     );
-    return formatFeatureResult(
+    const result = formatFeatureResult(
       await status(await detect(root, files, git, github, registry)),
       {
         committed,
@@ -395,6 +415,8 @@ export async function runFeatureOperation(
       },
       services.colors?.stdout,
     );
+    const recommendation = featureRecommendations(plans);
+    return recommendation ? `${result}\n\n${recommendation}` : result;
   } catch (error) {
     if (error instanceof PromptCancelled) throw error;
     if (

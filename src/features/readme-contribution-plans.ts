@@ -173,6 +173,7 @@ export async function reconcileReadmePlans(
     build,
     jsr,
     cli,
+    lib: Boolean(lib),
     deno: [
       ...context.detections.keys(),
       ...context.resolvedChanges.map((change) => change.featureId),
@@ -183,18 +184,8 @@ export async function reconcileReadmePlans(
     cliPermissions,
   });
   const provider = build ? "readme-build" : "readme-static";
-  const owners = [
-    ...new Set([
-      ...plans.map((plan) => plan.featureId),
-      provider,
-      "jsr-package",
-      "deno-cli",
-      "deno-lib",
-      "github-ci",
-    ]),
-  ].filter((id) =>
-    [provider, "jsr-package", "deno-cli", "deno-lib", "github-ci"].includes(id)
-  );
+  // Remove unchanged legacy JSR API blocks before the library adds its block.
+  const owners = [provider, "jsr-package", "deno-cli", "deno-lib", "github-ci"];
   const appended: ChangePlan[] = [];
   // File/export ownership belongs to JSR publication. README blocks stay with
   // the feature named in their marker so per-feature commits remain possible.

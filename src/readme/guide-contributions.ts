@@ -7,6 +7,7 @@ export interface GuideInputs {
   readonly build: boolean;
   readonly jsr: boolean;
   readonly cli: boolean;
+  readonly lib: boolean;
   readonly deno: boolean;
   readonly install?: string;
   readonly example?: string;
@@ -44,11 +45,13 @@ export function guideContributions(input: GuideInputs): ReadmeContribution[] {
       "## Requirements\n\nRequires [Deno](https://deno.com/).",
     );
   }
-  if (input.jsr) {
+  if (input.jsr && input.lib) {
     section(
-      "jsr-package:api",
+      "deno-lib:api",
       `## API\n\nSee the API documentation on\n[jsr.io/${name}](https://jsr.io/${name}).`,
     );
+  }
+  if (input.jsr) {
     if (input.install !== undefined) {
       section(
         "jsr-package:installation",
