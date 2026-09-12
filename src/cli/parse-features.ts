@@ -226,7 +226,14 @@ export function parseFeatures(
   }
   return requested.size === 0 && selectedPresets.size === 0 && !applyDefaults &&
       !repair
-    ? { kind: "status", request, confirmation }
+    ? {
+      kind: "status",
+      request,
+      confirmation,
+      ...(defaults["deno-version"] === undefined
+        ? {}
+        : { defaultDenoVersion: defaults["deno-version"] }),
+    }
     : {
       kind: "change",
       ...githubDefaults,

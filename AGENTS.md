@@ -41,6 +41,17 @@ When implementing Project issues, follow these rules:
     manual action. Do not present a generic repair hint as a repair description.
 19. After changes, repeat the feature inspection and record the results. Apply
     these requirements to all existing and future features.
+20. Use `github-default-project` as the model for drifted repair details. Follow
+    the item-level standard in
+    [docs/development.md](docs/development.md#self-check-and-readme-choice).
+    Name each required addition, removal, replacement, value, or order. Generic
+    hints, file rewrite notices, and line counts alone do not suffice. Derive
+    details from the inspected differences or repair plans. Keep inspection
+    read-only.
+21. Accept custom additions when all required entries remain correct. For
+    example, extra `.gitignore` lines after the managed entries must leave
+    `git-ignore` enabled without repair. If required exclusions are missing,
+    name the exact lines that repair will add.
 
 Use Conventional Commit subjects, such as
 `feat(package): resolve package identity`.

@@ -71,3 +71,40 @@ reported `No changes.` with the original `.gitignore` layout.
 The 11 focused ignore tests passed. The full `deno task ci` passed 625 tests and
 seven named steps. Coverage passed all limits: 90.7% of lines, 91.7% of
 branches, and 93.4% of functions.
+
+## Specific repair output
+
+The combined checkout for [#54](https://github.com/hugojosefson/cli/issues/54)
+included the GitHub detection and Git-ignore fixes above. Both
+`hj repo features` and `deno task hj repo features` reported all 53 expected
+states: 26 enabled and 27 disabled. None reported ambiguity or drift. The
+current checkout also displayed a repair description for every feature. The
+installed command confirmed the states before the repair-output change merged.
+This inspection left `.gitignore` unchanged.
+
+The current checkout explicitly reported that the 26 enabled features needed no
+repair. It also reported that `--repair` alone leaves disabled features
+disabled. A positive feature flag can still enable a disabled feature.
+
+The CLI regression used a temporary repository with custom lines after valid
+managed ignore entries. Status reported enabled, and `--repair` reported
+`No changes.` The file remained byte-identical. After the test removed the
+required coverage entries, status named only these additions:
+
+```text
+Add .gitignore line 7: # hj:git-ignore /coverage/
+Add .gitignore line 8: /coverage/
+```
+
+Inspection did not write those lines. Explicit repair added them after the
+existing entries and preserved the custom prefix and suffix. The next inspection
+reported enabled without repair.
+
+Other regression cases compared repair descriptions with applied formatting
+changes and shared README and lock configuration. Tests covered exact workflow
+keys and commands, comment removal, blocked dependencies, and credential
+redaction. Status did not prompt, run project tasks, create files, or change
+GitHub resources.
+
+The combined `deno task ci` passed 636 tests and seven named steps. Coverage
+passed all limits: 90.8% of lines, 91.8% of branches, and 93.5% of functions.

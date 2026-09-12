@@ -23,12 +23,9 @@ import { formatTable } from "./format-table.ts";
 import type { ChangePlan, PlannedValidation } from "../api/change-plan.ts";
 import type { OperationContext } from "../api/repository-context.ts";
 import { builtInFeatureRegistry } from "../features/built-in-feature-registry.ts";
-import { reconcileReadmePlans } from "../features/readme-contribution-plans.ts";
-import { reconcileGitIgnorePlans } from "../features/git-ignore-feature.ts";
-import {
-  denoLockPlanOwner,
-  reconcileDenoLockPlans,
-} from "../features/deno-lock-policy.ts";
+import { denoLockPlanOwner } from "../features/deno-lock-policy.ts";
+import { reconcileFeaturePlans } from "./reconcile-feature-plans.ts";
+import { featureRepairPreviews } from "./feature-repair-preview.ts";
 import { prepareDenoLock, refreshDenoLock } from "./deno-lock.ts";
 import { licenseCatalog } from "../features/license-catalog.ts";
 import type { FeatureRegistry } from "../features/feature-registry.ts";
@@ -119,8 +116,39 @@ export async function runFeatureOperation(
     // Report this prerequisite before starting optional GitHub reads.
     await git.isRepository();
     const detections = await detect(root, files, git, github, registry);
+    const status = async (results: typeof detections) => {
+      const table = formatFeatureStatus(
+        registry,
+        results,
+        services.colors?.stdout,
+        await featureRepairPreviews({
+          repositoryRoot: root,
+          files,
+          git,
+          github,
+          githubIdentity,
+          detections: results,
+          requestedChanges: [],
+          resolvedChanges: [],
+          repair: undefined,
+          options: {
+            confirmation: false,
+            ...("defaultDenoVersion" in args &&
+                args.defaultDenoVersion !== undefined
+              ? { defaultDenoVersion: args.defaultDenoVersion }
+              : {}),
+          },
+        }, registry),
+      );
+      return github instanceof LocalGithubClient && github.diagnostics.length &&
+          [...results].some(([id, result]) =>
+            id.startsWith("github-") && result.state === "ambiguous"
+          )
+        ? `${table}\n\n${github.diagnostics.join("\n")}`
+        : table;
+    };
     if (args.kind === "status") {
-      return formatFeatureStatus(registry, detections, services.colors?.stdout);
+      return await status(detections);
     }
     const request = args.kind === "interactive"
       ? interactiveFeatureRequest(
@@ -134,7 +162,7 @@ export async function runFeatureOperation(
       request.changes.length === 0 && request.presets.length === 0 &&
       !request.applyDefaults && !request.repair
     ) {
-      return formatFeatureStatus(registry, detections, services.colors?.stdout);
+      return await status(detections);
     }
     const resolution = resolveFeatureChanges(
       registry,
@@ -285,17 +313,7 @@ export async function runFeatureOperation(
       registry,
       services.colors?.stderr,
     );
-    if (
-      registry.features.some((feature) => feature.metadata.id === "deno-fmt")
-    ) {
-      plans = await reconcileDenoLockPlans(context, plans);
-    }
-    plans = await reconcileReadmePlans(context, plans);
-    if (
-      registry.features.some((feature) => feature.metadata.id === "git-ignore")
-    ) {
-      plans = await reconcileGitIgnorePlans(context, plans);
-    }
+    plans = await reconcileFeaturePlans(context, plans, registry);
     requireConfirmation(plans, args.confirmation);
     rejectUnsupportedValidations(plans);
     await Promise.all(
@@ -366,11 +384,7 @@ export async function runFeatureOperation(
       )
     );
     return formatFeatureResult(
-      formatFeatureStatus(
-        registry,
-        await detect(root, files, git, github, registry),
-        services.colors?.stdout,
-      ),
+      await status(await detect(root, files, git, github, registry)),
       {
         committed,
         finalTask,

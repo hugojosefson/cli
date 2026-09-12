@@ -177,6 +177,31 @@ state that and explain any required manual action. A generic instruction to run
 `--repair` does not meet this requirement. Make sure that repair descriptions
 match the actual repair plan.
 
+Use `github-default-project` as the model for drifted repair details. Describe
+only changes that the current repository needs. For each change, name the target
+and the exact addition, removal, replacement, value, or order. Include relevant
+file paths, configuration keys and values, resource names, or issue numbers.
+Omit unchanged items unless they explain preservation of custom content.
+
+For example, report `Add label "area:docs" to issue #36.` Report an option-order
+change as `Place Backlog before Todo in project Status options.` For
+`.gitignore`, name the exact missing exclusion lines that repair will add.
+Generic repair hints, file rewrite notices, and line counts alone do not meet
+this standard. Derive details from the same inspected differences or plans that
+repair uses. Inspection must remain read-only.
+
+Accept custom additions when all required entries remain correct. Extra
+`.gitignore` lines after the managed entries must leave the feature enabled
+without repair. Do not require a managed block to appear last. If a required
+exclusion is missing or incorrect, describe the exact added lines. Preserve
+custom exclusions during repair.
+
+The [default project feature](../src/features/github-default-project-feature.ts)
+displays details from the
+[project reader](../src/repository/github-default-project.ts) and
+[Area comparison](../src/repository/github-project-area.ts). These details name
+missing fields, views, labels, and Area values for the affected issues.
+
 Run `hj repo features` to inspect this checkout. Every registered feature is
 assessed below. Disabled features are intentional when they provide an
 alternative or a service that this CLI does not use. Remote states require
@@ -305,6 +330,7 @@ from the code that applies changes.
 6. Register the feature in `built-in-feature-registry.ts`.
 7. Add lifecycle tests for enable, disable, repair, conflicts, and stale plans.
 8. Describe the feature's specific repair actions in `hj repo features` output.
+   Follow the `github-default-project` detail standard in the self-check above.
 9. Run the self-check above and resolve ambiguity or drift on this repository.
 10. Update the feature guide and run `deno task ci`.
 

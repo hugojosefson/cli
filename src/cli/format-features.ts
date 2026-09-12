@@ -4,12 +4,14 @@ import { colorText, stateColor } from "./terminal-colors.ts";
 import { formatTable } from "./format-table.ts";
 import type { FeatureDetection } from "../api/feature-detection.ts";
 import type { FeatureRegistry } from "../features/feature-registry.ts";
+import { repairStateDescription } from "./feature-repair-preview.ts";
 
 /** Formats every registered feature in declaration-independent ID order. */
 export function formatFeatureStatus(
   registry: FeatureRegistry,
   detections: ReadonlyMap<string, FeatureDetection>,
   color = false,
+  repairs: ReadonlyMap<string, string> = new Map(),
 ): string {
   const rows = registry.features.map((feature) => feature.metadata.id).sort()
     .map((id) => {
@@ -21,13 +23,16 @@ export function formatFeatureStatus(
       return [
         id,
         detection?.state ?? "unknown",
-        [...new Set(details)].join("\n"),
+        [
+          ...new Set(details),
+          `Repair: ${repairs.get(id) ?? repairStateDescription(detection)}`,
+        ].join("\n"),
       ];
     });
-  return formatTable(["Feature", "Managed state", "Details"], rows, [
+  return formatTable(["Feature", "Managed state", "Details and repair"], rows, [
     48,
     12,
-    64,
+    78,
   ], {
     color,
     columns: ["cyan", "state"],
