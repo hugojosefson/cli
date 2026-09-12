@@ -11,6 +11,11 @@ import type {
   OperationContext,
 } from "../api/repository-context.ts";
 
+import {
+  githubAccessResolution,
+  unavailableGithubRepository,
+} from "./github-repository-access.ts";
+
 const repositorySubject = (context: DetectionContext) => ({
   kind: "repository",
   identifier: context.repositoryRoot.href,
@@ -32,15 +37,7 @@ async function detectRepo(context: DetectionContext) {
         observation: "Authenticated GitHub repository access is available.",
       }],
     }
-    : {
-      state: "disabled" as const,
-      evidence: [{
-        code: "github-repository-unavailable",
-        kind: "github-repository",
-        subject: repositorySubject(context),
-        observation: "Authenticated GitHub repository access is unavailable.",
-      }],
-    };
+    : await unavailableGithubRepository(context);
 }
 
 async function checkRepoEnable(
@@ -129,7 +126,7 @@ export const githubSettings: readonly GithubSetting[] = [
 export function githubSettingFeature(setting: GithubSetting): Feature {
   const detect = async (context: DetectionContext) => {
     if (!await githubRepository(context)) {
-      return { state: "disabled" as const, evidence: [] };
+      return await unavailableGithubRepository(context);
     }
     const resource = await context.github?.resource(
       "repository-setting",
@@ -154,7 +151,7 @@ export function githubSettingFeature(setting: GithubSetting): Feature {
           kind: "github-repository-setting",
           subject: repositorySubject(context),
           observation: `Cannot read ${setting.field}.`,
-          resolution: "Authenticate gh for this GitHub repository.",
+          resolution: githubAccessResolution,
         }],
       };
   };

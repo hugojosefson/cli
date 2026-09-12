@@ -15,6 +15,8 @@ import {
   projectAccessResolution,
 } from "../repository/github-default-project.ts";
 
+import { unavailableGithubRepository } from "./github-repository-access.ts";
+
 const id = "github-default-project";
 const subject = { kind: "github-project", identifier: "default" };
 const read = (context: DetectionContext) =>
@@ -22,7 +24,7 @@ const read = (context: DetectionContext) =>
 
 async function detect(context: DetectionContext) {
   if (!await context.github?.repository()) {
-    return state("disabled", "A linked GitHub repository is required.");
+    return await unavailableGithubRepository(context);
   }
   const resource = await read(context);
   if (!resource) {

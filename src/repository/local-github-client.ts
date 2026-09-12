@@ -278,7 +278,17 @@ export class LocalGithubClient implements GithubWriter {
       "--json",
       "nameWithOwner,defaultBranchRef",
     ]);
-    return output ? repositoryFromResponse(json(output)) : undefined;
+    const repository = output && repositoryFromResponse(json(output));
+    if (repository) return repository;
+    // gh resolves these placeholders from its selected Git remote (including
+    // GH_REPO and Enterprise hosts), without a GraphQL repository lookup.
+    const fallback = await this.#run(["api", "repos/{owner}/{repo}"]);
+    const value = fallback && object(json(fallback));
+    if (!value || typeof value.default_branch !== "string") return undefined;
+    return repositoryFromResponse({
+      nameWithOwner: value.full_name,
+      defaultBranchRef: { name: value.default_branch },
+    });
   }
 
   rulesets(): Promise<readonly GithubResource[] | undefined> {

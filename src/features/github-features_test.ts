@@ -147,7 +147,7 @@ Deno.test("pure GitHub preset blocks inaccessible repositories before mutation",
           { github },
         ),
       Error,
-      "will not replace it",
+      "ambiguous-feature",
     );
     assertEquals(github.patches, []);
   });

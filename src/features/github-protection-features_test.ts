@@ -650,3 +650,44 @@ Deno.test("main protection accepts migrated CI with recorded pins and rejects cu
     }
   }
 });
+
+Deno.test("linked but inaccessible GitHub features remain unknown instead of disabled", async () => {
+  const base = context([]);
+  const features = builtInFeatureRegistry.features.filter((feature) =>
+    [
+      "github-repo",
+      "github-default-project",
+      "github-main-protection",
+      "github-main-review",
+      "github-protected-tags",
+      "github-issues",
+      "github-private",
+    ].includes(feature.metadata.id)
+  );
+  for (const linked of [true, false]) {
+    const unavailable = {
+      ...base,
+      git: {
+        ...base.git,
+        remotes: () =>
+          Promise.resolve(
+            linked
+              ? [{ name: "origin", url: "git@github.example:owner/repo.git" }]
+              : [],
+          ),
+      },
+      github: { ...base.github!, repository: () => Promise.resolve(undefined) },
+    };
+    for (const feature of features) {
+      const detected = await feature.detect(unavailable);
+      assertEquals(
+        detected.state,
+        linked ? "ambiguous" : "disabled",
+        feature.metadata.id,
+      );
+      if (detected.state === "ambiguous") {
+        assertEquals(detected.issues.length > 0, true);
+      }
+    }
+  }
+});

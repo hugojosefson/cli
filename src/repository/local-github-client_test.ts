@@ -886,6 +886,7 @@ Deno.test("GitHub read diagnostics retain HTTP status without exposing response 
   assertEquals(await client.repository(), undefined);
   assertEquals(client.diagnostics, [
     "GitHub repository lookup failed (HTTP 401, exit 1). Run `gh auth status` to check access.",
+    "GitHub API request failed (HTTP 401, exit 1). Run `gh auth status` to check access.",
   ]);
 });
 
@@ -955,4 +956,115 @@ Deno.test("GitHub rate-limit diagnostics do not suggest another login or expose 
   assertEquals(client.diagnostics, [
     "GitHub API rate limit reached. Wait for the limit to reset, then retry.",
   ]);
+});
+
+Deno.test("REST fallback preserves authoritative GitHub identity and feature reads during GraphQL outages", async () => {
+  const runner = new FakeRunner([
+    undefined,
+    json({ full_name: "canonical/renamed", default_branch: "trunk" }),
+    json({ has_issues: true }),
+    json({ can_approve_pull_request_reviews: true }),
+  ]);
+  const client = githubClient(runner);
+  assertEquals(await client.repository(), {
+    owner: "canonical",
+    name: "renamed",
+    defaultBranch: "trunk",
+  });
+  assertEquals(
+    (await client.resource("repository-setting", "has_issues"))?.definition
+      .value,
+    true,
+  );
+  assertEquals(
+    (await client.resource(
+      "actions-workflow-permission",
+      "can-approve-pull-request-reviews",
+    ))?.definition.value,
+    true,
+  );
+  assertEquals(runner.calls.map((call) => call.args), [
+    ["repo", "view", "--json", "nameWithOwner,defaultBranchRef"],
+    ["api", "repos/{owner}/{repo}"],
+    ["api", "repos/canonical/renamed"],
+    ["api", "repos/canonical/renamed/actions/permissions/workflow"],
+  ]);
+});
+
+Deno.test("repository fallback rejects unavailable or malformed REST identity", async () => {
+  for (
+    const value of [
+      undefined,
+      {},
+      { full_name: "a/b/c", default_branch: "main" },
+      { full_name: "a/b", default_branch: 123 },
+      { full_name: "a/b" },
+    ]
+  ) {
+    const client = githubClient(
+      new FakeRunner([
+        undefined,
+        value === undefined ? undefined : json(value),
+      ]),
+    );
+    assertEquals(await client.repository(), undefined);
+  }
+});
+
+Deno.test("GraphQL rate-limit diagnostics preserve only the classified reason", async () => {
+  for (const structured of [true, false]) {
+    const client = githubClient({
+      run: () =>
+        Promise.resolve({
+          success: false,
+          code: 1,
+          stdout: structured
+            ? json({
+              errors: [{ type: "RATE_LIMITED", message: "private-value" }],
+            })
+            : new Uint8Array(),
+          stderr: new TextEncoder().encode(
+            "GraphQL: API rate limit exceeded for user ID private-value",
+          ),
+        }),
+    });
+    assertEquals(await client.repository(), undefined);
+    assertEquals(client.diagnostics, [
+      "GitHub API rate limit reached. Wait for the limit to reset, then retry.",
+    ]);
+  }
+});
+
+Deno.test("GitHub current GraphQL rate-limit shapes do not leak user IDs", async () => {
+  for (
+    const error of [
+      { type: "RATE_LIMIT" },
+      { code: "graphql_rate_limit" },
+      undefined,
+    ]
+  ) {
+    const client = githubClient({
+      run: () =>
+        Promise.resolve({
+          success: false,
+          code: 1,
+          stdout: error
+            ? json({
+              errors: [{
+                ...error,
+                message:
+                  "API rate limit already exceeded for user ID private-value.",
+              }],
+            })
+            : new Uint8Array(),
+          stderr: new TextEncoder().encode(
+            "gh: API rate limit already exceeded for user ID private-value.",
+          ),
+        }),
+    });
+    assertEquals(await client.repository(), undefined);
+    assertEquals(client.diagnostics, [
+      "GitHub API rate limit reached. Wait for the limit to reset, then retry.",
+    ]);
+  }
 });

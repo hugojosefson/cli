@@ -25,7 +25,7 @@ import {
 export const defaultProjectResource = "repository-default-project";
 export const defaultProjectName = "default";
 export const projectAccessResolution =
-  "Run gh auth refresh -h github.com -s project, then retry. Projects require read/write project access.";
+  "Check `gh auth status` for project access. If the project scope is missing, run `gh auth refresh -h github.com -s project`; if GitHub is rate limited, wait for its reset, then retry. Projects require read/write project access.";
 
 interface Project {
   id: string;
