@@ -79,7 +79,7 @@
     },
     "test": {
       "description": "Run tests",
-      "command": "deno run --allow-env --allow-run --allow-read --allow-write=/tmp/opencode,.hj/test-results scripts/run-tests.ts"
+      "command": "deno run --allow-sys=uid,gid,osRelease --allow-env --allow-run --allow-read --allow-write=/tmp/opencode,.hj/test-results scripts/run-tests.ts"
     },
     "diff-check": {
       "description": "Check the working diff for whitespace errors",

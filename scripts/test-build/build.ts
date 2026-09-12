@@ -1,3 +1,5 @@
+import { nativeBuildInputs } from "../testing/native-build-inputs.ts";
+import { finishNativeBuild } from "../testing/native-build-receipt.ts";
 import { prepareTestDirectory } from "../testing/output.ts";
 /** Emit the full shared test graph without Deno registration or global shims. */
 import { build } from "@deno/dnt";
@@ -6,6 +8,19 @@ import { nativeBuildOptions } from "../npm-build/options.ts";
 import { testFiles } from "../testing/manifest.ts";
 const root = new URL("../../", import.meta.url);
 const output = await prepareTestDirectory(root, "test", true);
+const observationStarted = performance.now();
+let nativeBefore;
+try {
+  nativeBefore = await nativeBuildInputs(
+    root,
+    Deno.execPath(),
+    Deno.env.get("PATH") ?? "",
+  );
+} catch {
+  console.warn("Native build observation is unavailable.");
+}
+const observationMs = performance.now() - observationStarted;
+const buildStarted = performance.now();
 for (const file of ["package.json", "package-lock.json", ".npmrc"]) {
   await Deno.copyFile(
     new URL(`dependencies/${file}`, import.meta.url),
@@ -43,3 +58,18 @@ await build({
     "jsr:@std/assert": { name: "@jsr/std__assert", version: "1.0.19" },
   },
 });
+
+if (nativeBefore) {
+  try {
+    await finishNativeBuild(
+      root,
+      nativeBefore,
+      Deno.execPath(),
+      Deno.env.get("PATH") ?? "",
+      performance.now() - buildStarted,
+      observationMs,
+    );
+  } catch {
+    console.warn("Native build observation is unavailable.");
+  }
+}

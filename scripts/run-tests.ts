@@ -1,3 +1,11 @@
+import { nativeEnvironment } from "./testing/native-environment.ts";
+import { nativeCommandPlan } from "./testing/native-command-plan.ts";
+import { captureNativeInputs } from "./testing/native-observation.ts";
+import type {
+  NativeObservation,
+  NativeSnapshot,
+} from "./testing/native-types.ts";
+import { nativeResult } from "./testing/native-result.ts";
 import { prepareTestDirectory } from "./testing/output.ts";
 /** Run the same explicit suite in isolated runtime processes and record test bodies. */
 import { fileURLToPath } from "node:url";
@@ -63,8 +71,8 @@ env.HJ_TEST_INVENTORY = journal;
 env.HJ_TEST_SOURCE_ROOT = root.href;
 env.HJ_TEST_DENO = Deno.execPath();
 const permissions = [
-  "--allow-sys=uid,gid",
-  "--allow-read=/tmp/opencode,deno.json,deno.lock",
+  "--allow-sys=uid,gid,osRelease",
+  `--allow-read=/tmp/opencode,deno.json,deno.lock,${Deno.execPath()}`,
   "--allow-write=/tmp/opencode",
   "--allow-run=git,deno,sh",
   "--allow-net=127.0.0.1",
@@ -78,35 +86,41 @@ const paths = files.map((file) =>
     ),
   )
 );
-const commands = runtime === "bun"
-  ? paths.map((
-    path,
-  ) => [
-    "test",
-    "--timeout=120000",
-    ...(filter ? ["--test-name-pattern", filter] : []),
-    path,
-  ])
-  : [
-    runtime === "deno"
-      ? [
-        "test",
-        "--frozen",
-        ...permissions,
-        ...(coverage
-          ? ["--coverage=.coverage", "--clean", "--coverage-raw-data-only"]
-          : []),
-        ...(filter ? ["--filter", filter] : []),
-        ...paths,
-      ]
-      : [
-        "--test",
-        "--test-concurrency=1",
-        "--test-timeout=120000",
-        ...(filter ? ["--test-name-pattern", filter] : []),
-        ...paths,
-      ],
-  ];
+const commands = runtime === "deno"
+  ? [{
+    focused: false,
+    args: [
+      "test",
+      "--frozen",
+      ...permissions,
+      ...(coverage
+        ? ["--coverage=.coverage", "--clean", "--coverage-raw-data-only"]
+        : []),
+      ...(filter ? ["--filter", filter] : []),
+      ...paths,
+    ],
+  }]
+  : nativeCommandPlan(runtime, files, native, filter);
+let focusedEnvironment: Record<string, string> | undefined;
+let nativeError: string | undefined;
+let nativeTemporary: string | undefined;
+if (runtime !== "deno") {
+  try {
+    nativeTemporary = await Deno.makeTempDir({
+      dir: "/tmp/opencode",
+      prefix: "hj-native-environment-",
+    });
+    await Deno.mkdir(nativeTemporary + "/home");
+    await Deno.mkdir(nativeTemporary + "/tmp");
+    focusedEnvironment = {
+      ...await nativeEnvironment(Deno.execPath(), env.PATH ?? ""),
+      HOME: nativeTemporary + "/home",
+      TMPDIR: nativeTemporary + "/tmp",
+    };
+  } catch {
+    nativeError = "Native environment is unavailable";
+  }
+}
 const version = new TextDecoder().decode(
   (await new Deno.Command(executable, {
     args: ["--version"],
@@ -156,14 +170,36 @@ if (!options.length && !filter) {
   }
 }
 let observationMs = performance.now() - observationStarted;
+let nativeBefore: NativeSnapshot | undefined;
+let nativeObservationMs = 0;
+if (!options.length && !filter && focusedEnvironment) {
+  const started = performance.now();
+  try {
+    nativeBefore = await captureNativeInputs(
+      root,
+      runtime,
+      executable,
+      focusedEnvironment,
+    );
+  } catch {
+    nativeError = "Native inputs are unavailable; rebuild the native tests";
+  }
+  nativeObservationMs += performance.now() - started;
+}
 let code = 0;
 const suiteStarted = performance.now();
 try {
-  for (const args of commands) {
+  for (const command of commands) {
     const result = await new Deno.Command(executable, {
-      args,
+      args: command.args,
       cwd: root,
-      env,
+      env: command.focused && focusedEnvironment
+        ? {
+          ...focusedEnvironment,
+          HJ_TEST_INVENTORY: journal,
+          HJ_TEST_SOURCE_ROOT: root.href,
+        }
+        : env,
       clearEnv: true,
       stdin: "null",
       stdout: "inherit",
@@ -217,11 +253,37 @@ try {
     }
     observationMs += performance.now() - started;
   }
+  let nativeObservation: NativeObservation | undefined;
+  if (nativeBefore && report.complete && report.success && focusedEnvironment) {
+    const started = performance.now();
+    try {
+      const after = await captureNativeInputs(
+        root,
+        runtime,
+        executable,
+        focusedEnvironment,
+      );
+      nativeObservationMs += performance.now() - started;
+      nativeObservation = nativeResult(
+        report,
+        nativeBefore,
+        after,
+        nativeObservationMs,
+      );
+    } catch {
+      nativeObservationMs += performance.now() - started;
+      nativeError = "Native inputs changed or are unavailable";
+    }
+  }
   await Deno.writeTextFile(
     new URL(`${label}.json`, output),
     JSON.stringify(
       {
         ...report,
+        ...(nativeObservation ? { nativeObservation } : {}),
+        ...(nativeError
+          ? { nativeObservationError: nativeError, nativeObservationMs }
+          : {}),
         ...(observation ? { observation, observationMs } : {}),
         ...(observationError ? { observationError } : {}),
       },
@@ -247,10 +309,19 @@ try {
         } inputs. No tests skipped.`,
     );
   }
+  if (nativeObservation) {
+    console.log(
+      `Native input observation: ${
+        nativeObservationMs.toFixed(1)
+      } ms. Cache restoration is disabled.`,
+    );
+  }
+  if (nativeError) console.warn(nativeError);
   if (observationError) {
     console.warn(`Validation observation unavailable: ${observationError}`);
   }
 } finally {
   await Deno.remove(journal);
+  if (nativeTemporary) await Deno.remove(nativeTemporary, { recursive: true });
 }
 Deno.exit(code);

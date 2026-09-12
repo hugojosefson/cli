@@ -1,3 +1,5 @@
+import { compareNativeObservation } from "./native-comparison.ts";
+import type { NativeObservation } from "./native-types.ts";
 /** Proposed reuse only: these observations never authorize skipping validation. */
 import { createHash } from "node:crypto";
 import type { InventoryEvent, InventoryReport } from "./manifest.ts";
@@ -138,6 +140,7 @@ export function observeValidation(
 export type ObservedReport = InventoryReport & {
   version: string;
   observation?: ValidationObservation;
+  nativeObservation?: NativeObservation;
 };
 
 function requireObservation(report: ObservedReport): ValidationObservation {
@@ -196,6 +199,13 @@ export function compareObservations(
       (changed.length ? ` Changed inputs: ${changed.join(", ")}.` : "") +
       (before.inputs.context !== after.inputs.context
         ? " Runtime, platform, or environment context changed."
+        : "") +
+      (current.runtime !== "deno" && group.name !== "remainder"
+        ? compareNativeObservation(
+          previous.nativeObservation,
+          current.nativeObservation,
+          group.name,
+        )
         : "");
   });
 }

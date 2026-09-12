@@ -152,10 +152,86 @@ runtime file reads. Changes to the focused code require another manual audit of
 those dependencies. These candidate keys cannot authorize future cached results
 without further work on complete input declarations and result trust.
 
-Native compilation still emits the complete CLI and test suite. For Node and
-Bun, `executionKey` therefore retains the conservative key for every group. A
-version change can preserve the focused `candidateKey` while changing its native
-`executionKey`. Independent native compilation remains future work.
+## Native build observations
+
+Native compilation emits the complete CLI and test suite. The source observation
+keeps the conservative `executionKey` for Node and Bun. A new
+`nativeObservation` field records proposed keys for the two focused groups. Its
+`cacheEligible` value is `false`. No test result cache is active.
+
+The build creates `.hj/test/.hj-native-receipt.json` after compilation. This
+receipt contains digests of source inputs, emitted files, installed
+dependencies, package files, tools, and the complete test inventory. The build
+checks source inputs before and after compilation and receipt preparation. An
+input change prevents receipt creation.
+
+The runner checks the receipt against current files before and after the suite.
+A missing receipt or an input change prevents native observations. The usual
+tests continue. A complete suite with no test failures can supply observations.
+The comparison command reports native proposed key matches and changed inputs.
+It does not accept those observations as test results.
+
+Each proposed key contains the group's resolved emitted imports, source files,
+installed dependency contents, build tools, runtime tools, and group membership.
+The receipt and result checks retain the complete inventory. Configuration
+contributes all fields but omits the package version. Scripts and lockfiles
+contribute to both keys. Tool identity contains executable contents and version
+output. The report records dependency size, build duration, and observation
+duration.
+
+The focused native groups use an explicit environment with an empty temporary
+home directory. This environment excludes inherited `NODE_OPTIONS`,
+`BUN_OPTIONS`, and loader settings. The remainder group keeps its usual
+environment.
+
+Keys also include absolute tool paths. A different checkout directory can cause
+different keys. The emitter adds exports for new tests. Those package changes
+can change both keys.
+
+These proposed keys have known limits. The import graph cannot prove the absence
+of runtime file reads. Host libraries, npm implementation files behind its
+launcher, and other external code must have more inspection. Deno resolves the
+emitted graph for both Node and Bun. Matching digests do not identify a trusted
+writer. PR reports cannot authorize release validation.
+
+## Cache access
+
+Managed PR workflows have `cache-mode: read`. Native PR jobs use
+`actions/cache/restore`. Dependency updates and tag preparation can write
+download caches from the default branch or `main`. Publication jobs have read
+access.
+
+GitHub enforces these permissions with scoped cache tokens. A cache from a PR
+merge ref cannot supply data to `main`. See the
+[GitHub cache rules](https://docs.github.com/en/actions/reference/workflows-and-actions/dependency-caching).
+
+A PR author can change the workflow in that PR. GitHub's ref restrictions
+continue to prevent that PR from writing a cache for `main`. Workflows must not
+use `pull_request_target` to build PR source with trusted cache access. Cached
+reports and artifacts from PRs are untrusted input.
+
+## Local experiment
+
+Before this integration, a local prototype checked a package version change, a
+release source change, and an installed dependency change. All 789 test bodies
+ran in each complete Node 24 suite. A version change preserved both proposed
+focused keys. A release source change changed only the release core key. An
+installed dependency change changed both keys.
+
+The release core group took 17.4–37.5 seconds in three local executions.
+
+Proposed key capture and local cache access took a median of 2.1 seconds.
+
+Receipt preparation increased that median to 2.8 seconds.
+
+The cache artifact contained about 2.7 kB.
+
+A corrupt artifact caused a new test execution.
+
+These measurements do not include remote transfer. They apply to one machine.
+The prototype did not supply results to CI. The integrated observations must
+first show useful matches and costs on hosted runners. Nx adoption and test
+result restoration are open decisions in issue #97.
 
 ## Collect and compare
 
@@ -163,8 +239,8 @@ Run the normal required suite, then save its reports outside the checkout:
 
 ```bash
 deno task ci
-mkdir -p /tmp/hj-validation-before
-cp .hj/test-results/{deno,node24,node26,bun}.json /tmp/hj-validation-before/
+mkdir -p /tmp/agents/hj-validation-before
+cp .hj/test-results/{deno,node24,node26,bun}.json /tmp/agents/hj-validation-before/
 ```
 
 After a real change, run `deno task ci` again in the same checkout. Keep the
@@ -172,10 +248,10 @@ runtime, coverage mode, and environment consistent when comparing source
 changes. Keep files unchanged during each run. Compare each runtime separately:
 
 ```bash
-deno task validation-compare /tmp/hj-validation-before/deno.json .hj/test-results/deno.json
-deno task validation-compare /tmp/hj-validation-before/node24.json .hj/test-results/node24.json
-deno task validation-compare /tmp/hj-validation-before/node26.json .hj/test-results/node26.json
-deno task validation-compare /tmp/hj-validation-before/bun.json .hj/test-results/bun.json
+deno task validation-compare /tmp/agents/hj-validation-before/deno.json .hj/test-results/deno.json
+deno task validation-compare /tmp/agents/hj-validation-before/node24.json .hj/test-results/node24.json
+deno task validation-compare /tmp/agents/hj-validation-before/node26.json .hj/test-results/node26.json
+deno task validation-compare /tmp/agents/hj-validation-before/bun.json .hj/test-results/bun.json
 ```
 
 The command reports candidate matches, current execution matches, changed input

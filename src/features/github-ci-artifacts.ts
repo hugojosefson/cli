@@ -33,6 +33,8 @@ on:
 permissions:
   contents: read
 
+cache-mode: read
+
 concurrency:
   group: hj-ci-\${{ github.workflow }}-pr-\${{ github.event.pull_request.number }}
   cancel-in-progress: true
@@ -84,6 +86,8 @@ on:
 permissions:
   contents: write
   pull-requests: write
+
+cache-mode: write
 
 concurrency:
   group: hj-deps-\${{ github.repository }}

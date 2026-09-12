@@ -1,5 +1,5 @@
 /** @module Explicit managed CI variant for hj's shared runtime suite. */
-import { nativeNpmCacheStep } from "./github-workflow-cache.ts";
+import { nativeNpmRestoreStep } from "./github-workflow-cache.ts";
 export const githubCiRuntimeMatrixMarker =
   "# hj-ci-runtime-matrix: deno-node-bun-v1\n";
 
@@ -30,7 +30,7 @@ ${upload("deno")}  native:
       matrix:
         runtime: [node24, node26, bun]
     steps:
-${setup}${nativeNpmCacheStep}      - run: deno run --allow-all scripts/run-test-matrix.ts --runtime \${{ matrix.runtime }}
+${setup}${nativeNpmRestoreStep}      - run: deno run --allow-all scripts/run-test-matrix.ts --runtime \${{ matrix.runtime }}
 ${upload("\${{ matrix.runtime }}")}  check:
     if: \${{ always() }}
     needs: [deno, native]

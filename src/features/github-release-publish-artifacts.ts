@@ -46,12 +46,15 @@ on:
 permissions:
   contents: read
 
+cache-mode: read
+
 concurrency:
   group: hj-release-publish-tag-main
   cancel-in-progress: false
 
 jobs:
   publish-tag-prepare:
+    cache-mode: write
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
@@ -149,6 +152,8 @@ on:
 
 permissions:
 ${permissions}
+
+cache-mode: read
 
 concurrency:
   group: hj-release-publish-${job}-\${{ github.event.client_payload.tag || inputs.tag }}
