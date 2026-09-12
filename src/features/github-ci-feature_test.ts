@@ -870,8 +870,16 @@ test("github-ci runtime matrix is explicit, gated, formatted and repairable", as
     assertEquals(upload.with["if-no-files-found"], "error");
     assertEquals(upload.with["include-hidden-files"], true);
     assertEquals(upload.with.overwrite, true);
+    assertEquals(upload.with["retention-days"], 1);
+    assertEquals(upload.with.archive, undefined);
     assertEquals(upload.if, undefined);
   }
+  const download = jobs.check.steps.at(-2);
+  assertEquals(download.with, {
+    pattern: "runtime-report-*",
+    path: ".hj/test-results",
+    "merge-multiple": true,
+  });
   assertEquals(
     jobs["hj-release-commit-validation"],
     parseYaml(githubCiArtifacts[0].content)

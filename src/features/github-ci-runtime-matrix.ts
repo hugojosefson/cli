@@ -10,7 +10,7 @@ export function githubCiRuntimeMatrix(content: string): string {
   const setup = content.slice(start, end).split("    steps:\n")[1]
     .split("      - run: deno task all\n")[0];
   const upload = (label: string) =>
-    `      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+    `      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: runtime-report-${label}
           path: .hj/test-results/${label}.json
@@ -41,7 +41,7 @@ ${upload("\${{ matrix.runtime }}")}  check:
           DENO_RESULT: \${{ needs.deno.result }}
           NATIVE_RESULT: \${{ needs.native.result }}
         run: test "$DENO_RESULT" = success && test "$NATIVE_RESULT" = success
-${setup}      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+${setup}      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           pattern: runtime-report-*
           path: .hj/test-results
