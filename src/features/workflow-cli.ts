@@ -5,6 +5,7 @@ import type {
   DetectionContext,
   OperationContext,
 } from "../api/repository-context.ts";
+import { workflowDenoArtifact } from "./workflow-deno.ts";
 import { hjPackageReference } from "./hj-package.ts";
 import { parseSemver } from "../release/semver.ts";
 
@@ -33,6 +34,7 @@ export function workflowCliArtifact<
   context: DetectionContext,
   observation: ArtifactObservation,
 ): { readonly path: string; readonly content: string } {
+  artifact = workflowDenoArtifact(artifact, context, observation);
   if (!artifact.content.includes(hjPackageReference)) return artifact;
   const selected = (context as Partial<OperationContext>).options?.workflowCli;
   const recorded = observation.kind === "file"

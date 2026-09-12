@@ -156,6 +156,7 @@ Deno.test("keeps repo features dispatch", async () => {
       () =>
         runCli(root, ["repo", "features", "--deno-fmt"], {
           colors: { stdout: false, stderr: true },
+          globalConfigFile: new URL("missing-config.json", root),
         }),
       Error,
     );
@@ -459,7 +460,7 @@ Deno.test("help needs no repository, credentials, or release side effects", asyn
     assertEquals(result.output.includes("hj"), true);
   }
   await assertRejects(
-    () => runCli(root, ["config", "list"], services),
+    () => runCli(root, ["config", "unknown"], services),
     Error,
     "Unknown command",
   );

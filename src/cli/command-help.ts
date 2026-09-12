@@ -8,7 +8,7 @@ export const commandDefinitions = {
     details:
       "With no flags, report status without changes.\nPresets select a group of features with one flag. Explicit feature flags override presets.\nGitHub changes require an authenticated gh CLI, an existing repository link, and --yes.",
     flags: [
-      ["--defaults", "Select Git and README."],
+      ["--defaults", "Select configured features (fallback: Git and README)."],
       [
         "--jsr-scope=<scope>",
         "Select a JSR scope; JSR_TOKEN enables membership discovery.",
@@ -17,6 +17,10 @@ export const commandDefinitions = {
       [
         "--workflow-cli=<source>",
         "Use jsr or github:owner/repository@<commit SHA> in selected workflows.",
+      ],
+      [
+        "--deno-version=<version>",
+        "Override the Deno version for selected workflows.",
       ],
       ["--github", "Apply common GitHub repository settings (private)."],
       ["--github-protection", "Protect the default branch and tags."],
@@ -30,6 +34,29 @@ export const commandDefinitions = {
       ["--interactive, -i", "Select actions in a terminal checklist."],
       ["--yes", "Accept plan warnings that need confirmation."],
     ],
+  },
+  "config get": {
+    usage: "hj config get <key>",
+    description: "Read one saved default.",
+    details:
+      "Keys: features, deno-version. Values come from the XDG hj/config.json file.",
+  },
+  "config set": {
+    usage: "hj config set <key> <value>",
+    description: "Save a non-secret default.",
+    details:
+      "features takes a JSON array of feature or capability IDs. deno-version takes an exact stable version.",
+  },
+  "config list": {
+    usage: "hj config list",
+    description: "List saved defaults as JSON.",
+    details:
+      "Reads the configuration file without creating it. Secrets are not supported.",
+  },
+  "config unset": {
+    usage: "hj config unset <key>",
+    description: "Remove one saved default.",
+    details: "Remove a value to restore the built-in fallback.",
   },
   "repo project-auto-add": {
     usage: "hj repo project-auto-add --yes",
@@ -93,7 +120,7 @@ export const commandDefinitions = {
 export type CommandName = keyof typeof commandDefinitions;
 
 const featureExamples = [
-  ["hj repo features --defaults", "Set up Git and README."],
+  ["hj repo features --defaults", "Apply the default feature selection."],
   [
     "hj repo features --github --github-public --yes",
     "Apply GitHub settings with public visibility.",

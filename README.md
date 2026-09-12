@@ -59,7 +59,7 @@ Use built-in presets to select a group of features with one flag:
 
 | Option                | What it selects                                                  |
 | --------------------- | ---------------------------------------------------------------- |
-| `--defaults`          | Git and README.                                                  |
+| `--defaults`          | [Configured defaults](docs/configuration.md), or Git and README. |
 | `--github`            | Common GitHub repository settings, including private visibility. |
 | `--github-protection` | Default-branch protection and protected tags.                    |
 | `--github-public`     | Public visibility, including when combined with `--github`.      |

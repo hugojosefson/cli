@@ -53,7 +53,7 @@ export interface FeatureChangeRequest {
   readonly changes: readonly RequestedFeatureChange[];
   /** Preset IDs selected by the caller. */
   readonly presets: readonly string[];
-  /** True only when the caller explicitly passed `--defaults`. */
+  /** Apply defaults selected by `--defaults` or configured interactive mode. */
   readonly applyDefaults: boolean;
   /** Globally configured selections, or the built-in fallback selections. */
   readonly defaults: readonly DefaultSelection[];

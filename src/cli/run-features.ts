@@ -43,11 +43,8 @@ import { FeatureCommitSession } from "./git-feature-commit.ts";
 import { CommandFailure } from "./command-failure.ts";
 import { runFinalProjectTask } from "./final-project-task.ts";
 import type { FeaturesArguments } from "./parse-features.ts";
-import {
-  type FeatureAction,
-  featureActions,
-  selectedFeatureActionsToRequest,
-} from "./feature-actions.ts";
+import type { FeatureAction } from "./feature-actions.ts";
+import { interactiveFeatureRequest } from "./interactive-feature-defaults.ts";
 import { promptFeatureActions } from "./prompt-feature-actions.ts";
 import { repairFeatureChanges } from "./repair-feature-changes.ts";
 import { requireConfirmation } from "./require-confirmation.ts";
@@ -114,8 +111,11 @@ export async function runFeatureOperation(
       return formatFeatureStatus(registry, detections, services.colors?.stdout);
     }
     const request = args.kind === "interactive"
-      ? selectedFeatureActionsToRequest(
-        selectActions(featureActions(registry, detections)),
+      ? interactiveFeatureRequest(
+        registry,
+        detections,
+        args.configuredDefaults,
+        selectActions,
       )
       : args.request;
     if (
@@ -150,7 +150,10 @@ export async function runFeatureOperation(
       ...requestedDriftedChanges(detections, request),
       ...repairFeatureChanges(detections, request.repair),
     ];
-    if ("workflowCli" in args && args.workflowCli !== undefined) {
+    if (
+      ("workflowCli" in args && args.workflowCli !== undefined) ||
+      ("denoVersion" in args && args.denoVersion !== undefined)
+    ) {
       changes.push(...workflowCliChanges(request, registry, changes));
     }
     const baseContext = {
@@ -162,8 +165,9 @@ export async function runFeatureOperation(
       detections,
       requestedChanges: request.changes,
       resolvedChanges: changes,
-      repair: request.repair?.kind === "features" && "workflowCli" in args &&
-          args.workflowCli !== undefined
+      repair: request.repair?.kind === "features" &&
+          (("workflowCli" in args && args.workflowCli !== undefined) ||
+            ("denoVersion" in args && args.denoVersion !== undefined))
         ? {
           kind: "features" as const,
           featureIds: [
@@ -214,6 +218,10 @@ export async function runFeatureOperation(
       options: {
         confirmation: args.confirmation,
         ...licenseOptions,
+        ...("denoVersion" in args ? { denoVersion: args.denoVersion } : {}),
+        ...("defaultDenoVersion" in args
+          ? { defaultDenoVersion: args.defaultDenoVersion }
+          : {}),
         ...jsrOptions,
         ...("workflowCli" in args && args.workflowCli !== undefined
           ? { workflowCli: args.workflowCli }

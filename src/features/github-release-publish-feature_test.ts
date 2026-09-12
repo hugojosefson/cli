@@ -481,3 +481,48 @@ Deno.test("JSR publisher creates a pinned bootstrap workflow and restores regist
     "drifted",
   );
 });
+
+Deno.test("release workflows use configured Deno versions without changing CLI source selection", async () => {
+  const source = "github:owner/project@" + "a".repeat(40);
+  for (
+    const artifact of [
+      publishTagArtifact,
+      publishJsrArtifact,
+      publishGithubArtifact,
+    ]
+  ) {
+    const configured = {
+      ...context({}),
+      options: { defaultDenoVersion: "2.8.1", workflowCli: source },
+    };
+    const generated = await inspectReleaseArtifact(configured, artifact);
+    if (generated.schema.kind !== "file") {
+      throw new Error("Expected file schema");
+    }
+    assertStringIncludes(generated.schema.content, "deno-version: 2.8.1");
+    assertStringIncludes(
+      generated.schema.content,
+      "# hj-workflow-cli: " + source,
+    );
+    const saved = context({ [artifact.path]: exact(generated.schema.content) });
+    assertEquals(
+      (await inspectReleaseArtifact(saved, artifact)).result,
+      "matches",
+    );
+    assertEquals(
+      (await inspectReleaseArtifact({
+        ...saved,
+        options: { defaultDenoVersion: "2.9.0" },
+      } as OperationContext, artifact)).result,
+      "matches",
+    );
+    const overridden = await inspectReleaseArtifact({
+      ...saved,
+      options: { denoVersion: "2.9.0" },
+    } as OperationContext, artifact);
+    if (overridden.schema.kind !== "file") {
+      throw new Error("Expected file schema");
+    }
+    assertStringIncludes(overridden.schema.content, "deno-version: 2.9.0");
+  }
+});
