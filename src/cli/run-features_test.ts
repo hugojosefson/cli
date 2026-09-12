@@ -13,7 +13,29 @@ import { readmeBuildFeature } from "../features/readme-build-feature.ts";
 import { readmeStaticFeature } from "../features/readme-static-feature.ts";
 import { buildReadme } from "../readme/build-readme.ts";
 import { parseFeatures } from "./parse-features.ts";
-import { runFeatureOperation, runFeatures } from "./run-features.ts";
+import {
+  runFeatureOperation as actualRunFeatureOperation,
+  runFeatures as actualRunFeatures,
+} from "./run-features.ts";
+
+// These tests exercise plans and commits; task subprocesses have dedicated tests.
+function runFeatureOperation(
+  ...args: Parameters<typeof actualRunFeatureOperation>
+) {
+  return actualRunFeatureOperation(args[0], args[1], args[2], args[3], {
+    ...args[4],
+    runFinalTask: async () => undefined,
+  });
+}
+function runFeatures(...args: Parameters<typeof actualRunFeatures>) {
+  return runFeatureOperation(
+    args[0],
+    args[1],
+    builtInFeatureRegistry,
+    args[2],
+    { colors: args[3] },
+  );
+}
 
 Deno.test("reports status and commits only planned README changes", async () => {
   await withRepository(async (root) => {
@@ -38,10 +60,10 @@ Deno.test("reports status and commits only planned README changes", async () => 
       root,
       parseFeatures(["repo", "features", "--readme"], builtInFeatureRegistry),
     );
-    assert(enabled.includes("Created one commit"));
+    assert(enabled.includes("Committed each changed feature"));
     assertEquals(
       await gitText(["log", "--format=%s", "-1"], root),
-      "chore: configure repository features",
+      "chore(readme-static): enable feature",
     );
     assertEquals(
       await gitText(["show", "--format=", "--name-only", "HEAD"], root),
@@ -55,7 +77,7 @@ Deno.test("reports status and commits only planned README changes", async () => 
         builtInFeatureRegistry,
       ),
     );
-    assert(disabled.includes("Created one commit"));
+    assert(disabled.includes("Committed each changed feature"));
     assertEquals(await gitText(["rev-list", "--count", "HEAD"], root), "3");
     assertEquals(
       await gitText(["show", "--format=", "--name-only", "HEAD"], root),
@@ -94,7 +116,7 @@ Deno.test("repair preserves writable static README content", async () => {
         builtInFeatureRegistry,
       ),
     );
-    assert(!result.includes("Created one commit"));
+    assert(!result.includes("Committed each changed feature"));
     assertEquals(
       await Deno.readTextFile(new URL("README.md", root)),
       "# edited\n",
@@ -126,7 +148,7 @@ Deno.test("commits planned deno-fmt changes through the generic Git path", async
         builtInFeatureRegistry,
       ),
     );
-    assert(result.includes("Created one commit"));
+    assert(result.includes("Committed each changed feature"));
     assertEquals(
       await gitText(["show", "--format=", "--name-only", "HEAD"], root),
       "deno.jsonc",
@@ -149,7 +171,7 @@ Deno.test("commits planned deno-lib files through the generic Git path", async (
         builtInFeatureRegistry,
       ),
     );
-    assert(result.includes("Created one commit"));
+    assert(result.includes("Committed each changed feature"));
     assertEquals(
       await gitText(["show", "--format=", "--name-only", "HEAD"], root),
       "deno.jsonc\nsrc/lib/mod.ts\ntest/lib_test.ts",
@@ -169,7 +191,7 @@ Deno.test("commits planned deno-cli files through the generic Git path", async (
       root,
       parseFeatures(["repo", "features", "--deno-cli"], builtInFeatureRegistry),
     );
-    assert(result.includes("Created one commit"));
+    assert(result.includes("Committed each changed feature"));
     assertEquals(
       await gitText(["show", "--format=", "--name-only", "HEAD"], root),
       "deno.jsonc\nsrc/cli/cli.ts\nsrc/cli/command.ts\nsrc/cli/commands.ts\nsrc/cli/package-metadata.json\ntest/cli_test.ts",

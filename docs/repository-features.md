@@ -135,13 +135,19 @@ stores no installation reason and has no automatic dependency removal. Disable
 dependent features explicitly before removing their dependency.
 
 Repair can restore starter code and tests. It does not adopt ambiguous files.
-When Git is enabled, a successful local operation validates the plan and commits
-only its planned paths in one Conventional Commit. This also applies when the
-operation initializes Git. Git alone creates an empty `chore: init repo` commit.
-Git with file changes creates one `chore: configure repository features` commit
-that contains those files. Before any changes, `hj` checks that Git can identify
-the author and committer. If either identity is unavailable, the command stops
-and explains how to set it.
+When Git is enabled, `hj` records one commit for each changed feature after the
+final project task and validation succeed. Subjects identify the feature, such
+as `chore(deno-test): enable feature` or `chore(readme-build): disable feature`.
+Repairs use the enable subject. Changes to shared files remain separated in
+history. Unchanged features do not create commits.
+
+Before writing files, `hj` requires both Git identities and checks that planned
+paths have no existing edits. Unrelated staged and working files stay untouched.
+A repository without commits receives an empty `chore: init repo` base before
+feature content. That empty commit may remain if a task fails; pending feature
+commits are created only after success. Unattributable task output stops commit
+creation and remains visible for correction. Generated coverage reports are not
+feature content.
 
 After local file changes, `hj` runs `deno task default` once before it creates
 feature commits. It uses the final task definition and the final project files.
