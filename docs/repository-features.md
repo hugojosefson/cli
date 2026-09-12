@@ -540,6 +540,10 @@ approval. PR workflow runs created by its dependency updater need approval from
 a user with write access. `github-main-protection` requires `github-ci` and
 resolved review threads.
 
+PR CI cancels superseded runs for the same workflow and pull request. Different
+PRs run independently. Dependency updates and release workflows retain separate
+concurrency groups and do not cancel in-progress mutations.
+
 If a repository uses CI from `git-hj-init`, select `--github-ci` to migrate its
 exact `deno.yaml` and `bump-deps.yaml` workflows. The plan lists each
 replacement. It removes recognized legacy files after writing `hj-ci.yaml` and
