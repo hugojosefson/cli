@@ -331,3 +331,10 @@ The ordinary CI run on the bot-created release PR did not start jobs. The tag
 workflow ran the project checks during preparation and created both required
 synthetic checks on the exact release commit. These checks allowed the rebase
 merge. This behavior matches the earlier disposable tests.
+
+The
+[migration CI run](https://github.com/hugojosefson/cli/actions/runs/34660580410)
+passed both jobs with the exact `jsr:@hugojosefson/cli@0.2.0` reference. The
+migration also updates all three release workflows through the feature command.
+The final local suite passed 410 tests, with 89.5% line coverage, 89.3% branch
+coverage, and 93.5% function coverage.
