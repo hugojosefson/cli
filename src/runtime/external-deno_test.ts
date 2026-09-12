@@ -328,3 +328,80 @@ test("a child that closes stdin cannot hang command cleanup", async () => {
   );
   assertEquals(deadline.aborted, false, "input failure must stop the child");
 });
+
+test("empty command input preserves the child's exit status", async () => {
+  for (const input of ["", new Uint8Array()]) {
+    for (const code of [0, 7]) {
+      const result = await runRawCommand("sh", {
+        args: ["-c", `exit ${code}`],
+        input,
+      });
+      assertEquals(result.code, code);
+      assertEquals(result.success, code === 0);
+    }
+  }
+});
+
+test("official acquisition copies the verified platform package without install scripts", async () => {
+  await fixture(async (root) => {
+    const calls: string[] = [];
+    const host = localDenoHost("", undefined, {
+      XDG_CACHE_HOME: join(root.pathname, "cache"),
+    }, async (command, options = {}) => {
+      calls.push(command);
+      if (options.args?.includes("--version")) {
+        return {
+          success: true,
+          code: 0,
+          stdout: new TextEncoder().encode("deno 2.9.6 (stable, release)\n"),
+          stderr: new Uint8Array(),
+        };
+      }
+      assertEquals(["npm", "bun"].includes(command), true);
+      assertEquals(options.args?.includes("--ignore-scripts"), true);
+      const staging = String(options.cwd);
+      assertEquals(
+        JSON.parse(await fs.readFile(join(staging, "package.json"), "utf8")),
+        { private: true, dependencies: { deno: "2.9.6" } },
+      );
+      await fs.mkdir(join(staging, "node_modules/deno"), { recursive: true });
+      await fs.writeFile(
+        join(staging, "node_modules/deno/package.json"),
+        '{"name":"deno","version":"2.9.6"}',
+      );
+      const platform = join(staging, "node_modules/@deno/linux-x64-glibc");
+      await fs.mkdir(platform, { recursive: true });
+      await fs.writeFile(
+        join(platform, "package.json"),
+        '{"name":"@deno/linux-x64-glibc","version":"2.9.6"}',
+      );
+      await fs.writeFile(
+        join(platform, "deno"),
+        "verified platform executable",
+      );
+      return {
+        success: true,
+        code: 0,
+        stdout: new Uint8Array(),
+        stderr: new Uint8Array(),
+      };
+    });
+    const selected = await resolveExternalDeno(root, { requirement: "2.9.6" }, {
+      ...host,
+      current: undefined,
+    });
+    assertEquals(
+      await fs.readFile(selected.path, "utf8"),
+      "verified platform executable",
+    );
+    assertEquals(calls.length, 2);
+    assertEquals(await host.version(selected.path), "2.9.6");
+    assertEquals(
+      await resolveExternalDeno(root, { requirement: "2.9.6", offline: true }, {
+        ...host,
+        current: undefined,
+      }),
+      selected,
+    );
+  });
+});

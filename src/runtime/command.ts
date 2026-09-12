@@ -57,6 +57,8 @@ export async function runRawCommand(
   command: string,
   options: CommandOptions = {},
 ): Promise<CommandResult> {
+  const hasInput = options.input !== undefined && options.input.length > 0;
+  const stdin = options.input === undefined ? options.stdin ?? "null" : "null";
   const deno = (globalThis as {
     Deno?: { Command: DenoCommandConstructor };
   }).Deno;
@@ -64,18 +66,18 @@ export async function runRawCommand(
     const child = new deno.Command(command, {
       ...options,
       args: options.args ? [...options.args] : [],
-      stdin: options.input === undefined ? options.stdin ?? "null" : "piped",
+      stdin: hasInput ? "piped" : stdin,
       stdout: options.stdout ?? "piped",
       stderr: options.stderr ?? "piped",
     }).spawn();
     const writeInput = async () => {
-      if (options.input === undefined) return;
+      if (!hasInput) return;
       const writer = child.stdin.getWriter();
       try {
         await writer.write(
           typeof options.input === "string"
             ? new TextEncoder().encode(options.input)
-            : options.input,
+            : options.input!,
         );
         await writer.close();
       } catch (error) {
@@ -110,9 +112,7 @@ export async function runRawCommand(
       signal: options.signal,
       env: options.env ? { ...process.env, ...options.env } : undefined,
       stdio: [
-        options.input === undefined
-          ? options.stdin === "inherit" ? "inherit" : "ignore"
-          : "pipe",
+        hasInput ? "pipe" : stdin === "inherit" ? "inherit" : "ignore",
         options.stdout === "inherit" ? "inherit" : "pipe",
         options.stderr === "inherit" ? "inherit" : "pipe",
       ],
@@ -146,6 +146,6 @@ export async function runRawCommand(
         stderr: Buffer.concat(stderr),
       });
     });
-    if (options.input !== undefined) child.stdin!.end(options.input);
+    if (hasInput) child.stdin!.end(options.input);
   });
 }

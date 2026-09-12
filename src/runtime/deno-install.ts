@@ -61,6 +61,7 @@ export async function installOfficialDeno(
   version: string,
   manager: "npm" | "bun",
   signal?: AbortSignal,
+  run: typeof runRawCommand = runRawCommand,
 ): Promise<void> {
   signal?.throwIfAborted();
   await fs.writeFile(
@@ -72,7 +73,7 @@ export async function installOfficialDeno(
   );
   let result;
   try {
-    result = await runRawCommand(manager, {
+    result = await run(manager, {
       args: manager === "bun"
         ? ["install", "--cwd", staging, "--no-progress", "--ignore-scripts"]
         : [
