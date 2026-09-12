@@ -33,8 +33,8 @@ This repository builds a native ESM CLI for Linux x64 with glibc:
 
 ```bash
 deno task npm-build
-node .hj/npm/esm/src/cli/cli.js --help
-bun .hj/npm/esm/src/cli/cli.js --help
+node .hj/npm/esm/hj.js --help
+bun .hj/npm/esm/hj.js --help
 ```
 
 The build requires Deno, Node.js 24 or later, npm, GNU tar, and gzip. It uses
@@ -47,12 +47,17 @@ and a fresh cache, disable dependency install scripts, and never update locks.
 
 The generated `.hj/npm/package.json` declares the final archive through
 `hjNpmArchive`, for example `hugojosefson-cli-0.8.3.tgz`. Its declared binary is
-`esm/src/cli/cli.js`. The archive includes dependency packages and licenses
-under `esm/node_modules`, including JSR packages, so consumers need no JSR
-registry configuration. Ordinary commands execute in Node or Bun. Commands that
-perform Deno project tasks use an external Deno executable. The caller's working
-directory and arguments are preserved. These build commands do not enable or
-perform npm publication.
+`esm/hj.js`. Plain `hj` prefers a supported Node runtime on `PATH`, then falls
+back to supported Bun. Explicit `node`, `bun`, and `bunx --bun` choices keep
+that runtime. The launcher reports an actionable error if no supported runtime
+is available. It does not download a runtime or start Deno.
+
+The archive includes dependency packages and licenses under `esm/node_modules`,
+including JSR packages, so consumers need no JSR registry configuration.
+Ordinary commands execute in Node or Bun. Commands that perform Deno project
+tasks use an external Deno executable. The caller's working directory and
+arguments are preserved. These build commands do not enable or perform npm
+publication.
 
 Do not run `npm pack .hj/npm` on the finalized output. The
 [native archive contract](npm-runtime-packaging.md) explains the required
@@ -83,6 +88,16 @@ directory with spaces, repository inspection without Deno, README output,
 EditorConfig writes, and an external installed-Deno project task. No public
 registry writes occur. The full shared application suite and public package
 installation remain separate release checks.
+
+For native archives, the harness also installs globally with npm 11, npm 12, and
+Bun. It runs plain `hj` with only the installer's runtime on `PATH`, repeats the
+installation to check the upgrade command, and removes the installation. It
+checks explicit Node and Bun execution, Node preference when both are available,
+fallback from an unsuitable Node version, and errors when no runtime meets the
+requirements. Bun's explicit package execution must not start Node. The shared
+launcher tests separately check version boundaries, arguments, working
+directories, symlinks, process IDs, exit codes, and signals in every supported
+test runtime.
 
 ## Configure publication
 
