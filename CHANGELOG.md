@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.1
+
+- chore: configure repository features
+- fix(cli): explain the Git prerequisite before feature detection
+- docs: record first publication and prepare registry workflows
+- docs: confirm registry CI and update workflow references
+
 ## 0.2.0
 
 - chore: init repo
