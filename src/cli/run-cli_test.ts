@@ -1,4 +1,10 @@
-import { sourceFile } from "../testing/runtime-test-fixtures.ts";
+import {
+  isDeno,
+  runModuleEval,
+  sourceFile,
+} from "../testing/runtime-test-fixtures.ts";
+import { cp, readdir, symlink } from "node:fs/promises";
+import { pathToFileURL } from "node:url";
 import { test as nativeTest } from "node:test";
 import { trackTests } from "../testing/inventory-test-fixtures.ts";
 const test = trackTests(import.meta.url, nativeTest);
@@ -326,6 +332,40 @@ test("loads fork-version only for usual tag preparation", async () => {
     prefix: "hj-runtime-import-",
   });
   try {
+    const trapCode =
+      'throw new Error("fork-version loaded");\nexport class Logger {}\nexport function getNextVersion() {}\n';
+    if (!isDeno) {
+      const emittedRoot = new URL("../../", import.meta.url);
+      const isolatedRoot = pathToFileURL(`${path}/app/`);
+      await cp(emittedRoot, isolatedRoot, { recursive: true });
+      await writeTextFile(`${path}/package.json`, '{"type":"module"}');
+      await mkdir(`${path}/app/node_modules/fork-version`, { recursive: true });
+      const dependencies = new URL("../node_modules/", emittedRoot);
+      for (const name of await readdir(dependencies)) {
+        if (name === "fork-version") continue;
+        await symlink(
+          new URL(name, dependencies),
+          `${path}/app/node_modules/${name}`,
+        );
+      }
+      await writeTextFile(
+        `${path}/app/node_modules/fork-version/package.json`,
+        '{"type":"module","exports":"./index.js"}',
+      );
+      await writeTextFile(
+        `${path}/app/node_modules/fork-version/index.js`,
+        trapCode,
+      );
+      const result = await runModuleEval(
+        runtimeIsolationScript(
+          new URL("src/cli/run-cli.js", isolatedRoot).href,
+        ),
+      );
+      if (!result.success) {
+        throw new Error(new TextDecoder().decode(result.stderr));
+      }
+      return;
+    }
     const config = `${path}/deno.json`;
     const trap = `${path}/trap.ts`;
     const script = `${path}/isolation.ts`;
@@ -334,8 +374,6 @@ test("loads fork-version only for usual tag preparation", async () => {
       JSON.stringify({
         imports: {
           "@std/assert": "jsr:@std/assert@^1.0.19",
-          "@std/cli/unstable-prompt-multiple-select":
-            "jsr:@std/cli@1.0.32/unstable-prompt-multiple-select",
           "@std/path": "jsr:@std/path@^1.1.3",
           "fork-version": "./trap.ts",
           "jsonc-parser": "npm:jsonc-parser@3.3.1",
@@ -344,7 +382,7 @@ test("loads fork-version only for usual tag preparation", async () => {
     );
     await writeTextFile(
       trap,
-      'throw new Error("fork-version loaded");\nexport class Logger {}\nexport function getNextVersion() {}\n',
+      trapCode,
     );
     await writeTextFile(
       script,
