@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.8.2
+
+- fix(release): skip duplicate CI for validated release commits
+- chore(github-release-publish-tag): enable feature
+- chore(github-ci): enable feature
+
 ## 0.8.1
 
 - fix(features): omit redundant repair messages for healthy states
