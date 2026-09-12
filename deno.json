@@ -170,6 +170,10 @@
         "publish-check",
         "readme-check"
       ]
+    },
+    "validation-compare": {
+      "description": "Compare two fresh validation observation reports without reusing test results",
+      "command": "deno run --allow-read scripts/compare-validation.ts"
     }
   },
   "coverage": {

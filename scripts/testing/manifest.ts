@@ -22,6 +22,8 @@ export async function testFiles(root: URL): Promise<string[]> {
 export interface InventoryEvent {
   id: string;
   state: string;
+  timeMs?: number;
+  topLevel?: boolean;
 }
 export function executedInventory(
   events: InventoryEvent[],

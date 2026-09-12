@@ -2,6 +2,11 @@ import { prepareTestDirectory } from "./testing/output.ts";
 /** Run the same explicit suite in isolated runtime processes and record test bodies. */
 import { fileURLToPath } from "node:url";
 import { executedInventory, testFiles } from "./testing/manifest.ts";
+import { captureInputs } from "./testing/observation-inputs.ts";
+import {
+  type InputSnapshot,
+  observeValidation,
+} from "./testing/observation.ts";
 const root = new URL("../", import.meta.url);
 const options = [...Deno.args];
 const take = (name: string) => {
@@ -102,7 +107,57 @@ const commands = runtime === "bun"
         ...paths,
       ],
   ];
+const version = new TextDecoder().decode(
+  (await new Deno.Command(executable, {
+    args: ["--version"],
+    env,
+    clearEnv: true,
+  }).output()).stdout,
+).split("\n")[0];
+const context = {
+  runtime,
+  version,
+  deno: Deno.version.deno,
+  platform: Deno.build.os,
+  arch: Deno.build.arch,
+  coverage,
+  // Generated journal and checkout URLs are bookkeeping, not focused inputs.
+  environment: Object.fromEntries(
+    [
+      ...new Set([
+        ...permissions.find((permission) =>
+          permission.startsWith("--allow-env=")
+        )!
+          .slice("--allow-env=".length).split(","),
+        "TZ",
+        "LANG",
+        "LC_ALL",
+        "FORCE_COLOR",
+        "NO_COLOR",
+        "NODE_DISABLE_COLORS",
+      ]),
+    ].filter((name) =>
+      ![
+        "HJ_TEST_INVENTORY",
+        "HJ_TEST_SOURCE_ROOT",
+        "HJ_TEST_DENO",
+      ].includes(name)
+    ).sort().map((name) => [name, env[name] ?? null]),
+  ),
+};
+let before: InputSnapshot | undefined;
+let observationError: string | undefined;
+const observationStarted = performance.now();
+if (!options.length && !filter) {
+  try {
+    before = await captureInputs(root, manifest, Deno.execPath(), context);
+  } catch (error) {
+    observationError = String(error);
+  }
+}
+let observationMs = performance.now() - observationStarted;
 let code = 0;
+const suiteStarted = performance.now();
 try {
   for (const args of commands) {
     const result = await new Deno.Command(executable, {
@@ -116,6 +171,7 @@ try {
     }).spawn().status;
     if (!result.success) code = result.code || 1;
   }
+  const suiteWallMs = performance.now() - suiteStarted;
   const events = (await Deno.readTextFile(journal)).trim().split("\n").filter(
     Boolean,
   ).map((line) => JSON.parse(line));
@@ -128,26 +184,46 @@ try {
     }
   }
   const output = await prepareTestDirectory(root, "test-results");
-  const version = new TextDecoder().decode(
-    (await new Deno.Command(executable, {
-      args: ["--version"],
-      env,
-      clearEnv: true,
-    }).output()).stdout,
-  ).split("\n")[0];
   const label = runtime === "node"
     ? `node${version.match(/v(\d+)/)![1]}`
     : runtime;
+  const report = {
+    runtime,
+    version,
+    complete: !options.length && !filter,
+    success: code === 0,
+    files,
+    tests: inventory,
+  };
+  let observation;
+  if (before && report.success) {
+    const started = performance.now();
+    try {
+      const after = await captureInputs(
+        root,
+        await testFiles(root),
+        Deno.execPath(),
+        context,
+      );
+      observation = observeValidation(
+        report,
+        events,
+        before,
+        after,
+        suiteWallMs,
+      );
+    } catch (error) {
+      observationError = String(error);
+    }
+    observationMs += performance.now() - started;
+  }
   await Deno.writeTextFile(
     new URL(`${label}.json`, output),
     JSON.stringify(
       {
-        runtime,
-        version,
-        complete: !options.length && !filter,
-        success: code === 0,
-        files,
-        tests: inventory,
+        ...report,
+        ...(observation ? { observation, observationMs } : {}),
+        ...(observationError ? { observationError } : {}),
       },
       null,
       2,
@@ -156,6 +232,22 @@ try {
   console.log(
     `Executed ${inventory.length} normalized test bodies in ${files.length} files (${label}).`,
   );
+  if (observation) {
+    console.log(
+      `Observation only: github-repository ${
+        observation.groups[0].bodyMs.toFixed(1)
+      } ms in top-level bodies; ` +
+        `${suiteWallMs.toFixed(1)} ms full suite; ${
+          observationMs.toFixed(1)
+        } ms input observation; ` +
+        `${
+          observation.stableInputs ? "stable" : "changed during run"
+        } inputs. No tests skipped.`,
+    );
+  }
+  if (observationError) {
+    console.warn(`Validation observation unavailable: ${observationError}`);
+  }
 } finally {
   await Deno.remove(journal);
 }

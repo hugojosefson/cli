@@ -6,30 +6,36 @@ import type { test as nativeTest, TestContext } from "node:test";
 type Body = (context: TestContext) => unknown | Promise<unknown>;
 const parents = new WeakMap<TestContext, string>();
 const occurrences = new Map<string, number>();
-function event(id: string, state: string) {
+function event(id: string, state: string, topLevel: boolean) {
   const path = process.env.HJ_TEST_INVENTORY;
-  if (path) appendFileSync(path, JSON.stringify({ id, state }) + "\n");
+  if (path) {
+    appendFileSync(
+      path,
+      JSON.stringify({ id, state, topLevel, timeMs: performance.now() }) + "\n",
+    );
+  }
 }
 function tracked(
   id: string,
   body: Body,
+  topLevel = true,
 ): (context: TestContext) => Promise<void> {
-  event(id, "registered");
+  event(id, "registered", topLevel);
   return async (context) => {
     parents.set(context, id);
-    event(id, "started");
+    event(id, "started", topLevel);
     const original = { skip: context.skip, todo: context.todo };
     for (const method of ["skip", "todo"] as const) {
       context[method] = (...args: Parameters<TestContext[typeof method]>) => {
-        event(id, method === "skip" ? "skipped" : "todo");
+        event(id, method === "skip" ? "skipped" : "todo", topLevel);
         return Reflect.apply(original[method], context, args);
       };
     }
     try {
       await body(context);
-      event(id, "passed");
+      event(id, "passed", topLevel);
     } catch (error) {
-      event(id, "failed");
+      event(id, "failed", topLevel);
       throw error;
     } finally {
       context.skip = original.skip;
@@ -60,5 +66,5 @@ export function trackTests(url: string, test: typeof nativeTest) {
 export function testStep(context: TestContext, name: string, body: Body) {
   const parent = parents.get(context);
   if (!parent) throw new Error("Subtest lacks a tracked parent");
-  return context.test(name, tracked(identify(parent, name), body));
+  return context.test(name, tracked(identify(parent, name), body, false));
 }
