@@ -141,6 +141,13 @@ export async function reconcileReadmePlans(
   const github = active("github-ci")
     ? await context.github?.repository()
     : undefined;
+  const ciChange = context.resolvedChanges.find((change) =>
+    change.featureId === "github-ci"
+  );
+  const ciState = context.detections.get("github-ci")?.state;
+  const preserveCiBadge = ciChange?.enabled !== false &&
+    (ciState === "ambiguous" || ciState === undefined ||
+      active("github-ci") && !github);
   const cliSource = cli
     ? await files.read(String(exports["./cli"]).slice(2))
     : undefined;
@@ -195,6 +202,7 @@ export async function reconcileReadmePlans(
     appended.push(contributionPlan("jsr-package", fileChanges));
   }
   for (const owner of owners) {
+    if (owner === "github-ci" && preserveCiBadge) continue;
     const before = files.changes.length;
     const current = await files.read(sourcePath);
     if (current === undefined) continue;

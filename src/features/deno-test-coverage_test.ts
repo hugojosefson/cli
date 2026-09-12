@@ -212,6 +212,21 @@ Deno.test("default and CI aggregates collect tests once through the ordinary tas
   });
 });
 
+Deno.test("generated formatting ignores coverage reports without changing their contents", async () => {
+  await withRepository(async (root) => {
+    await run(root, "--deno-test");
+    await Deno.mkdir(new URL("coverage/html", root), { recursive: true });
+    const path = new URL("coverage/html/index.html", root);
+    const content = "<html><body><h1>Generated coverage</h1></body></html>";
+    await Deno.writeTextFile(path, content);
+    for (const task of ["fmt", "format"]) {
+      const result = await command(root, ["task", task]);
+      assertEquals(result.code, 0, result.output);
+      assertEquals(await Deno.readTextFile(path), content);
+    }
+  });
+});
+
 Deno.test("ordinary and alias test runs report only fresh coverage after success and failure", async () => {
   await withRepository(async (root) => {
     await run(root, "--deno-test");
