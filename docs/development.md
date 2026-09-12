@@ -85,10 +85,10 @@ and applies a formatting feature to confirm the working directory behavior.
 
 ## CI and toolchain changes
 
-[ci.yaml](../.github/workflows/ci.yaml) runs `deno task ci` for pushes, pull
-requests, and manual requests. It reads the Deno version from `toolchain.json`.
-It has read-only repository access and does not publish anything. Actions use
-exact commit references.
+[hj-ci.yaml](../.github/workflows/hj-ci.yaml) runs `deno task all` for pull
+requests. That task runs `ci`, including coverage limits. A separate job checks
+release commits. The workflow has read-only repository access and does not
+publish anything. Actions use exact commit references.
 
 The same toolchain file supplies Deno versions for newly generated CI and
 release workflows. Generated workflows and README build tasks use the exact `hj`
@@ -102,7 +102,7 @@ operation.
 To run this repository's workflow locally with Docker and `act`, use:
 
 ```bash
-act push -W .github/workflows/ci.yaml -j check \
+act pull_request -W .github/workflows/hj-ci.yaml -j check \
   -P ubuntu-latest=catthehacker/ubuntu:act-latest
 ```
 

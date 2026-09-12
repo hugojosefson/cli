@@ -60,8 +60,7 @@ configuration, release workflows, JSR publication, provenance, and registry
 installation on Linux. Local tests also use temporary Git repositories with
 injected GitHub responses. Keep live publication checks outside normal local CI.
 
-| Scenario                  | Status or limit                                                                                                            |
-| ------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| Registry workflow loading | The migration from the bootstrap source uses the first published CLI version. Confirm its CI and next release runs.        |
-| Conflicting JSR version   | Local tests reject conflicting metadata and provenance. A conflicting public package version is not deliberately uploaded. |
-| Other operating systems   | Linux is the current test target. Windows and macOS live validation remain planned.                                        |
+| Scenario                | Status or limit                                                                                                            |
+| ----------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| Conflicting JSR version | Local tests reject conflicting metadata and provenance. A conflicting public package version is not deliberately uploaded. |
+| Other operating systems | Linux is the current test target. Windows and macOS live validation remain planned.                                        |
