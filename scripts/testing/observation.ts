@@ -2,29 +2,43 @@
 import { createHash } from "node:crypto";
 import type { InventoryEvent, InventoryReport } from "./manifest.ts";
 
-export const observationSchema = 1;
-export const focusedTests = [
+export const observationSchema = 2;
+const githubTests = [
   "src/repository/github-default-project_test.ts",
   "src/repository/github-project-area_test.ts",
   "src/repository/github-repository-setup_test.ts",
   "src/repository/local-github-client_test.ts",
   "src/repository/local-github-identity-reader_test.ts",
 ];
+export const focusedGroups = [
+  { name: "github-repository", files: githubTests },
+  {
+    name: "release-core",
+    files: [
+      "src/release/publish-tag-orchestration_test.ts",
+      "src/release/publish-tag-prepare_test.ts",
+    ],
+  },
+];
+export const focusedTests = focusedGroups.flatMap((group) => group.files);
 
 export function digest(value: unknown): string {
   return createHash("sha256").update(JSON.stringify(value)).digest("hex");
 }
 
+export interface GroupInputs {
+  inputs: Record<string, string>;
+  key: string;
+  boundary: "isolated" | "conservative";
+  reasons: string[];
+}
 export interface InputSnapshot {
   schema: number;
   context: string;
   files: string[];
-  focusedInputs: Record<string, string>;
+  groups: Record<string, GroupInputs>;
   broadInputs: Record<string, string>;
-  focusedKey: string;
   broadKey: string;
-  boundary: "isolated" | "conservative";
-  reasons: string[];
 }
 
 export interface GroupObservation {
@@ -86,7 +100,7 @@ export function observeValidation(
   }
   const times = bodyTimings(events);
   const groups = [
-    { name: "github-repository", files: focusedTests },
+    ...focusedGroups,
     {
       name: "remainder",
       files: report.files.filter((file) => !focusedTests.includes(file)),
@@ -95,12 +109,10 @@ export function observeValidation(
     if (files.some((file) => !times.has(file))) {
       throw new Error(`Missing group timing: ${name}`);
     }
-    const candidateKey = name === "github-repository"
-      ? before.focusedKey
-      : before.broadKey;
+    const candidateKey = before.groups[name]?.key ?? before.broadKey;
     return {
       name,
-      files,
+      files: [...files],
       bodies: report.tests.filter((test) =>
         files.includes(test.split(" > ")[0])
       ).length,
@@ -115,7 +127,9 @@ export function observeValidation(
     mode: "observation-only",
     inputs: before,
     stableInputs: before.broadKey === after.broadKey &&
-      before.focusedKey === after.focusedKey,
+      focusedGroups.every(({ name }) =>
+        before.groups[name].key === after.groups[name].key
+      ),
     suiteWallMs,
     groups,
   };
@@ -128,6 +142,11 @@ export type ObservedReport = InventoryReport & {
 
 function requireObservation(report: ObservedReport): ValidationObservation {
   const observation = report.observation;
+  if (observation && observation.schema !== observationSchema) {
+    throw new Error(
+      `Incompatible observation schema: expected ${observationSchema}, received ${observation.schema}. Collect fresh reports.`,
+    );
+  }
   if (
     report.complete !== true || report.success !== true ||
     !observation || observation.schema !== observationSchema ||
@@ -138,7 +157,7 @@ function requireObservation(report: ObservedReport): ValidationObservation {
     new Set(files).size !== files.length ||
     JSON.stringify(files) !== JSON.stringify(report.files) ||
     observation.groups.map((group) => group.name).join() !==
-      "github-repository,remainder"
+      [...focusedGroups.map((group) => group.name), "remainder"].join()
   ) {
     throw new Error(
       "Observation groups do not partition the complete inventory",
@@ -160,17 +179,16 @@ export function compareObservations(
     const old = before.groups[index];
     const match = old.candidateKey === group.candidateKey;
     const executable = old.executionKey === group.executionKey;
-    const inputs = group.name === "github-repository"
-      ? "focusedInputs"
-      : "broadInputs";
+    const previousInputs = before.inputs.groups[group.name]?.inputs ??
+      before.inputs.broadInputs;
+    const currentInputs = after.inputs.groups[group.name]?.inputs ??
+      after.inputs.broadInputs;
     const changed = [
       ...new Set([
-        ...Object.keys(before.inputs[inputs]),
-        ...Object.keys(after.inputs[inputs]),
+        ...Object.keys(previousInputs),
+        ...Object.keys(currentInputs),
       ]),
-    ].filter((file) =>
-      before.inputs[inputs][file] !== after.inputs[inputs][file]
-    ).sort();
+    ].filter((file) => previousInputs[file] !== currentInputs[file]).sort();
     return `${group.name}: candidate inputs ${match ? "match" : "changed"}; ` +
       `current execution inputs ${executable ? "match" : "changed"}; ` +
       `${old.bodyMs.toFixed(1)} ms previous top-level bodies, ` +

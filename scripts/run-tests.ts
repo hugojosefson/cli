@@ -234,9 +234,11 @@ try {
   );
   if (observation) {
     console.log(
-      `Observation only: github-repository ${
-        observation.groups[0].bodyMs.toFixed(1)
-      } ms in top-level bodies; ` +
+      `Observation only: ${
+        observation.groups.filter((group) => group.name !== "remainder").map((
+          group,
+        ) => `${group.name} ${group.bodyMs.toFixed(1)} ms`).join(", ")
+      } in top-level bodies; ` +
         `${suiteWallMs.toFixed(1)} ms full suite; ${
           observationMs.toFixed(1)
         } ms input observation; ` +

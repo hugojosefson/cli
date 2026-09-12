@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 import {
   digest,
-  focusedTests,
+  focusedGroups,
   type InputSnapshot,
   observationSchema,
 } from "./observation.ts";
@@ -48,32 +48,34 @@ export function configurationInput(text: string): string {
 
 export function inputSnapshot(
   files: string[],
-  focusedInputs: Record<string, string>,
+  groupInputs: Record<string, Record<string, string>>,
   broadInputs: Record<string, string>,
   context: unknown,
-  reasons: string[],
+  groupReasons: Record<string, string[]>,
 ): InputSnapshot {
   const ordered = (values: Record<string, string>) =>
     Object.fromEntries(
       Object.entries(values).sort(([a], [b]) => a.localeCompare(b)),
     );
   broadInputs = ordered(broadInputs);
-  focusedInputs = reasons.length ? broadInputs : ordered(focusedInputs);
   const common = { schema: observationSchema, context };
+  const groups = Object.fromEntries(focusedGroups.map(({ name, files }) => {
+    const reasons = groupReasons[name] ?? [];
+    const inputs = reasons.length ? broadInputs : ordered(groupInputs[name]);
+    return [name, {
+      inputs,
+      key: digest({ ...common, files, inputs }),
+      boundary: reasons.length ? "conservative" as const : "isolated" as const,
+      reasons,
+    }];
+  }));
   return {
     schema: observationSchema,
     context: digest(context),
     files,
-    focusedInputs,
+    groups,
     broadInputs,
-    focusedKey: digest({
-      ...common,
-      files: focusedTests,
-      inputs: focusedInputs,
-    }),
     broadKey: digest({ ...common, files, inputs: broadInputs }),
-    boundary: reasons.length ? "conservative" : "isolated",
-    reasons,
   };
 }
 
@@ -91,7 +93,8 @@ export async function captureInputs(
     "--exclude-standard",
     "-z",
   ], { cwd: root, env: commandEnvironment, maxBuffer: 16 * 1024 * 1024 });
-  const paths = [...new Set(stdout.split("\0").filter(Boolean))].sort();
+  const paths = [...new Set([...stdout.split("\0").filter(Boolean), ...files])]
+    .sort();
   const broadInputs: Record<string, string> = {};
   for (const path of paths) {
     try {
@@ -106,41 +109,57 @@ export async function captureInputs(
       broadInputs[path] = "deleted";
     }
   }
-  const closures = await Promise.all(focusedTests.map(async (file) => {
-    const { stdout } = await execute(denoExecutable, [
-      "info",
-      "--json",
-      "--frozen",
-      "--config",
-      fileURLToPath(new URL("deno.json", root)),
-      fileURLToPath(new URL(file, root)),
-    ], { cwd: root, env: commandEnvironment, maxBuffer: 16 * 1024 * 1024 });
-    return graphInputs(JSON.parse(stdout), root);
-  }));
-  const reasons = [...new Set(closures.flatMap((closure) => closure.reasons))];
-  const focusedPaths = new Set([
-    ...closures.flatMap((closure) => closure.paths),
-    "deno.lock",
-    "toolchain.json",
-    "scripts/run-tests.ts",
-    ...paths.filter((path) => path.startsWith("scripts/testing/")),
-  ]);
-  const focusedInputs: Record<string, string> = {};
-  for (const path of [...focusedPaths].sort()) {
-    if (!Object.hasOwn(broadInputs, path) || broadInputs[path] === "deleted") {
-      reasons.push(`Dependency outside the source inventory: ${path}`);
-    } else {
-      if ((await lstat(new URL(path, root))).isSymbolicLink()) {
-        reasons.push(`Symlinked dependency: ${path}`);
-      }
-      focusedInputs[path] = broadInputs[path];
-    }
-  }
-  focusedInputs["deno.json (except version)"] = digest({
-    mode: (await lstat(new URL("deno.json", root))).mode & 0o777,
-    configuration: configurationInput(
-      await readFile(new URL("deno.json", root), "utf8"),
-    ),
+  const { stdout: gitVersion } = await execute("git", ["--version"], {
+    cwd: root,
+    env: commandEnvironment,
   });
-  return inputSnapshot(files, focusedInputs, broadInputs, context, reasons);
+  const groupInputs: Record<string, Record<string, string>> = {};
+  const groupReasons: Record<string, string[]> = {};
+  await Promise.all(focusedGroups.map(async ({ name, files }) => {
+    const closures = await Promise.all(files.map(async (file) => {
+      const { stdout } = await execute(denoExecutable, [
+        "info",
+        "--json",
+        "--frozen",
+        "--config",
+        fileURLToPath(new URL("deno.json", root)),
+        fileURLToPath(new URL(file, root)),
+      ], { cwd: root, env: commandEnvironment, maxBuffer: 16 * 1024 * 1024 });
+      return graphInputs(JSON.parse(stdout), root);
+    }));
+    const reasons = [
+      ...new Set(closures.flatMap((closure) => closure.reasons)),
+    ];
+    const inputPaths = new Set([
+      ...closures.flatMap((closure) => closure.paths),
+      "deno.lock",
+      "toolchain.json",
+      "scripts/run-tests.ts",
+      ...paths.filter((path) => path.startsWith("scripts/testing/")),
+    ]);
+    const inputs: Record<string, string> = {};
+    for (const path of [...inputPaths].sort()) {
+      if (
+        !Object.hasOwn(broadInputs, path) || broadInputs[path] === "deleted"
+      ) {
+        reasons.push(`Dependency outside the source inventory: ${path}`);
+      } else {
+        if ((await lstat(new URL(path, root))).isSymbolicLink()) {
+          reasons.push(`Symlinked dependency: ${path}`);
+        }
+        inputs[path] = broadInputs[path];
+      }
+    }
+    inputs["deno.json (except version)"] = digest({
+      mode: (await lstat(new URL("deno.json", root))).mode & 0o777,
+      configuration: configurationInput(
+        await readFile(new URL("deno.json", root), "utf8"),
+      ),
+    });
+    if (name === "release-core") inputs["tool:git"] = digest(gitVersion.trim());
+    groupInputs[name] = inputs;
+    groupReasons[name] = reasons;
+  }));
+  broadInputs["tool:git"] = digest(gitVersion.trim());
+  return inputSnapshot(files, groupInputs, broadInputs, context, groupReasons);
 }
