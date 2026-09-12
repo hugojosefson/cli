@@ -169,6 +169,7 @@ then retry. `hj` does not lower that policy.
 
 | Feature               | Managed configuration                                                      | Requirement                                    |
 | --------------------- | -------------------------------------------------------------------------- | ---------------------------------------------- |
+| `editorconfig`        | Editor defaults in `.editorconfig`.                                        | Independent of Git and Deno features.          |
 | `git-ignore`          | Ignore editor swap files and configured generated directories.             | Independent of Git and Deno features.          |
 | `git`                 | Initialize Git and create the first commit.                                | Cannot be removed after commit history exists. |
 | `deno-fmt`            | Formatting tasks and minimal configuration; create `deno.jsonc` if needed. | None.                                          |
@@ -223,6 +224,25 @@ removes only unchanged owned entries. Related feature changes recompute the
 conditional entries from the resulting configuration. You can select or remove
 `git-ignore` independently. It adds no blanket editor-directory or log
 exclusions.
+
+`editorconfig` creates `.editorconfig` with LF line endings, UTF-8, final
+newlines, trailing whitespace removal, and two-space indentation. It adds
+missing defaults before custom sections so their values take precedence.
+Existing values, including `unset`, stay intact. These rules follow the
+[EditorConfig specification](https://spec.editorconfig.org/).
+
+The ownership record, `.hj/editorconfig.json`, identifies entries that `hj`
+adds. Keep this file with `.editorconfig`. Removal deletes only unchanged owned
+entries and leaves custom sections and edited values. Repair restores missing
+entries and releases ownership of edited values. Invalid files or ownership
+records block changes until you resolve them. A complete existing configuration
+is enabled but stays outside automatic removal.
+
+```bash
+hj repo features --editorconfig --yes
+hj repo features --editorconfig --repair --yes
+hj repo features --no-editorconfig --yes
+```
 
 ## Package names in generated files
 

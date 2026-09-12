@@ -170,6 +170,7 @@ GitHub access, so an unauthenticated visitor can receive different results.
 | `deno-server`                   | Disabled       | This tool generates servers for other projects but does not serve requests itself.                        |
 | `deno-test`                     | Enabled        | The test runner and coverage checks exercise the implementation.                                          |
 | `deno-typecheck`                | Enabled        | Source and scripts receive type checks.                                                                   |
+| `editorconfig`                  | Enabled        | Editors use the managed defaults in `.editorconfig`.                                                      |
 | `git-ignore`                    | Enabled        | Managed editor and coverage exclusions supplement the existing custom exclusions.                         |
 | `git`                           | Enabled        | The project has a Git history.                                                                            |
 | `github-auto-merge`             | Enabled        | Passing checks allow the release bot to merge its release PR.                                             |
@@ -305,3 +306,8 @@ gh issue create --repo hugojosefson/cli --project cli
 ```
 
 Use `hj repo features --github-default-project --yes` to add missing issues.
+
+The EditorConfig feature was applied to this checkout with
+`deno task hj repo features --editorconfig --yes`. Detection reported enabled,
+and a second enable produced no changes. Its lifecycle tests cover custom
+sections, edited values, removal, repair, and stale file guards.
