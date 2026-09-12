@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.7.1
+
+- fix(release): permit local npm publication commands
+
 ## 0.7.0
 
 - fix(projects): synchronize areas through additive repair
