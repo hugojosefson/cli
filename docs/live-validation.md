@@ -412,36 +412,60 @@ setup without duplicate views or item assignments.
 
 ## npm publisher checks
 
-Issue #12 adds a separate npm publisher and a local build example for this
-repository. On 2026-09-12, `deno task npm-build` produced the CLI package and
-its Node.js launcher displayed `hj --help`. `npm pack --ignore-scripts` produced
-an archive without publishing it. The CLI launcher requires Deno on `PATH`.
-
-The scratchpad fixture builds `@hugojosefson/scratchpad@3.0.20-npm.0` from its
-two existing library exports. Both built exports ran in Node.js, and npm packed
-the five expected files. A local Git remote supplied an exact release tag for
-the full publisher check. Real Git commands, the build task, npm packing,
-entry-point inspection, and a repeated publication command passed. Only the
-upload and the npm registry response were simulated in that check. The repeated
-command did not upload again.
-
-The first live attempt found no existing npm package. A personal npm login now
-authenticates as `hugojosefson`. The publisher built and packed the release,
-then npm required a separate browser approval for the upload. That approval
-remains pending, so live publication is not yet verified and issue #12 remains
-open. The [npm publication guide](npm-publication.md) describes the
-first-publication approval and normal workflow authentication.
+On 2026-09-12, the first public npm upload of
+[`@hugojosefson/scratchpad@3.0.20-npm.0`](https://registry.npmjs.org/%40hugojosefson%2Fscratchpad/3.0.20-npm.0)
+succeeded after npm's browser approval. The upload used the archive built and
+packed by `release publish-npm`. A personal npm login required a separate
+approval, so the first upload used the documented interactive npm command.
 
 The
-[scratchpad test tag](https://github.com/hugojosefson/scratchpad/tree/3.0.20-npm.0)
-points to commit `af092a3a732a322482962c88cafa402202f1bf4f`. The repository's
-existing protection rules remain unchanged. The local development runner now
-grants npm subprocess and registry access specifically for
-`release publish-npm`. The follow-up passed `deno task ci` with 617 tests and 7
-steps.
+[scratchpad release tag](https://github.com/hugojosefson/scratchpad/tree/3.0.20-npm.0)
+and registry `gitHead` both identify commit
+`af092a3a732a322482962c88cafa402202f1bf4f`. The registry archive integrity
+matched the locally built archive exactly:
+
+```text
+sha512-8b5TUWUIxBELgkGoVP0Zs9BXGPcNL2mvkA/fMoUKFDCxy/rWcGQvjedXczz1f9PFtlMSuaptmt23/Drsq5MbGg==
+```
+
+The upload command selected `--tag=next`. The registry subsequently reported
+both `next` and `latest` pointing to this initial version. Those registry tags
+remain unchanged. The package contains five files, including the two existing
+scratchpad library exports.
+
+Installation from the
+[public registry archive](https://registry.npmjs.org/@hugojosefson/scratchpad/-/scratchpad-3.0.20-npm.0.tgz)
+succeeded with npm 12.0.2:
+
+```bash
+npm install --prefix /tmp/hj-npm-registry-tarball-install \
+  --allow-remote=root --ignore-scripts --no-audit --no-fund \
+  https://registry.npmjs.org/@hugojosefson/scratchpad/-/scratchpad-3.0.20-npm.0.tgz
+```
+
+Node.js imported `placeholder` from `@hugojosefson/scratchpad` and `HELLO` from
+`@hugojosefson/scratchpad/hello`. Calling `placeholder()` succeeded, and `HELLO`
+equaled `"Hello"`. Two subsequent real `release publish-npm` commands through
+the local runner printed `npm publication finished.` Each command rebuilt and
+packed the project, then accepted the existing version only after its release
+SHA and archive integrity matched. The repeated commands did not need another
+publication approval.
+
+Installation by the package name with `--prefer-online` still received a 404
+from npm's full package metadata endpoint during this check. The exact version
+endpoint and public archive were available and passed the checks above.
+Package-name installation remains unverified in this record.
 
 The
 [scratchpad fixture branch](https://github.com/hugojosefson/scratchpad/tree/test/npm-publisher)
-contains the build and workflow. GitHub must first load the workflow on the
-default branch before a manual workflow dispatch can run it. The fixture does
-not change the scratchpad default branch or publish a package.
+contains the build and generated npm workflow. The scratchpad default branch and
+existing protection rules remain unchanged. This check exercised the live
+registry and local publisher, but did not run an authenticated npm publication
+inside GitHub Actions. The [npm publication guide](npm-publication.md) describes
+the workflow authentication contract.
+
+This repository also uses the non-publishing `npm-build` example. Its packed
+archive installed locally and the installed `hj --help` command included
+`release publish-npm`. The CLI launcher requires Deno on `PATH`. The local
+runner grants npm subprocess and registry access specifically for the npm
+publication command.
