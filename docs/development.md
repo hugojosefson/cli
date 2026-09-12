@@ -155,6 +155,28 @@ owns the release invariants.
 
 ## Self-check and README choice
 
+Every existing and future feature must correctly detect this repository without
+ambiguity or drift. Ambiguity means that detection cannot determine the intended
+state. Drift means that detected configuration differs from the supported state.
+An intentionally disabled feature meets this requirement when detection
+correctly identifies it.
+
+Run `hj repo features` and inspect every feature's output before and after
+feature changes. Use `deno task hj repo features` to run the current checkout's
+implementation. If detection reports ambiguity or drift, improve detection, add
+or improve repair, or change this repository's contents as appropriate. Combine
+these approaches when needed. Preserve intentional custom behavior instead of
+hiding a real mismatch. Record the commands and results in the pull request or
+the relevant validation document.
+
+For every feature, `hj repo features` must state what repair will do
+specifically. Name the affected files, configuration values, or remote resources
+and the changes that repair will make. If repair needs to replace or remove
+custom content, describe that effect. If repair is unnecessary or unsupported,
+state that and explain any required manual action. A generic instruction to run
+`--repair` does not meet this requirement. Make sure that repair descriptions
+match the actual repair plan.
+
 Run `hj repo features` to inspect this checkout. Every registered feature is
 assessed below. Disabled features are intentional when they provide an
 alternative or a service that this CLI does not use. Remote states require
@@ -280,7 +302,9 @@ from the code that applies changes.
 5. Return a structured plan with expected state and explicit changed paths.
 6. Register the feature in `built-in-feature-registry.ts`.
 7. Add lifecycle tests for enable, disable, repair, conflicts, and stale plans.
-8. Update the feature guide and run `deno task ci`.
+8. Describe the feature's specific repair actions in `hj repo features` output.
+9. Run the self-check above and resolve ambiguity or drift on this repository.
+10. Update the feature guide and run `deno task ci`.
 
 Use existing artifact planners when the feature owns exact generated files.
 Preserve custom files and report ambiguous data instead of adopting it. Test
