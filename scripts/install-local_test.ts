@@ -43,7 +43,7 @@ Deno.test("installed hj keeps the caller directory and works outside the checkou
     assertStringIncludes(await run(["--help"]), "hj repo features");
     await run(["repo", "features", "--deno-fmt", "--yes"]);
     const config = JSON.parse(await Deno.readTextFile(`${root}/deno.jsonc`));
-    assertEquals(config.tasks.fmt.command, "deno fmt");
+    assertEquals(config.tasks.fmt.command, "deno fmt --ignore=coverage");
   } finally {
     await Deno.remove(root, { recursive: true });
   }
