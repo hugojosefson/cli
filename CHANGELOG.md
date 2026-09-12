@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.14.0
+
+### Features
+
+#### test
+
+- observe validation group reuse
+  ([5742c66](https://github.com/hugojosefson/cli/commit/5742c6672a8f6222d6d316e2dbd4d3a765d28f03))
+
 ## 0.13.0
 
 ### Features
