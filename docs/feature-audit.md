@@ -126,3 +126,42 @@ deno-lint                      enabled        Deno task lint is configured.
 The 17 focused tests passed. They covered the absence of empty repair lines,
 exact missing `.gitignore` additions, manual blockers, read-only previews, and
 unchanged behavior for `--repair` on disabled features.
+
+## Generated README and command guidance
+
+The September 12, 2026 inspection for
+[#29](https://github.com/hugojosefson/cli/issues/29) ran both `hj repo features`
+and `deno task hj repo features` before and after the changes. Both final
+inspections reported 53 features: 26 enabled and 27 intentionally disabled. None
+reported ambiguity or drift. The generated README provider is now enabled, and
+the static provider is disabled.
+
+`deno task readme-example` generates the included Markdown fragment and colored
+image from this repository's local feature detections. `deno task readme` builds
+the root README. `deno task readme-check` freshly generates all three artifacts
+in memory and compares them with the tracked files. CI runs that check without
+credentials or changes to the checkout. Edited or missing artifacts fail with
+the refresh commands.
+
+`deno task hj repo features --readme-build --github-default-project --yes`
+returned `No changes.` The new implementation kept the API section absent and
+did not repeat the Deno installation requirement. A checkout gave the editable
+README source and LICENSE mode `0664`. The audit named the affected files.
+`chmod 644 LICENSE readme/README.md` restored the expected permissions before
+the final inspections.
+
+`stat` confirmed mode `0444` for root `README.md`, and
+`git ls-files --error-unmatch README.md` confirmed tracking. The file is not
+ignored. A regression test checks that rebuilding after a real Git checkout
+restores read-only permissions and keeps the generated file tracked. Git does
+not store write permissions, so the build task restores them after checkout.
+
+Command tests cover missing Git and GitHub CLI, installation links, sign-in with
+redirected streams, cancellation, and authentication before existing remote
+setup. A terminal test with a mock GitHub CLI passed the prompt, login, and
+authentication recheck. README tests cover library ownership of API links,
+removal of unchanged legacy API blocks, preservation of custom sections, and
+feature commit ownership.
+
+The combined `deno task ci` passed 665 tests and seven named steps. Coverage
+passed all limits: 90.9% of lines, 91.9% of branches, and 93.7% of functions.
