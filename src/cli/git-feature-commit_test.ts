@@ -270,3 +270,18 @@ Deno.test("shared task rewrites with ambiguous ownership keep all content uncomm
     );
   });
 });
+
+Deno.test("explicit generated paths are captured even under existing ignore rules", async () => {
+  await repository(async (root) => {
+    await write(root, ".gitignore", "generated.txt\n");
+    await git(root, "add", ".gitignore");
+    await git(root, "commit", "-m", "chore: seed");
+    const change = plan("generated", ["generated.txt"]);
+    const session = (await FeatureCommitSession.prepare(root, [change]))!;
+    await write(root, "generated.txt", "owned output\n");
+    await session.capture(change);
+    await session.finish();
+    assertEquals(await git(root, "show", "HEAD:generated.txt"), "owned output");
+    assertEquals(await git(root, "status", "--porcelain"), "");
+  });
+});
