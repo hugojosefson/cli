@@ -15,7 +15,7 @@ import { buildReadme } from "../readme/build-readme.ts";
 import { parseFeatures } from "./parse-features.ts";
 import {
   runFeatureOperation as actualRunFeatureOperation,
-  runFeatures as actualRunFeatures,
+  type runFeatures as actualRunFeatures,
 } from "./run-features.ts";
 
 // These tests exercise plans and commits; task subprocesses have dedicated tests.
@@ -24,7 +24,7 @@ function runFeatureOperation(
 ) {
   return actualRunFeatureOperation(args[0], args[1], args[2], args[3], {
     ...args[4],
-    runFinalTask: async () => undefined,
+    runFinalTask: () => Promise.resolve(undefined),
   });
 }
 function runFeatures(...args: Parameters<typeof actualRunFeatures>) {

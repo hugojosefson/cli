@@ -285,3 +285,21 @@ Deno.test("explicit generated paths are captured even under existing ignore rule
     assertEquals(await git(root, "status", "--porcelain"), "");
   });
 });
+
+Deno.test("private commit indexes work in a linked Git worktree", async () => {
+  await repository(async (root) => {
+    await write(root, "seed.txt", "seed\n");
+    await git(root, "add", ".");
+    await git(root, "commit", "-m", "chore: seed");
+    await git(root, "worktree", "add", "-b", "linked", "linked");
+    const linked = new URL("linked/", root);
+    const change = plan("readme-static", ["README.md"]);
+    const session = (await FeatureCommitSession.prepare(linked, [change]))!;
+    await write(linked, "README.md", "# Linked\n");
+    await session.capture(change);
+    await session.finish();
+    assertEquals(await git(linked, "show", "HEAD:README.md"), "# Linked");
+    assertEquals(await git(linked, "status", "--porcelain"), "");
+    assertEquals(await git(root, "log", "-1", "--format=%s"), "chore: seed");
+  });
+});
