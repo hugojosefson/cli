@@ -1,0 +1,6 @@
+{
+  "version": 1,
+  "files": {
+    "readme/install.sh": "#!/usr/bin/env bash\ndeno add jsr:@hugojosefson/cli\n"
+  }
+}

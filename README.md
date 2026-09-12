@@ -18,6 +18,13 @@ To assign new GitHub issues to the default project, run
 See [project setup](docs/repository-features.md#default-github-project) for the
 browser command and fallback behavior.
 
+<!-- hj:readme jsr-package:badges 572aba0516320896bc967eb6a2ab6257682c791937319c42ee30c162ca6165bd -->
+
+[![JSR Version](https://jsr.io/badges/@hugojosefson/cli)](https://jsr.io/@hugojosefson/cli)
+[![JSR Score](https://jsr.io/badges/@hugojosefson/cli/score)](https://jsr.io/@hugojosefson/cli)
+
+<!-- /hj:readme -->
+
 ## Install
 
 Install [Deno](https://deno.com/) first. Then install `hj` directly from JSR:
@@ -128,6 +135,27 @@ operations. `hj` uses installed tools and does not install them for you.
 | [Live validation](docs/live-validation.md)                           | Read the scratchpad test results and their limits.            |
 | [Issues](https://github.com/hugojosefson/cli/issues)                 | Track proposed changes, validation, and design decisions.     |
 | [Project](https://github.com/users/hugojosefson/projects/10/views/2) | Browse work, ideas, priorities, and recorded decisions.       |
+
+<!-- hj:readme jsr-package:api e05134ccb0223f2e7cfb1ae5ebd8629368456ea93bd38d01da9bdd6b6b841c54 -->
+
+## API
+
+See the API documentation on
+[jsr.io/@hugojosefson/cli](https://jsr.io/@hugojosefson/cli).
+
+<!-- /hj:readme -->
+
+<!-- hj:readme jsr-package:installation c32082fae6d00768da50c3d05af8d794fc7766c2b6fed8d975eec1619a93347e -->
+
+## Installation
+
+Add the package as a dependency:
+
+```sh
+deno add jsr:@hugojosefson/cli
+```
+
+<!-- /hj:readme -->
 
 ## License
 
