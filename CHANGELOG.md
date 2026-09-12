@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.8.1
+
+- fix(features): omit redundant repair messages for healthy states
+
 ## 0.8.0
 
 - feat(features): preview specific repair actions
