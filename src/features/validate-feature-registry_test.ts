@@ -19,6 +19,7 @@ Deno.test("the complete built-in registry validates", () => {
       "deno-server",
       "git",
       "git-ignore",
+      "editorconfig",
       "github-repo",
       "github-default-project",
       "jsr-package",
