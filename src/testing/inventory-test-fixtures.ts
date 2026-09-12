@@ -18,12 +18,22 @@ function tracked(
   return async (context) => {
     parents.set(context, id);
     event(id, "started");
+    const original = { skip: context.skip, todo: context.todo };
+    for (const method of ["skip", "todo"] as const) {
+      context[method] = (...args: Parameters<TestContext[typeof method]>) => {
+        event(id, method === "skip" ? "skipped" : "todo");
+        return Reflect.apply(original[method], context, args);
+      };
+    }
     try {
       await body(context);
       event(id, "passed");
     } catch (error) {
       event(id, "failed");
       throw error;
+    } finally {
+      context.skip = original.skip;
+      context.todo = original.todo;
     }
   };
 }

@@ -1,5 +1,5 @@
 import { test as nativeTest } from "node:test";
-import { trackTests } from "../testing/inventory-test-fixtures.ts";
+import { testStep, trackTests } from "../testing/inventory-test-fixtures.ts";
 const test = trackTests(import.meta.url, nativeTest);
 import { assertEquals } from "@std/assert";
 import type { ArtifactObservation } from "../api/artifact-inspection.ts";
@@ -225,7 +225,7 @@ IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 `;
 
-Deno.test("MIT recognizes equivalent copyright markers and line formatting without rewriting", async (t) => {
+test("MIT recognizes equivalent copyright markers and line formatting without rewriting", async (t) => {
   const canonical = mitTemplate.replace("<year>", "2025").replace(
     "<copyright holders>",
     "Hugo Josefson",
@@ -243,7 +243,7 @@ Deno.test("MIT recognizes equivalent copyright markers and line formatting witho
     ["single line", canonical.replaceAll(/\s+/g, " ").trim()],
   ]);
   for (const [name, content] of cases) {
-    await t.step(name, async () => {
+    await testStep(t, name, async () => {
       const feature = createLicenseMitFeature(
         source(mitTemplate),
         source(apacheTemplate),
@@ -281,7 +281,7 @@ Deno.test("MIT recognizes equivalent copyright markers and line formatting witho
   );
 });
 
-Deno.test("MIT rejects substantive edits and unsafe attribution despite equivalent formatting", async (t) => {
+test("MIT rejects substantive edits and unsafe attribution despite equivalent formatting", async (t) => {
   const feature = createLicenseMitFeature(
     source(mitTemplate),
     source(apacheTemplate),
@@ -322,7 +322,7 @@ Deno.test("MIT rejects substantive edits and unsafe attribution despite equivale
     ["joined words", reportedMit.replace("free of", "freeof")],
   ]);
   for (const [name, content] of cases) {
-    await t.step(name, async () => {
+    await testStep(t, name, async () => {
       const current = context(file(content));
       assertEquals((await feature.detect(current)).state, "ambiguous");
       assertEquals((await feature.checkEnable(current)).result, "blocked");
@@ -331,7 +331,7 @@ Deno.test("MIT rejects substantive edits and unsafe attribution despite equivale
   }
 });
 
-Deno.test("alternate providers recognize equivalent MIT text and guard replacement with its digest", async () => {
+test("alternate providers recognize equivalent MIT text and guard replacement with its digest", async () => {
   const feature = createLicenseApache20Feature(
     source(apacheTemplate),
     source(mitTemplate),

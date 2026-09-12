@@ -1,3 +1,4 @@
+import { runRawCommand as runCommand } from "../runtime/command.ts";
 import { test as nativeTest } from "node:test";
 import { trackTests } from "../testing/inventory-test-fixtures.ts";
 const test = trackTests(import.meta.url, nativeTest);
@@ -209,14 +210,14 @@ test("npm local build reader requires regular confined files", async () => {
     assertEquals(await reader.read("bin/cli.js"), "example");
     await assertRejects(() => reader.read("../escape"), TypeError, "invalid");
     await assertRejects(() => reader.read("bin"), TypeError, "regular file");
-    const link = await new Deno.Command("deno", {
+    const link = await runCommand("deno", {
       args: [
         "eval",
         "await Deno.symlink(Deno.args[0], Deno.args[1]);",
         `${path}/.hj/npm/bin/cli.js`,
         `${path}/.hj/npm/final.tgz`,
       ],
-    }).output();
+    });
     assertEquals(link.code, 0);
     await assertRejects(
       () => reader.read("final.tgz"),
@@ -280,7 +281,7 @@ test("npm accepts current keyed pack output and rejects unsafe publish configura
   );
 });
 
-Deno.test("npm inspects and publishes a finalized archive without repacking the directory", async () => {
+test("npm inspects and publishes a finalized archive without repacking the directory", async () => {
   const f = fixture();
   const finalized = { ...manifest, hjNpmArchive: "final.tgz" };
   f.input.buildFiles.read = (path: string) =>
@@ -303,7 +304,7 @@ Deno.test("npm inspects and publishes a finalized archive without repacking the 
   assertStringIncludes(f.calls.at(-1)!, "npm publish final.tgz");
 });
 
-Deno.test("npm rejects invalid finalized archive paths and mismatched archived manifests", async () => {
+test("npm rejects invalid finalized archive paths and mismatched archived manifests", async () => {
   for (
     const archive of [
       "../escape.tgz",
