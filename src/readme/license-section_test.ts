@@ -1,3 +1,6 @@
+import { test as nativeTest } from "node:test";
+import { trackTests } from "../testing/inventory-test-fixtures.ts";
+const test = trackTests(import.meta.url, nativeTest);
 import { assertEquals } from "@std/assert";
 import {
   appendLicenseSection,
@@ -8,7 +11,7 @@ import {
 
 const own = exactLicenseSection("MIT", "./LICENSE");
 
-Deno.test("renders a formatter-compatible terminal license section", () => {
+test("renders a formatter-compatible terminal license section", () => {
   assertEquals(own, "## License\n\n[MIT](./LICENSE)\n");
   assertEquals(
     inspectLicenseSection(`${own}\n## Next\n`, "MIT", "./LICENSE", []).kind,
@@ -16,7 +19,7 @@ Deno.test("renders a formatter-compatible terminal license section", () => {
   );
 });
 
-Deno.test("parses only unfenced level-two License sections", () => {
+test("parses only unfenced level-two License sections", () => {
   const text = `~~~markdown\n## License\n~~~\n\n${own}`;
   assertEquals(parseLicenseSections(text).length, 1);
   assertEquals(
@@ -25,7 +28,7 @@ Deno.test("parses only unfenced level-two License sections", () => {
   );
 });
 
-Deno.test("preserves CRLF offsets and classifies duplicates and custom sections", () => {
+test("preserves CRLF offsets and classifies duplicates and custom sections", () => {
   const crlf = own.replaceAll("\n", "\r\n");
   assertEquals(parseLicenseSections(crlf).length, 1);
   assertEquals(

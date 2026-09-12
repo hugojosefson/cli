@@ -1,3 +1,7 @@
+import { test as nativeTest } from "node:test";
+import { trackTests } from "../testing/inventory-test-fixtures.ts";
+const test = trackTests(import.meta.url, nativeTest);
+import { makeTempDir, mkdir, remove } from "../testing/files-test-fixtures.ts";
 import { assertEquals, assertRejects } from "@std/assert";
 import {
   localPublisherFiles,
@@ -12,7 +16,7 @@ import {
   sha,
 } from "./publisher-test-fixtures.ts";
 
-Deno.test("publisher input validates all event fields before process", async () => {
+test("publisher input validates all event fields before process", async () => {
   for (
     const invalid of [
       { HJ_RELEASE_ROUTE: undefined },
@@ -57,7 +61,7 @@ Deno.test("publisher input validates all event fields before process", async () 
     },
   );
 });
-Deno.test("publisher input rejects all non-lightweight tags and checkout drift", async () => {
+test("publisher input rejects all non-lightweight tags and checkout drift", async () => {
   for (
     const tag of [
       "",
@@ -84,7 +88,7 @@ Deno.test("publisher input rejects all non-lightweight tags and checkout drift",
     TypeError,
   );
 });
-Deno.test("version config rejects invalid kinds and accepts JSONC", async () => {
+test("version config rejects invalid kinds and accepts JSONC", async () => {
   const observe = (a: unknown, b: unknown) => ({
     observe: (path: "deno.json" | "deno.jsonc") =>
       Promise.resolve((path === "deno.json" ? a : b) as never),
@@ -120,13 +124,13 @@ Deno.test("version config rejects invalid kinds and accepts JSONC", async () => 
     { version: "1.2.3" },
   );
 });
-Deno.test("local publisher files reject directory and symlink", async () => {
-  const root = await Deno.makeTempDir({
+test("local publisher files reject directory and symlink", async () => {
+  const root = await makeTempDir({
     dir: "/tmp/opencode",
     prefix: "publisher-",
   });
   try {
-    await Deno.mkdir(`${root}/deno.json`);
+    await mkdir(`${root}/deno.json`);
     await createGitSymlink(
       new URL(`file://${root}/`),
       "deno.jsonc",
@@ -136,6 +140,6 @@ Deno.test("local publisher files reject directory and symlink", async () => {
     assertEquals((await reader.observe("deno.json")).kind, "other");
     assertEquals((await reader.observe("deno.jsonc")).kind, "other");
   } finally {
-    await Deno.remove(root, { recursive: true });
+    await remove(root, { recursive: true });
   }
 });

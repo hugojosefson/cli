@@ -1,3 +1,15 @@
+import { test as nativeTest } from "node:test";
+import { testStep, trackTests } from "../testing/inventory-test-fixtures.ts";
+const test = trackTests(import.meta.url, nativeTest);
+import {
+  chmod,
+  makeTempDir,
+  mkdir,
+  readTextFile,
+  remove,
+  writeTextFile,
+} from "../testing/files-test-fixtures.ts";
+import { runCommand } from "../runtime/command.ts";
 import {
   assert,
   assertEquals,
@@ -20,9 +32,9 @@ import {
 } from "./deno-test-tasks.ts";
 import { denoTaskDefinitions, leafTaskDefinitions } from "./deno-tasks.ts";
 
-Deno.test("test coverage tasks follow test and server feature transitions", async (t) => {
+test("test coverage tasks follow test and server feature transitions", async (t) => {
   for (const first of ["tests", "server", "together"]) {
-    await t.step(first, () =>
+    await testStep(t, first, () =>
       withRepository(async (root) => {
         if (first === "tests") {
           await run(root, "--deno-test");
@@ -57,7 +69,7 @@ Deno.test("test coverage tasks follow test and server feature transitions", asyn
   }
 });
 
-Deno.test("test tasks compose with absent server removal and existing exports", async () => {
+test("test tasks compose with absent server removal and existing exports", async () => {
   await withRepository(async (root) => {
     await run(root, "--deno-test", "--no-deno-server");
     assertEquals((await readConfig(root)).tasks.dev, testWatchTaskDefinition);
@@ -75,7 +87,7 @@ Deno.test("test tasks compose with absent server removal and existing exports", 
   });
 });
 
-Deno.test("server transitions preserve custom test tasks and reject watch collisions", async () => {
+test("server transitions preserve custom test tasks and reject watch collisions", async () => {
   await withRepository(async (root) => {
     await run(root, "--deno-test");
     let config = await readConfig(root);
@@ -100,7 +112,7 @@ Deno.test("server transitions preserve custom test tasks and reject watch collis
   });
 });
 
-Deno.test("test tasks preserve custom development tasks and guard alias collisions", async () => {
+test("test tasks preserve custom development tasks and guard alias collisions", async () => {
   await withRepository(async (root) => {
     const custom = { command: "deno run app.ts" };
     await writeConfig(root, {
@@ -127,7 +139,7 @@ Deno.test("test tasks preserve custom development tasks and guard alias collisio
   });
 });
 
-Deno.test("missing coverage and watch aliases drift and repair independently", async () => {
+test("missing coverage and watch aliases drift and repair independently", async () => {
   await withRepository(async (root) => {
     await run(root, "--deno-test");
     const config = await readConfig(root);
@@ -157,7 +169,7 @@ Deno.test("missing coverage and watch aliases drift and repair independently", a
   });
 });
 
-Deno.test("coverage repair rejects changes made after the plan", async () => {
+test("coverage repair rejects changes made after the plan", async () => {
   await withRepository(async (root) => {
     await run(root, "--deno-test");
     const config = await readConfig(root);
@@ -188,14 +200,14 @@ Deno.test("coverage repair rejects changes made after the plan", async () => {
   });
 });
 
-Deno.test("default and CI aggregates collect tests once through the ordinary task", async () => {
+test("default and CI aggregates collect tests once through the ordinary task", async () => {
   await withRepository(async (root) => {
     await run(root, "--deno-test");
-    await Deno.writeTextFile(
+    await writeTextFile(
       new URL("source.ts", root),
       "export const value = 1;\n",
     );
-    await Deno.writeTextFile(
+    await writeTextFile(
       new URL("source_test.ts", root),
       'import { value } from "./source.ts"; Deno.test("runs", () => { console.log("TEST_RUN_MARKER"); if (value !== 1) throw Error(); });\n',
     );
@@ -212,42 +224,42 @@ Deno.test("default and CI aggregates collect tests once through the ordinary tas
   });
 });
 
-Deno.test("generated formatting ignores coverage reports without changing their contents", async () => {
+test("generated formatting ignores coverage reports without changing their contents", async () => {
   await withRepository(async (root) => {
     await run(root, "--deno-test");
-    await Deno.mkdir(new URL("coverage/html", root), { recursive: true });
+    await mkdir(new URL("coverage/html", root), { recursive: true });
     const path = new URL("coverage/html/index.html", root);
     const content = "<html><body><h1>Generated coverage</h1></body></html>";
-    await Deno.writeTextFile(path, content);
+    await writeTextFile(path, content);
     for (const task of ["fmt", "format"]) {
       const result = await command(root, ["task", task]);
       assertEquals(result.code, 0, result.output);
-      assertEquals(await Deno.readTextFile(path), content);
+      assertEquals(await readTextFile(path), content);
     }
   });
 });
 
-Deno.test("ordinary and alias test runs report only fresh coverage after success and failure", async () => {
+test("ordinary and alias test runs report only fresh coverage after success and failure", async () => {
   await withRepository(async (root) => {
     await run(root, "--deno-test");
-    await Deno.writeTextFile(
+    await writeTextFile(
       new URL("old.ts", root),
       "export const old = 1;\n",
     );
-    await Deno.writeTextFile(
+    await writeTextFile(
       new URL("old_test.ts", root),
       'import { old } from "./old.ts"; Deno.test("old", () => { if (old !== 1) throw Error(); });\n',
     );
     let result = await command(root, ["task", "test", "old_test.ts"]);
     assertEquals(result.code, 0, result.output);
     assertStringIncludes(result.output, "old.ts");
-    await Deno.remove(new URL("old.ts", root));
-    await Deno.remove(new URL("old_test.ts", root));
-    await Deno.writeTextFile(
+    await remove(new URL("old.ts", root));
+    await remove(new URL("old_test.ts", root));
+    await writeTextFile(
       new URL("current.ts", root),
       "export const current = 2;\n",
     );
-    await Deno.writeTextFile(
+    await writeTextFile(
       new URL("current_test.ts", root),
       'import { current } from "./current.ts"; Deno.test("name with spaces", () => { if (current === 2) throw Error("expected failure"); });\n',
     );
@@ -268,15 +280,15 @@ Deno.test("ordinary and alias test runs report only fresh coverage after success
   });
 });
 
-Deno.test("test runner preserves test exit codes and reports report failures", async () => {
+test("test runner preserves test exit codes and reports report failures", async () => {
   await withRepository(async (root) => {
-    await Deno.mkdir(new URL("bin", root));
+    await mkdir(new URL("bin", root));
     const fakeDeno = new URL("bin/deno", root);
-    await Deno.writeTextFile(
+    await writeTextFile(
       fakeDeno,
       '#!/bin/sh\nif test "$1" = test; then exit "$TEST_STATUS"; fi\nprintf "REPORT ATTEMPTED\\n"\nexit "$REPORT_STATUS"\n',
     );
-    await Deno.chmod(fakeDeno, 0o755);
+    await chmod(fakeDeno, 0o755);
     for (
       const [testStatus, reportStatus, expected] of [[0, 0, 0], [7, 0, 7], [
         7,
@@ -284,7 +296,7 @@ Deno.test("test runner preserves test exit codes and reports report failures", a
         7,
       ], [0, 9, 9]]
     ) {
-      const result = await new Deno.Command("sh", {
+      const result = await runCommand("sh", {
         args: ["-c", leafTaskDefinitions["deno-test"].command as string],
         cwd: root,
         env: {
@@ -292,7 +304,7 @@ Deno.test("test runner preserves test exit codes and reports report failures", a
           TEST_STATUS: String(testStatus),
           REPORT_STATUS: String(reportStatus),
         },
-      }).output();
+      });
       assertEquals(result.code, expected);
       assertStringIncludes(
         new TextDecoder().decode(result.stdout),
@@ -305,14 +317,14 @@ Deno.test("test runner preserves test exit codes and reports report failures", a
 async function withRepository(
   action: (root: URL) => Promise<void>,
 ): Promise<void> {
-  const path = await Deno.makeTempDir({
+  const path = await makeTempDir({
     dir: "/tmp/opencode",
     prefix: "hj-test-coverage-",
   });
   try {
     await action(new URL(`file://${path}/`));
   } finally {
-    await Deno.remove(path, { recursive: true });
+    await remove(path, { recursive: true });
   }
 }
 function run(root: URL, ...flags: string[]): Promise<string> {
@@ -322,7 +334,7 @@ function run(root: URL, ...flags: string[]): Promise<string> {
   );
 }
 function writeConfig(root: URL, config: unknown): Promise<void> {
-  return Deno.writeTextFile(
+  return writeTextFile(
     new URL("deno.jsonc", root),
     `${JSON.stringify(config, null, 2)}\n`,
   );
@@ -330,10 +342,10 @@ function writeConfig(root: URL, config: unknown): Promise<void> {
 async function readConfig(
   root: URL,
 ): Promise<{ tasks: Record<string, JsonValue> }> {
-  return JSON.parse(await Deno.readTextFile(new URL("deno.jsonc", root)));
+  return JSON.parse(await readTextFile(new URL("deno.jsonc", root)));
 }
 async function command(root: URL, args: string[]) {
-  const result = await new Deno.Command("deno", { args, cwd: root }).output();
+  const result = await runCommand("deno", { args, cwd: root });
   return {
     code: result.code,
     output: new TextDecoder().decode(result.stdout) +

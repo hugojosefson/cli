@@ -1,3 +1,12 @@
+import { test as nativeTest } from "node:test";
+import { trackTests } from "../testing/inventory-test-fixtures.ts";
+const test = trackTests(import.meta.url, nativeTest);
+import {
+  mkdir,
+  readTextFile,
+  remove,
+  writeTextFile,
+} from "../testing/files-test-fixtures.ts";
 import { assertEquals, assertStringIncludes } from "@std/assert";
 import { configuredDenoTask } from "./configured-deno-task.ts";
 import {
@@ -13,12 +22,12 @@ import {
   context,
   withRepository,
   writeConfig,
-} from "./jsr-package-feature-support.ts";
+} from "./jsr-package-test-fixtures.ts";
 import type { JsonObject } from "../api/json.ts";
 
-Deno.test("configured tasks recognize Deno commands, wrappers, aliases, and dependencies", async () => {
+test("configured tasks recognize Deno commands, wrappers, aliases, and dependencies", async () => {
   await withRepository(async (root) => {
-    await Deno.writeTextFile(
+    await writeTextFile(
       new URL("test runner.ts", root),
       'throw new Error("must not execute");',
     );
@@ -123,9 +132,9 @@ Deno.test("configured tasks recognize Deno commands, wrappers, aliases, and depe
   });
 });
 
-Deno.test("custom local features are enabled and requests preserve their files", async () => {
+test("custom local features are enabled and requests preserve their files", async () => {
   await withRepository(async (root) => {
-    await Deno.writeTextFile(
+    await writeTextFile(
       new URL("runner.ts", root),
       'throw new Error("must not execute");',
     );
@@ -146,7 +155,7 @@ Deno.test("custom local features are enabled and requests preserve their files",
       github: undefined,
       resolvedChanges: [],
     };
-    const before = await Deno.readTextFile(new URL("deno.json", root));
+    const before = await readTextFile(new URL("deno.json", root));
     for (
       const feature of [
         denoCliFeature,
@@ -183,15 +192,15 @@ Deno.test("custom local features are enabled and requests preserve their files",
       (await denoCliFeature.checkDisable(current)).result,
       "blocked",
     );
-    assertEquals(await Deno.readTextFile(new URL("deno.json", root)), before);
-    await Deno.remove(new URL("runner.ts", root));
+    assertEquals(await readTextFile(new URL("deno.json", root)), before);
+    await remove(new URL("runner.ts", root));
     assertEquals((await denoCliFeature.detect(current)).state, "drifted");
     assertEquals((await denoTestFeature.detect(current)).state, "drifted");
     assertEquals((await jsrPackageFeature.detect(current)).state, "drifted");
   });
 });
 
-Deno.test("entry point detection rejects unsafe, empty, and non-file exports", async () => {
+test("entry point detection rejects unsafe, empty, and non-file exports", async () => {
   await withRepository(async (root) => {
     const current = context(root);
     assertEquals(await configuredDenoCli(current, undefined), false);
@@ -212,11 +221,11 @@ Deno.test("entry point detection rejects unsafe, empty, and non-file exports", a
       await writeConfig(root, { exports: { "./cli": target } });
       assertEquals((await denoCliFeature.detect(current)).state, "ambiguous");
     }
-    await Deno.writeTextFile(new URL("empty.ts", root), " ");
+    await writeTextFile(new URL("empty.ts", root), " ");
     await writeConfig(root, { exports: { "./cli": "./empty.ts" } });
     assertEquals((await denoCliFeature.detect(current)).state, "drifted");
-    await Deno.remove(new URL("empty.ts", root));
-    await Deno.mkdir(new URL("empty.ts", root));
+    await remove(new URL("empty.ts", root));
+    await mkdir(new URL("empty.ts", root));
     assertEquals((await denoCliFeature.detect(current)).state, "ambiguous");
     await writeConfig(root, {
       name: "@owner/repository",

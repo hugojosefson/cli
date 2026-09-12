@@ -1,10 +1,13 @@
+import { test as nativeTest } from "node:test";
+import { trackTests } from "../testing/inventory-test-fixtures.ts";
+const test = trackTests(import.meta.url, nativeTest);
 import { assertEquals } from "@std/assert";
 import type { Feature } from "../api/feature.ts";
 import type { FeatureRegistry } from "./feature-registry.ts";
 import { validateFeatureRegistry } from "./validate-feature-registry.ts";
 import { builtInFeatureRegistry } from "./built-in-feature-registry.ts";
 
-Deno.test("the complete built-in registry validates", () => {
+test("the complete built-in registry validates", () => {
   assertEquals(validateFeatureRegistry(builtInFeatureRegistry), []);
   assertEquals(
     builtInFeatureRegistry.features.map((feature) => feature.metadata.id),
@@ -142,7 +145,7 @@ function codes(registry: FeatureRegistry): readonly string[] {
   return validateFeatureRegistry(registry).map((issue) => issue.code);
 }
 
-Deno.test("validates duplicate IDs, references, and cycles deterministically", () => {
+test("validates duplicate IDs, references, and cycles deterministically", () => {
   const result = validateFeatureRegistry({
     features: [
       feature("b", ["missing", "c"], ["missing-cap"], ["also-missing"]),
@@ -174,7 +177,7 @@ Deno.test("validates duplicate IDs, references, and cycles deterministically", (
   ]);
 });
 
-Deno.test("validates default providers and exclusive provider setup", () => {
+test("validates default providers and exclusive provider setup", () => {
   assertEquals(
     codes({
       features: [feature("one"), feature("two")],
@@ -196,7 +199,7 @@ Deno.test("validates default providers and exclusive provider setup", () => {
   );
 });
 
-Deno.test("detects cycles through a capability default provider", () => {
+test("detects cycles through a capability default provider", () => {
   assertEquals(
     validateFeatureRegistry({
       features: [
@@ -216,7 +219,7 @@ Deno.test("detects cycles through a capability default provider", () => {
   );
 });
 
-Deno.test("validates preset IDs and targets", () => {
+test("validates preset IDs and targets", () => {
   assertEquals(
     validateFeatureRegistry({
       features: [feature("app")],

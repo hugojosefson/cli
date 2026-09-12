@@ -1,8 +1,20 @@
+import { test as nativeTest } from "node:test";
+import { trackTests } from "../testing/inventory-test-fixtures.ts";
+const test = trackTests(import.meta.url, nativeTest);
+import {
+  chmod,
+  makeTempDir,
+  mkdir,
+  readTextFile,
+  remove as removeFixture,
+  writeTextFile,
+} from "../testing/files-test-fixtures.ts";
+import { runCommand } from "../runtime/command.ts";
 import { assert, assertEquals, assertRejects } from "@std/assert";
 import type { ChangePlan } from "../api/change-plan.ts";
 import { FeatureCommitSession } from "./git-feature-commit.ts";
 
-Deno.test("feature commits separate shared JSON and README edits after final formatting", async () => {
+test("feature commits separate shared JSON and README edits after final formatting", async () => {
   await repository(async (root) => {
     const first = plan("first", ["deno.jsonc", "README.md"]);
     const second = plan("second", ["deno.jsonc", "README.md"]);
@@ -31,7 +43,7 @@ Deno.test("feature commits separate shared JSON and README edits after final for
   });
 });
 
-Deno.test("feature commits preserve unrelated staged and working edits including unborn index", async () => {
+test("feature commits preserve unrelated staged and working edits including unborn index", async () => {
   await repository(async (root) => {
     await write(root, "staged.txt", "staged\n");
     await git(root, "add", "staged.txt");
@@ -48,7 +60,7 @@ Deno.test("feature commits preserve unrelated staged and working edits including
     );
     assertEquals(await git(root, "show", ":staged.txt"), "staged");
     assertEquals(
-      await Deno.readTextFile(new URL("staged.txt", root)),
+      await readTextFile(new URL("staged.txt", root)),
       "working\n",
     );
     assertEquals(await git(root, "status", "--porcelain"), "AM staged.txt");
@@ -61,7 +73,7 @@ Deno.test("feature commits preserve unrelated staged and working edits including
   });
 });
 
-Deno.test("feature commits include repair, deletion, symlinks, and executable mode changes", async () => {
+test("feature commits include repair, deletion, symlinks, and executable mode changes", async () => {
   await repository(async (root) => {
     await write(root, "script.ts", "old\n");
     await write(root, "remove.txt", "remove\n");
@@ -76,14 +88,14 @@ Deno.test("feature commits include repair, deletion, symlinks, and executable mo
       (await FeatureCommitSession.prepare(root, [repair, remove]))!;
     await session.initialize();
     await write(root, "script.ts", "fixed\n");
-    await Deno.chmod(new URL("script.ts", root), 0o755);
-    const linked = await new Deno.Command("deno", {
+    await chmod(new URL("script.ts", root), 0o755);
+    const linked = await runCommand("deno", {
       args: ["eval", 'await Deno.symlink("script.ts", "link")'],
       cwd: root,
-    }).output();
+    });
     assert(linked.success);
     await session.capture(repair);
-    await Deno.remove(new URL("remove.txt", root));
+    await removeFixture(new URL("remove.txt", root));
     await session.capture(remove);
     await session.finish();
     assertEquals(
@@ -98,7 +110,7 @@ Deno.test("feature commits include repair, deletion, symlinks, and executable mo
   });
 });
 
-Deno.test("ambiguous final task edits create no pending content commits and preserve files", async () => {
+test("ambiguous final task edits create no pending content commits and preserve files", async () => {
   await repository(async (root) => {
     await write(root, "keep.txt", "original\n");
     await git(root, "add", ".");
@@ -112,11 +124,11 @@ Deno.test("ambiguous final task edits create no pending content commits and pres
     await assertRejects(() => session.finish(), Error, "cannot be attributed");
     assertEquals(await git(root, "rev-parse", "HEAD"), head);
     assertEquals(await git(root, "diff", "--cached"), "");
-    assertEquals(await Deno.readTextFile(new URL("new.txt", root)), "new\n");
+    assertEquals(await readTextFile(new URL("new.txt", root)), "new\n");
   });
 });
 
-Deno.test("planned dirty paths stop before mutation and preserve their index", async () => {
+test("planned dirty paths stop before mutation and preserve their index", async () => {
   await repository(async (root) => {
     await write(root, "file.txt", "old\n");
     await git(root, "add", ".");
@@ -132,7 +144,7 @@ Deno.test("planned dirty paths stop before mutation and preserve their index", a
   });
 });
 
-Deno.test("configured coverage stays untracked without a gitignore feature", async () => {
+test("configured coverage stays untracked without a gitignore feature", async () => {
   await repository(async (root) => {
     const change = plan("deno-test", ["deno.jsonc"]);
     const session = (await FeatureCommitSession.prepare(root, [change]))!;
@@ -143,7 +155,7 @@ Deno.test("configured coverage stays untracked without a gitignore feature", asy
       '{"tasks":{"test":"deno test --coverage=coverage"}}\n',
     );
     await session.capture(change);
-    await Deno.mkdir(new URL("coverage", root));
+    await mkdir(new URL("coverage", root));
     await write(root, "coverage/output.json", "{}\n");
     await session.finish();
     assertEquals(
@@ -154,13 +166,13 @@ Deno.test("configured coverage stays untracked without a gitignore feature", asy
   });
 });
 
-Deno.test("owned lock task outputs belong to sidecar owner alongside other features", async () => {
+test("owned lock task outputs belong to sidecar owner alongside other features", async () => {
   await repository(async (root) => {
     const cli = plan("deno-cli", [".hj/deno-lock.json"]);
     const readme = plan("readme-static", ["README.md"]);
     const session = (await FeatureCommitSession.prepare(root, [cli, readme]))!;
     await session.initialize();
-    await Deno.mkdir(new URL(".hj", root));
+    await mkdir(new URL(".hj", root));
     await write(root, ".hj/deno-lock.json", "{}\n");
     await session.capture(cli);
     await write(root, "README.md", "# Project\n");
@@ -176,7 +188,7 @@ Deno.test("owned lock task outputs belong to sidecar owner alongside other featu
   });
 });
 
-Deno.test("adding gitignore does not attribute ignored existing files as deleted", async () => {
+test("adding gitignore does not attribute ignored existing files as deleted", async () => {
   await repository(async (root) => {
     await write(root, "local.txt", "keep\n");
     const change = plan("git-ignore", [".gitignore"]);
@@ -189,7 +201,7 @@ Deno.test("adding gitignore does not attribute ignored existing files as deleted
       await git(root, "ls-tree", "--name-only", "HEAD"),
       ".gitignore",
     );
-    assertEquals(await Deno.readTextFile(new URL("local.txt", root)), "keep\n");
+    assertEquals(await readTextFile(new URL("local.txt", root)), "keep\n");
   });
 });
 
@@ -211,15 +223,15 @@ function plan(featureId: string, paths: string[]): ChangePlan {
   };
 }
 async function write(root: URL, path: string, content: string) {
-  await Deno.writeTextFile(new URL(path, root), content);
+  await writeTextFile(new URL(path, root), content);
 }
 async function git(root: URL, ...args: string[]): Promise<string> {
-  const result = await new Deno.Command("git", { args, cwd: root }).output();
+  const result = await runCommand("git", { args, cwd: root });
   assert(result.success, new TextDecoder().decode(result.stderr));
   return new TextDecoder().decode(result.stdout).trim();
 }
 async function repository(action: (root: URL) => Promise<void>) {
-  const path = await Deno.makeTempDir({
+  const path = await makeTempDir({
     dir: "/tmp/opencode",
     prefix: "hj-commits-",
   });
@@ -230,16 +242,16 @@ async function repository(action: (root: URL) => Promise<void>) {
     await git(root, "config", "user.email", "test@example.invalid");
     await action(root);
   } finally {
-    await Deno.remove(root, { recursive: true });
+    await removeFixture(root, { recursive: true });
   }
 }
 
-Deno.test("scoped lock capture leaves unrelated task changes for attribution checks", async () => {
+test("scoped lock capture leaves unrelated task changes for attribution checks", async () => {
   await repository(async (root) => {
     const change = plan("deno-cli", [".hj/deno-lock.json"]);
     const session = (await FeatureCommitSession.prepare(root, [change]))!;
     await session.initialize();
-    await Deno.mkdir(new URL(".hj", root));
+    await mkdir(new URL(".hj", root));
     await write(root, ".hj/deno-lock.json", "{}\n");
     await session.capture(change);
     await write(root, "deno.lock", "{}\n");
@@ -251,7 +263,7 @@ Deno.test("scoped lock capture leaves unrelated task changes for attribution che
   });
 });
 
-Deno.test("shared task rewrites with ambiguous ownership keep all content uncommitted", async () => {
+test("shared task rewrites with ambiguous ownership keep all content uncommitted", async () => {
   await repository(async (root) => {
     const a = plan("first", ["shared.txt"]);
     const b = plan("second", ["shared.txt"]);
@@ -265,13 +277,13 @@ Deno.test("shared task rewrites with ambiguous ownership keep all content uncomm
     await assertRejects(() => session.finish(), Error, "cannot be attributed");
     assertEquals(await git(root, "rev-list", "--count", "HEAD"), "1");
     assertEquals(
-      await Deno.readTextFile(new URL("shared.txt", root)),
+      await readTextFile(new URL("shared.txt", root)),
       "unattributable rewrite\n",
     );
   });
 });
 
-Deno.test("explicit generated paths are captured even under existing ignore rules", async () => {
+test("explicit generated paths are captured even under existing ignore rules", async () => {
   await repository(async (root) => {
     await write(root, ".gitignore", "generated.txt\n");
     await git(root, "add", ".gitignore");
@@ -286,7 +298,7 @@ Deno.test("explicit generated paths are captured even under existing ignore rule
   });
 });
 
-Deno.test("private commit indexes work in a linked Git worktree", async () => {
+test("private commit indexes work in a linked Git worktree", async () => {
   await repository(async (root) => {
     await write(root, "seed.txt", "seed\n");
     await git(root, "add", ".");

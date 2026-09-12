@@ -1,3 +1,13 @@
+import { isNotFound } from "../runtime/errors.ts";
+import { test as nativeTest } from "node:test";
+import { trackTests } from "../testing/inventory-test-fixtures.ts";
+const test = trackTests(import.meta.url, nativeTest);
+import {
+  makeTempDir,
+  readTextFile,
+  remove,
+  writeTextFile,
+} from "../testing/files-test-fixtures.ts";
 import { assert, assertEquals } from "@std/assert";
 import type { OperationContext } from "../api/repository-context.ts";
 import { applyLocalChangePlan } from "../operations/local-change-plan.ts";
@@ -9,7 +19,7 @@ import {
   inspectDenoTasks,
 } from "./deno-tasks.ts";
 
-Deno.test("deno tasks distinguish missing, drifted, and ambiguous definitions", () => {
+test("deno tasks distinguish missing, drifted, and ambiguous definitions", () => {
   assertEquals(inspectDenoTasks({}), { kind: "missing-tasks" });
   assertEquals(inspectDenoTasks({ tasks: [] }).kind, "ambiguous-tasks");
   assertEquals(
@@ -29,7 +39,7 @@ Deno.test("deno tasks distinguish missing, drifted, and ambiguous definitions", 
   );
 });
 
-Deno.test("deno-fmt creates, adopts, and removes its exact standalone config without Git", async () => {
+test("deno-fmt creates, adopts, and removes its exact standalone config without Git", async () => {
   await withRepository(async (root) => {
     const absent = context(root);
     assertEquals((await denoFmtFeature.detect(absent)).state, "disabled");
@@ -58,9 +68,9 @@ Deno.test("deno-fmt creates, adopts, and removes its exact standalone config wit
   });
 });
 
-Deno.test("deno-fmt edits a selected JSONC config and preserves unrelated content", async () => {
+test("deno-fmt edits a selected JSONC config and preserves unrelated content", async () => {
   await withRepository(async (root) => {
-    await Deno.writeTextFile(
+    await writeTextFile(
       new URL("deno.jsonc", root),
       '{\n  // keep this comment\n  "name": "example",\n  "tasks": { "custom": "deno test" }\n}\n',
     );
@@ -102,9 +112,9 @@ Deno.test("deno-fmt edits a selected JSONC config and preserves unrelated conten
   });
 });
 
-Deno.test("deno-fmt fills an existing deno.json instead of creating deno.jsonc", async () => {
+test("deno-fmt fills an existing deno.json instead of creating deno.jsonc", async () => {
   await withRepository(async (root) => {
-    await Deno.writeTextFile(
+    await writeTextFile(
       new URL("deno.json", root),
       '{ "name": "example" }\n',
     );
@@ -125,10 +135,10 @@ Deno.test("deno-fmt fills an existing deno.json instead of creating deno.jsonc",
   });
 });
 
-Deno.test("deno-fmt blocks ambiguous configs and repairs selected task drift", async () => {
+test("deno-fmt blocks ambiguous configs and repairs selected task drift", async () => {
   await withRepository(async (root) => {
-    await Deno.writeTextFile(new URL("deno.json", root), "{}\n");
-    await Deno.writeTextFile(new URL("deno.jsonc", root), "{}\n");
+    await writeTextFile(new URL("deno.json", root), "{}\n");
+    await writeTextFile(new URL("deno.jsonc", root), "{}\n");
     assertEquals(
       (await denoFmtFeature.detect(context(root))).state,
       "ambiguous",
@@ -139,7 +149,7 @@ Deno.test("deno-fmt blocks ambiguous configs and repairs selected task drift", a
     );
   });
   await withRepository(async (root) => {
-    await Deno.writeTextFile(
+    await writeTextFile(
       new URL("deno.json", root),
       JSON.stringify({
         tasks: { ...denoTaskDefinitions(), fmt: { command: "prettier" } },
@@ -195,22 +205,22 @@ function context(
 async function withRepository(
   action: (root: URL) => Promise<void>,
 ): Promise<void> {
-  const path = await Deno.makeTempDir({
+  const path = await makeTempDir({
     dir: "/tmp/opencode",
     prefix: "hj-deno-fmt-",
   });
   try {
     await action(new URL(`file://${path}/`));
   } finally {
-    await Deno.remove(path, { recursive: true });
+    await remove(path, { recursive: true });
   }
 }
 
 async function text(root: URL, path: string): Promise<string | undefined> {
   try {
-    return await Deno.readTextFile(new URL(path, root));
+    return await readTextFile(new URL(path, root));
   } catch (error) {
-    if (error instanceof Deno.errors.NotFound) return undefined;
+    if (isNotFound(error)) return undefined;
     throw error;
   }
 }

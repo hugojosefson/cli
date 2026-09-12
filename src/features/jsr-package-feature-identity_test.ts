@@ -1,13 +1,17 @@
+import { test as nativeTest } from "node:test";
+import { trackTests } from "../testing/inventory-test-fixtures.ts";
+const test = trackTests(import.meta.url, nativeTest);
+import { readTextFile, writeTextFile } from "../testing/files-test-fixtures.ts";
 import { assertEquals } from "@std/assert";
 import { jsrPackageFeature } from "./jsr-package-feature.ts";
 import {
   context,
   withRepository,
   writeConfig,
-} from "./jsr-package-feature-support.ts";
+} from "./jsr-package-test-fixtures.ts";
 import { publishCheckDefinition } from "./jsr-package-config.ts";
 
-Deno.test("jsr-package accepts a distinct local name but rejects malformed metadata", async () => {
+test("jsr-package accepts a distinct local name but rejects malformed metadata", async () => {
   for (
     const [name, version, exports] of [
       ["@Other/invalid", "1.0.0", { ".": "./mod.ts" }],
@@ -16,7 +20,7 @@ Deno.test("jsr-package accepts a distinct local name but rejects malformed metad
     ] as const
   ) {
     await withRepository(async (root) => {
-      await Deno.writeTextFile(
+      await writeTextFile(
         new URL("deno.json", root),
         JSON.stringify({
           name,
@@ -36,7 +40,7 @@ Deno.test("jsr-package accepts a distinct local name but rejects malformed metad
   }
 });
 
-Deno.test("jsr-package allows a distinct package name without assuming a publishing task", async () => {
+test("jsr-package allows a distinct package name without assuming a publishing task", async () => {
   await withRepository(async (root) => {
     await writeConfig(root, { name: "@other/repository", version: "1.0.0" });
     assertEquals(
@@ -46,7 +50,7 @@ Deno.test("jsr-package allows a distinct package name without assuming a publish
   });
 });
 
-Deno.test("jsr-package rejects malformed metadata and disables valid metadata without a task", async () => {
+test("jsr-package rejects malformed metadata and disables valid metadata without a task", async () => {
   await withRepository(async (root) => {
     await writeConfig(root, { name: "@owner/repository", version: "bad" });
     assertEquals(
@@ -61,7 +65,7 @@ Deno.test("jsr-package rejects malformed metadata and disables valid metadata wi
   });
 });
 
-Deno.test("JSR adoption and removal preserve a configured name that differs from GitHub", async () => {
+test("JSR adoption and removal preserve a configured name that differs from GitHub", async () => {
   await withRepository(async (root) => {
     const { applyLocalChangePlan } = await import(
       "../operations/local-change-plan.ts"
@@ -85,7 +89,7 @@ Deno.test("JSR adoption and removal preserve a configured name that differs from
       await jsrPackageFeature.planDisable(current, disable),
     );
     assertEquals(
-      JSON.parse(await Deno.readTextFile(new URL("deno.json", root))).name,
+      JSON.parse(await readTextFile(new URL("deno.json", root))).name,
       "@different/deno-unchanged",
     );
   });

@@ -1,7 +1,14 @@
+import { createServer } from "node:http";
+// @deno-types="npm:@types/ws@8.18.1"
+import { type WebSocket as FixtureSocket, WebSocketServer } from "ws";
+import { closeServer, listen } from "../testing/network-test-fixtures.ts";
+import { test as nativeTest } from "node:test";
+import { trackTests } from "../testing/inventory-test-fixtures.ts";
+const test = trackTests(import.meta.url, nativeTest);
 import { assertEquals, assertRejects, assertThrows } from "@std/assert";
 import { browserAddress, connectProjectBrowser } from "./browser-connection.ts";
 
-Deno.test("Firefox connection accepts only explicit local session addresses", () => {
+test("Firefox connection accepts only explicit local session addresses", () => {
   assertEquals(
     browserAddress("ws://127.0.0.1:9222/session"),
     "ws://127.0.0.1:9222/session",
@@ -16,47 +23,45 @@ Deno.test("Firefox connection accepts only explicit local session addresses", ()
     ]
   ) assertThrows(() => browserAddress(address));
 });
-Deno.test("Firefox BiDi creates and closes only its own tab", async () => {
+test("Firefox BiDi creates and closes only its own tab", async () => {
   const requests: {
     id: number;
     method: string;
     params: Record<string, unknown>;
   }[] = [];
-  let socket: WebSocket | undefined;
+  let socket: FixtureSocket | undefined;
   let failure = false;
   let exception = false;
-  const server = Deno.serve(
-    { hostname: "127.0.0.1", port: 0, onListen() {} },
-    (request) => {
-      const upgraded = Deno.upgradeWebSocket(request);
-      socket = upgraded.socket;
-      socket.onmessage = (event) => {
-        const message = JSON.parse(event.data);
-        requests.push(message);
-        let result: unknown = {};
-        if (message.method === "browsingContext.create") {
-          result = {
-            context: "own-tab",
-          };
-        }
-        if (message.method === "script.callFunction") {
-          result = {
-            type: exception ? "exception" : "success",
-            result: { type: "string", value: JSON.stringify({ safe: true }) },
-          };
-        }
-        socket!.send(JSON.stringify(
-          failure
-            ? { type: "error", id: message.id, message: "untrusted secret" }
-            : { type: "success", id: message.id, result },
-        ));
-      };
-      return upgraded.response;
-    },
-  );
+  const server = createServer();
+  const websocket = new WebSocketServer({ server });
+  websocket.on("connection", (connection) => {
+    socket = connection;
+    socket.onmessage = (event) => {
+      const message = JSON.parse(String(event.data));
+      requests.push(message);
+      let result: unknown = {};
+      if (message.method === "browsingContext.create") {
+        result = {
+          context: "own-tab",
+        };
+      }
+      if (message.method === "script.callFunction") {
+        result = {
+          type: exception ? "exception" : "success",
+          result: { type: "string", value: JSON.stringify({ safe: true }) },
+        };
+      }
+      socket!.send(JSON.stringify(
+        failure
+          ? { type: "error", id: message.id, message: "untrusted secret" }
+          : { type: "success", id: message.id, result },
+      ));
+    };
+  });
+  const port = await listen(server);
   try {
     const page = await connectProjectBrowser(
-      `ws://127.0.0.1:${server.addr.port}/session`,
+      `ws://127.0.0.1:${port}/session`,
     );
     await page.navigate(
       "https://github.com/users/example/projects/10/workflows",
@@ -92,14 +97,17 @@ Deno.test("Firefox BiDi creates and closes only its own tab", async () => {
       value: "true",
     }]);
   } finally {
-    socket?.close();
-    await server.shutdown();
+    socket?.terminate();
+    await new Promise<void>((resolve, reject) =>
+      websocket.close((error) => error ? reject(error) : resolve())
+    );
+    await closeServer(server);
   }
 });
-Deno.test("Firefox connection reports a missing browser without launching one", async () => {
-  const listener = Deno.listen({ hostname: "127.0.0.1", port: 0 });
-  const port = listener.addr.port;
-  listener.close();
+test("Firefox connection reports a missing browser without launching one", async () => {
+  const listener = createServer();
+  const port = await listen(listener);
+  await closeServer(listener);
   await assertRejects(
     () => connectProjectBrowser(`ws://127.0.0.1:${port}/session`),
     Error,

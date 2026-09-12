@@ -1,9 +1,12 @@
+import { test as nativeTest } from "node:test";
+import { trackTests } from "../testing/inventory-test-fixtures.ts";
+const test = trackTests(import.meta.url, nativeTest);
 import { assertEquals, assertRejects, assertThrows } from "@std/assert";
 import {
   context,
   withRepository,
   writeConfig,
-} from "../features/jsr-package-feature-support.ts";
+} from "../features/jsr-package-test-fixtures.ts";
 import type {
   JsrScopeReader,
   JsrScopes,
@@ -19,7 +22,7 @@ const neverPrompt = () => {
   throw new Error("unexpected selection prompt");
 };
 
-Deno.test("one JSR membership selects automatically; several require an explicit answer", async () => {
+test("one JSR membership selects automatically; several require an explicit answer", async () => {
   await withRepository(async (root) => {
     assertEquals(
       await resolveJsrScope(
@@ -58,7 +61,7 @@ Deno.test("one JSR membership selects automatically; several require an explicit
   });
 });
 
-Deno.test("explicit and configured JSR scopes remain authoritative and validate membership", async () => {
+test("explicit and configured JSR scopes remain authoritative and validate membership", async () => {
   await withRepository(async (root) => {
     assertEquals(
       await resolveJsrScope(
@@ -152,7 +155,7 @@ Deno.test("explicit and configured JSR scopes remain authoritative and validate 
   });
 });
 
-Deno.test("unresolved JSR discovery differs from no memberships and never guesses a username", async () => {
+test("unresolved JSR discovery differs from no memberships and never guesses a username", async () => {
   await withRepository(async (root) => {
     await assertRejects(
       () => resolveJsrScope(context(root), scopes(), undefined, neverPrompt),
@@ -193,7 +196,7 @@ Deno.test("unresolved JSR discovery differs from no memberships and never guesse
   });
 });
 
-Deno.test("JSR scope CLI input rejects malformed, conflicting, and unused arguments", () => {
+test("JSR scope CLI input rejects malformed, conflicting, and unused arguments", () => {
   const parse = (...flags: string[]) =>
     parseFeatures(["repo", "features", ...flags], builtInFeatureRegistry);
   assertEquals("jsrScope" in parse("--jsr-package", "--jsr-scope=acme"), true);

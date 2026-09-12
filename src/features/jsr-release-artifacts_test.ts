@@ -1,10 +1,20 @@
+import { test as nativeTest } from "node:test";
+import { trackTests } from "../testing/inventory-test-fixtures.ts";
+const test = trackTests(import.meta.url, nativeTest);
+import {
+  makeTempDir,
+  mkdir,
+  remove,
+  writeTextFile,
+} from "../testing/files-test-fixtures.ts";
+import { runCommand } from "../runtime/command.ts";
 import { assert, assertEquals, assertStringIncludes } from "@std/assert";
 import {
   jsrReleaseArtifact,
   jsrReleaseValidationScript,
 } from "./jsr-release-artifacts.ts";
 
-Deno.test("jsr-release workflow is the exact OIDC publishing snapshot", () => {
+test("jsr-release workflow is the exact OIDC publishing snapshot", () => {
   assertEquals(jsrReleaseArtifact.path, ".github/workflows/hj-release.yaml");
   assertStringIncludes(
     jsrReleaseArtifact.content,
@@ -37,24 +47,24 @@ Deno.test("jsr-release workflow is the exact OIDC publishing snapshot", () => {
   assertEquals(jsrReleaseValidationScript.includes("\n"), false);
 });
 
-Deno.test("jsr-release workflow is valid formatted YAML", async () => {
-  const root = await Deno.makeTempDir({
+test("jsr-release workflow is valid formatted YAML", async () => {
+  const root = await makeTempDir({
     dir: "/tmp/opencode",
     prefix: "hj-release-workflow-",
   });
   try {
     const path = `${root}/hj-release.yaml`;
-    await Deno.writeTextFile(path, jsrReleaseArtifact.content);
-    const result = await new Deno.Command("deno", {
+    await writeTextFile(path, jsrReleaseArtifact.content);
+    const result = await runCommand("deno", {
       args: ["fmt", "--check", path],
-    }).output();
+    });
     assertEquals(result.success, true);
   } finally {
-    await Deno.remove(root, { recursive: true });
+    await remove(root, { recursive: true });
   }
 });
 
-Deno.test("jsr-release validator accepts exact stable and prerelease config versions", async () => {
+test("jsr-release validator accepts exact stable and prerelease config versions", async () => {
   await withConfig("deno.json", '{"version":"1.2.3"}', "1.2.3", true);
   await withConfig(
     "deno.jsonc",
@@ -64,7 +74,7 @@ Deno.test("jsr-release validator accepts exact stable and prerelease config vers
   );
 });
 
-Deno.test("jsr-release validator rejects invalid tag and config states", async () => {
+test("jsr-release validator rejects invalid tag and config states", async () => {
   await withConfig("deno.json", '{"version":"1.2.3"}', "v1.2.3", false);
   await withConfig("deno.json", '{"version":"1.2.3"}', "1.2.4", false);
   await withConfig("deno.json", '{"version":"bad"}', "1.2.3", false);
@@ -80,16 +90,16 @@ async function withConfig(
   expected: boolean,
   duplicate = false,
 ) {
-  const root = await Deno.makeTempDir({
+  const root = await makeTempDir({
     dir: "/tmp/opencode",
     prefix: "hj-release-validator-",
   });
   try {
-    await Deno.writeTextFile(`${root}/${file}`, content);
+    await writeTextFile(`${root}/${file}`, content);
     if (duplicate) {
-      await Deno.writeTextFile(`${root}/deno.jsonc`, '{"version":"1.2.3"}');
+      await writeTextFile(`${root}/deno.jsonc`, '{"version":"1.2.3"}');
     }
-    const result = await new Deno.Command("deno", {
+    const result = await runCommand("deno", {
       args: [
         "eval",
         "--allow-read=deno.json,deno.jsonc",
@@ -98,21 +108,21 @@ async function withConfig(
         tag,
       ],
       cwd: root,
-    }).output();
+    });
     assertEquals(result.success, expected);
   } finally {
-    await Deno.remove(root, { recursive: true });
+    await remove(root, { recursive: true });
   }
 }
 
 async function withDirectory(name: string, tag: string) {
-  const root = await Deno.makeTempDir({
+  const root = await makeTempDir({
     dir: "/tmp/opencode",
     prefix: "hj-release-validator-",
   });
   try {
-    await Deno.mkdir(`${root}/${name}`);
-    const result = await new Deno.Command("deno", {
+    await mkdir(`${root}/${name}`);
+    const result = await runCommand("deno", {
       args: [
         "eval",
         "--allow-read=deno.json,deno.jsonc",
@@ -121,9 +131,9 @@ async function withDirectory(name: string, tag: string) {
         tag,
       ],
       cwd: root,
-    }).output();
+    });
     assertEquals(result.success, false);
   } finally {
-    await Deno.remove(root, { recursive: true });
+    await remove(root, { recursive: true });
   }
 }

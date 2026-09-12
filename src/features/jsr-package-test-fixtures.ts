@@ -1,3 +1,8 @@
+import {
+  makeTempDir,
+  remove,
+  writeTextFile,
+} from "../testing/files-test-fixtures.ts";
 /** @module Shared fixtures for JSR package feature tests. */
 
 import type { OperationContext } from "../api/repository-context.ts";
@@ -55,7 +60,7 @@ export function context(
 }
 
 export async function writeConfig(root: URL, value: unknown): Promise<void> {
-  await Deno.writeTextFile(new URL("deno.json", root), JSON.stringify(value));
+  await writeTextFile(new URL("deno.json", root), JSON.stringify(value));
 }
 
 export function ownedTasks(
@@ -75,13 +80,13 @@ export function ownedTasks(
 export async function withRepository(
   action: (root: URL) => Promise<void>,
 ): Promise<void> {
-  const path = await Deno.makeTempDir({
+  const path = await makeTempDir({
     dir: "/tmp/opencode",
     prefix: "hj-jsr-",
   });
   try {
     await action(new URL(`file://${path}/`));
   } finally {
-    await Deno.remove(path, { recursive: true });
+    await remove(path, { recursive: true });
   }
 }

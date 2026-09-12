@@ -1,3 +1,13 @@
+import { test as nativeTest } from "node:test";
+import { trackTests } from "../testing/inventory-test-fixtures.ts";
+const test = trackTests(import.meta.url, nativeTest);
+import {
+  makeTempDir,
+  mkdir,
+  readTextFile,
+  remove,
+  writeTextFile,
+} from "../testing/files-test-fixtures.ts";
 import {
   assert,
   assertEquals,
@@ -14,14 +24,14 @@ import {
 import { publishTagPrepare } from "./publish-tag-prepare.ts";
 import { validateSourceCommitRange } from "./source-commit-validation.ts";
 
-Deno.test("source validation checks every commit in the base-to-head range", async () => {
+test("source validation checks every commit in the base-to-head range", async () => {
   await withRepository(async (root, process) => {
-    await Deno.writeTextFile(new URL("one.txt", root), "one\n");
+    await writeTextFile(new URL("one.txt", root), "one\n");
     await runOrThrow(process, "git", ["add", "one.txt"]);
     await runOrThrow(process, "git", ["commit", "-m", "feat: add one"]);
     const base = (await runOrThrow(process, "git", ["rev-parse", "HEAD"]))
       .trim();
-    await Deno.writeTextFile(new URL("two.txt", root), "two\n");
+    await writeTextFile(new URL("two.txt", root), "two\n");
     await runOrThrow(process, "git", ["add", "two.txt"]);
     await runOrThrow(process, "git", ["commit", "-m", "invalid message"]);
     const head = (await runOrThrow(process, "git", ["rev-parse", "HEAD"]))
@@ -30,23 +40,23 @@ Deno.test("source validation checks every commit in the base-to-head range", asy
   });
 });
 
-Deno.test("source validation checks only commits added by a diverged head", async () => {
+test("source validation checks only commits added by a diverged head", async () => {
   await withRepository(async (root, process) => {
     const common = (await runOrThrow(process, "git", ["rev-parse", "HEAD"]))
       .trim();
-    await Deno.writeTextFile(new URL("base-only.txt", root), "base\n");
+    await writeTextFile(new URL("base-only.txt", root), "base\n");
     await runOrThrow(process, "git", ["add", "base-only.txt"]);
     await runOrThrow(process, "git", ["commit", "-m", "invalid base message"]);
     const base = (await runOrThrow(process, "git", ["rev-parse", "HEAD"]))
       .trim();
     await runOrThrow(process, "git", ["switch", "--detach", common]);
-    await Deno.writeTextFile(new URL("head.txt", root), "head\n");
+    await writeTextFile(new URL("head.txt", root), "head\n");
     await runOrThrow(process, "git", ["add", "head.txt"]);
     await runOrThrow(process, "git", ["commit", "-m", "feat: valid head"]);
     const validHead = (await runOrThrow(process, "git", ["rev-parse", "HEAD"]))
       .trim();
     await validateSourceCommitRange(process, base, validHead);
-    await Deno.writeTextFile(new URL("bad.txt", root), "bad\n");
+    await writeTextFile(new URL("bad.txt", root), "bad\n");
     await runOrThrow(process, "git", ["add", "bad.txt"]);
     await runOrThrow(process, "git", ["commit", "-m", "invalid head message"]);
     const invalidHead = (await runOrThrow(process, "git", [
@@ -59,15 +69,15 @@ Deno.test("source validation checks only commits added by a diverged head", asyn
   });
 });
 
-Deno.test("usual preparation creates and outputs a validated candidate bundle", async () => {
-  const parent = await Deno.makeTempDir({
+test("usual preparation creates and outputs a validated candidate bundle", async () => {
+  const parent = await makeTempDir({
     dir: "/tmp/opencode",
     prefix: "hj-prepare-",
   });
   const root = new URL(`file://${parent}/work/`);
   const remote = `${parent}/remote.git`;
   try {
-    await Deno.mkdir(root);
+    await mkdir(root);
     const process = localReleaseProcess(root);
     await runOrThrow(process, "git", ["init", "--bare", remote]);
     await runOrThrow(process, "git", ["init", "--initial-branch=main"]);
@@ -77,12 +87,12 @@ Deno.test("usual preparation creates and outputs a validated candidate bundle", 
       "user.email",
       "test@example.com",
     ]);
-    await Deno.writeTextFile(
+    await writeTextFile(
       new URL("deno.json", root),
       '{\n  "version": "0.0.0",\n  "tasks": {\n    "all": "deno eval \'Deno.exit(0)\'"\n  }\n}\n',
     );
-    await Deno.mkdir(new URL(".github/workflows/", root), { recursive: true });
-    await Deno.writeTextFile(
+    await mkdir(new URL(".github/workflows/", root), { recursive: true });
+    await writeTextFile(
       new URL(publishJsrArtifact.path, root),
       publishJsrArtifact.content,
     );
@@ -129,7 +139,7 @@ Deno.test("usual preparation creates and outputs a validated candidate bundle", 
     );
     assertEquals(result.releaseNeeded, true);
     const outputs = Object.fromEntries(
-      (await Deno.readTextFile(outputPath)).trim().split("\n").map((line) => {
+      (await readTextFile(outputPath)).trim().split("\n").map((line) => {
         const offset = line.indexOf("=");
         return [line.slice(0, offset), line.slice(offset + 1)];
       }),
@@ -144,7 +154,7 @@ Deno.test("usual preparation creates and outputs a validated candidate bundle", 
     assertEquals(bundle.nextVersion, "0.1.0");
     assertEquals(bundle.releaseType, "minor");
     assertStringIncludes(bundle.changelog.insertion, "feat: initial release");
-    assertStringIncludes(await Deno.readTextFile(summaryPath), "Release 0.1.0");
+    assertStringIncludes(await readTextFile(summaryPath), "Release 0.1.0");
     const all = calls.flatMap((call, index) =>
       call === "deno task all" ? [index] : []
     );
@@ -155,11 +165,11 @@ Deno.test("usual preparation creates and outputs a validated candidate bundle", 
     assert(contribution > all[1]);
     assert(contribution < calls.indexOf("git diff --name-only -z"));
   } finally {
-    await Deno.remove(parent, { recursive: true });
+    await remove(parent, { recursive: true });
   }
 });
 
-Deno.test("recovery rebuilds a first release with or without its lightweight tag", async () => {
+test("recovery rebuilds a first release with or without its lightweight tag", async () => {
   for (const tagged of [false, true]) {
     await withPreparedRelease(async (root, process, parent) => {
       if (tagged) {
@@ -177,7 +187,7 @@ Deno.test("recovery rebuilds a first release with or without its lightweight tag
       }, process);
       assertEquals(result.releaseNeeded, true);
       const entries = Object.fromEntries(
-        (await Deno.readTextFile(output)).trim().split("\n").map((line) => {
+        (await readTextFile(output)).trim().split("\n").map((line) => {
           const offset = line.indexOf("=");
           return [line.slice(0, offset), line.slice(offset + 1)];
         }),
@@ -192,7 +202,7 @@ Deno.test("recovery rebuilds a first release with or without its lightweight tag
   }
 });
 
-Deno.test("usual preparation directs an untagged correct release to tag recovery", async () => {
+test("usual preparation directs an untagged correct release to tag recovery", async () => {
   await withPreparedRelease(async (root, process) => {
     const values = new Map([["HJ_RELEASE_ROUTE", "usual"]]);
     await assertRejects(
@@ -204,12 +214,12 @@ Deno.test("usual preparation directs an untagged correct release to tag recovery
   });
 });
 
-Deno.test("recovery rejects a release with one changed tree byte", async () => {
+test("recovery rejects a release with one changed tree byte", async () => {
   await withPreparedRelease(async (root, process) => {
     const previous = (await runOrThrow(process, "git", ["rev-parse", "HEAD"]))
       .trim();
-    await Deno.writeTextFile(new URL("CHANGELOG.md", root), "tampered\n", {
-      append: true,
+    await writeTextFile(new URL("CHANGELOG.md", root), "tampered\n", {
+      flag: "a",
     });
     await runOrThrow(process, "git", ["add", "CHANGELOG.md"]);
     await runOrThrow(process, "git", ["commit", "--amend", "--no-edit"]);
@@ -227,7 +237,7 @@ Deno.test("recovery rejects a release with one changed tree byte", async () => {
   });
 });
 
-Deno.test("recovery rejects annotated and wrong-target same-name tags", async () => {
+test("recovery rejects annotated and wrong-target same-name tags", async () => {
   for (const kind of ["annotated", "wrong-target"] as const) {
     await withPreparedRelease(async (root, process) => {
       const command = kind === "annotated"
@@ -243,11 +253,11 @@ Deno.test("recovery rejects annotated and wrong-target same-name tags", async ()
   }
 });
 
-Deno.test("usual history scan restores between tagged and untagged releases", async () => {
+test("usual history scan restores between tagged and untagged releases", async () => {
   await withPreparedRelease(async (root, process) => {
     await runOrThrow(process, "git", ["tag", "0.1.0"]);
     await runOrThrow(process, "git", ["push", "origin", "0.1.0"]);
-    await Deno.writeTextFile(new URL("feature.txt", root), "next\n");
+    await writeTextFile(new URL("feature.txt", root), "next\n");
     await runOrThrow(process, "git", ["add", "feature.txt"]);
     await runOrThrow(process, "git", ["commit", "-m", "feat: next"]);
     await runOrThrow(process, "git", ["push", "origin", "HEAD:main"]);
@@ -290,14 +300,14 @@ async function withPreparedRelease(
     parent: string,
   ) => Promise<void>,
 ): Promise<void> {
-  const parent = await Deno.makeTempDir({
+  const parent = await makeTempDir({
     dir: "/tmp/opencode",
     prefix: "hj-recovery-",
   });
   const root = new URL(`file://${parent}/work/`);
   const remote = `${parent}/remote.git`;
   try {
-    await Deno.mkdir(root);
+    await mkdir(root);
     const process = localReleaseProcess(root);
     await runOrThrow(process, "git", ["init", "--bare", remote]);
     await runOrThrow(process, "git", ["init", "--initial-branch=main"]);
@@ -307,7 +317,7 @@ async function withPreparedRelease(
       "user.email",
       "test@example.com",
     ]);
-    await Deno.writeTextFile(
+    await writeTextFile(
       new URL("deno.json", root),
       '{"version":"0.0.0","tasks":{"all":"deno eval \'Deno.exit(0)\'"}}\n',
     );
@@ -323,7 +333,7 @@ async function withPreparedRelease(
     await runOrThrow(process, "git", ["push", "origin", "HEAD:main"]);
     await action(root, process, parent);
   } finally {
-    await Deno.remove(parent, { recursive: true });
+    await remove(parent, { recursive: true });
   }
 }
 
@@ -333,7 +343,7 @@ async function withRepository(
     process: ReturnType<typeof localReleaseProcess>,
   ) => Promise<void>,
 ): Promise<void> {
-  const path = await Deno.makeTempDir({
+  const path = await makeTempDir({
     dir: "/tmp/opencode",
     prefix: "hj-source-validation-",
   });
@@ -347,11 +357,11 @@ async function withRepository(
       "user.email",
       "test@example.com",
     ]);
-    await Deno.writeTextFile(new URL("base.txt", root), "base\n");
+    await writeTextFile(new URL("base.txt", root), "base\n");
     await runOrThrow(process, "git", ["add", "base.txt"]);
     await runOrThrow(process, "git", ["commit", "-m", "chore: base"]);
     await action(root, process);
   } finally {
-    await Deno.remove(path, { recursive: true });
+    await remove(path, { recursive: true });
   }
 }

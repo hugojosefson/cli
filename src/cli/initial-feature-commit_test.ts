@@ -1,13 +1,31 @@
+import {
+  evalArgumentsCode,
+  executableModule,
+  runModuleEval,
+} from "../testing/runtime-test-fixtures.ts";
+import { test as nativeTest } from "node:test";
+import { trackTests } from "../testing/inventory-test-fixtures.ts";
+const test = trackTests(import.meta.url, nativeTest);
+import {
+  fixtureReadDir,
+  makeTempDir,
+  mkdir,
+  remove,
+  writeTextFile,
+} from "../testing/files-test-fixtures.ts";
+import { runCommand } from "../runtime/command.ts";
 import { assert, assertEquals, assertStringIncludes } from "@std/assert";
 
-const operationUrl = new URL("./run-features.ts", import.meta.url).href;
-const parserUrl = new URL("./parse-features.ts", import.meta.url).href;
+const operationUrl =
+  executableModule("./run-features.ts", import.meta.url).href;
+const parserUrl = executableModule("./parse-features.ts", import.meta.url).href;
 const registryUrl =
-  new URL("../features/built-in-feature-registry.ts", import.meta.url).href;
+  executableModule("../features/built-in-feature-registry.ts", import.meta.url)
+    .href;
 const licenseUrl =
-  new URL("../features/license-spdx-feature.ts", import.meta.url).href;
+  executableModule("../features/license-spdx-feature.ts", import.meta.url).href;
 const catalogUrl =
-  new URL("../features/license-catalog.ts", import.meta.url).href;
+  executableModule("../features/license-catalog.ts", import.meta.url).href;
 const featureFlags = [
   "--readme-static",
   "--license-mit",
@@ -16,9 +34,9 @@ const featureFlags = [
   "--deno-cli",
 ];
 
-Deno.test("fresh feature setup commits only generated paths and is safe to repeat", async () => {
+test("fresh feature setup commits only generated paths and is safe to repeat", async () => {
   await withDirectory(async (root, env) => {
-    await Deno.writeTextFile(new URL("keep.txt", root), "unrelated\n");
+    await writeTextFile(new URL("keep.txt", root), "unrelated\n");
     const first = await run(root, env, featureFlags);
     assert(first.success, text(first.stderr));
     assertStringIncludes(
@@ -67,7 +85,7 @@ Deno.test("fresh feature setup commits only generated paths and is safe to repea
   });
 });
 
-Deno.test("generated README license content belongs to the license commit", async () => {
+test("generated README license content belongs to the license commit", async () => {
   await withDirectory(async (root, env) => {
     const result = await run(root, env, [
       "--readme-build",
@@ -89,7 +107,7 @@ Deno.test("generated README license content belongs to the license commit", asyn
   });
 });
 
-Deno.test("package README sections belong to the CLI, library, and JSR commits", async () => {
+test("package README sections belong to the CLI, library, and JSR commits", async () => {
   await withDirectory(async (root, env) => {
     const result = await run(root, env, [
       "--readme-static",
@@ -138,7 +156,7 @@ Deno.test("package README sections belong to the CLI, library, and JSR commits",
   });
 });
 
-Deno.test("Git alone creates one empty initial commit", async () => {
+test("Git alone creates one empty initial commit", async () => {
   await withDirectory(async (root, env) => {
     const result = await run(root, env, ["--git"]);
     assert(result.success, text(result.stderr));
@@ -152,7 +170,7 @@ Deno.test("Git alone creates one empty initial commit", async () => {
 });
 
 for (const role of ["AUTHOR", "COMMITTER"]) {
-  Deno.test(`missing Git ${role.toLowerCase()} identity stops before initialization or file changes`, async () => {
+  test(`missing Git ${role.toLowerCase()} identity stops before initialization or file changes`, async () => {
     await withDirectory(async (root, env) => {
       const result = await run(root, {
         ...env,
@@ -174,7 +192,7 @@ for (const role of ["AUTHOR", "COMMITTER"]) {
       );
       assertStringIncludes(text(result.stderr), "No changes were made.");
       const entries = [];
-      for await (const entry of Deno.readDir(root)) entries.push(entry.name);
+      for await (const entry of fixtureReadDir(root)) entries.push(entry.name);
       assertEquals(entries, []);
     });
   });
@@ -183,15 +201,15 @@ for (const role of ["AUTHOR", "COMMITTER"]) {
 async function withDirectory(
   action: (root: URL, env: Record<string, string>) => Promise<void>,
 ) {
-  const directory = await Deno.makeTempDir({
+  const directory = await makeTempDir({
     dir: "/tmp/opencode",
     prefix: "hj-first-commit-",
   });
   const root = new URL(`file://${directory}/project/`);
   try {
-    await Deno.mkdir(root);
+    await mkdir(root);
     const configPath = `${directory}/gitconfig`;
-    await Deno.writeTextFile(
+    await writeTextFile(
       configPath,
       "[user]\n  name = Test User\n  email = test@example.invalid\n",
     );
@@ -205,7 +223,7 @@ async function withDirectory(
       GIT_COMMITTER_EMAIL: "test@example.invalid",
     });
   } finally {
-    await Deno.remove(directory, { recursive: true });
+    await remove(directory, { recursive: true });
   }
 }
 
@@ -213,6 +231,7 @@ function run(root: URL, env: Record<string, string>, flags: string[]) {
   // Use the actual feature set with offline license text and no GitHub lookup.
   // A child process isolates Git identity configuration from other tests.
   const code = `
+    ${evalArgumentsCode}
     import { runFeatureOperation } from ${JSON.stringify(operationUrl)};
     import { parseFeatures } from ${JSON.stringify(parserUrl)};
     import { builtInFeatureRegistry } from ${JSON.stringify(registryUrl)};
@@ -227,22 +246,19 @@ function run(root: URL, env: Record<string, string>, flags: string[]) {
           : feature),
     };
     console.log(await runFeatureOperation(
-      new URL(Deno.args[0]),
-      parseFeatures(["repo", "features", ...Deno.args.slice(1)], registry),
+      new URL(args[0]),
+      parseFeatures(["repo", "features", ...args.slice(1)], registry),
       registry,
       () => [],
       { githubIdentity: { viewer: async () => undefined }, runFinalTask: async () => undefined,
         jsrScopes: { scopes: async () => ({kind: "missing-authentication"}) } },
     ));
   `;
-  return new Deno.Command("deno", {
-    args: ["eval", "--frozen", code, root.href, ...flags],
-    env,
-  }).output();
+  return runModuleEval(code, [root.href, ...flags], { env });
 }
 
 async function git(root: URL, ...args: string[]) {
-  const result = await new Deno.Command("git", { args, cwd: root }).output();
+  const result = await runCommand("git", { args, cwd: root });
   assert(result.success, text(result.stderr));
   return text(result.stdout).trim();
 }

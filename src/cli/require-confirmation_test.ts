@@ -1,3 +1,6 @@
+import { test as nativeTest } from "node:test";
+import { trackTests } from "../testing/inventory-test-fixtures.ts";
+const test = trackTests(import.meta.url, nativeTest);
 import { assertThrows } from "@std/assert";
 import type { ChangePlan } from "../api/change-plan.ts";
 import { requireConfirmation } from "./require-confirmation.ts";
@@ -17,7 +20,7 @@ const plans: readonly ChangePlan[] = [{
   validations: [],
 }];
 
-Deno.test("requires confirmation for the first flagged warning", () => {
+test("requires confirmation for the first flagged warning", () => {
   assertThrows(
     () => requireConfirmation(plans, false),
     Error,

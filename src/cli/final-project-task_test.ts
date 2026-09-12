@@ -1,3 +1,12 @@
+import { test as nativeTest } from "node:test";
+import { trackTests } from "../testing/inventory-test-fixtures.ts";
+const test = trackTests(import.meta.url, nativeTest);
+import {
+  makeTempDir,
+  readTextFile,
+  remove,
+  writeTextFile,
+} from "../testing/files-test-fixtures.ts";
 import { assertEquals, assertRejects, assertStringIncludes } from "@std/assert";
 import type { ChangePlan } from "../api/change-plan.ts";
 import { CommandFailure } from "./command-failure.ts";
@@ -22,16 +31,16 @@ const changed = plan([{
   expectedDigest: undefined,
 }]);
 
-Deno.test("final task runs exactly once using the resulting JSONC definition and directory", async () => {
+test("final task runs exactly once using the resulting JSONC definition and directory", async () => {
   await fixture(async (root) => {
-    await Deno.writeTextFile(
+    await writeTextFile(
       new URL("deno.jsonc", root),
       String.raw`{
       // The replaced task must never run.
       "tasks": { "default": "deno eval 'throw new Error(\"old task\")'" }
     }`,
     );
-    await Deno.writeTextFile(
+    await writeTextFile(
       new URL("deno.jsonc", root),
       String.raw`{
       // Final task dependencies run from the project root.
@@ -45,11 +54,11 @@ Deno.test("final task runs exactly once using the resulting JSONC definition and
       await runFinalProjectTask(root, [changed, changed]),
       "deno task default passed.",
     );
-    assertEquals(await Deno.readTextFile(new URL("marker", root)), "once");
+    assertEquals(await readTextFile(new URL("marker", root)), "once");
   });
 });
 
-Deno.test("read-only, empty and remote-only plans do not execute tasks", async () => {
+test("read-only, empty and remote-only plans do not execute tasks", async () => {
   await fixture(async (root) => {
     await config(root, "deno eval 'Deno.exit(23)'");
     for (
@@ -68,7 +77,7 @@ Deno.test("read-only, empty and remote-only plans do not execute tasks", async (
   });
 });
 
-Deno.test("removal and file-mode changes run the final task conservatively", async () => {
+test("removal and file-mode changes run the final task conservatively", async () => {
   await fixture(async (root) => {
     await config(
       root,
@@ -85,17 +94,17 @@ Deno.test("removal and file-mode changes run the final task conservatively", asy
       mode: 0o755,
       expectedMode: 0o644,
     }])]);
-    assertEquals(await Deno.readTextFile(new URL("marker", root)), "onceonce");
+    assertEquals(await readTextFile(new URL("marker", root)), "onceonce");
   });
 });
 
-Deno.test("removed default and missing final configuration are reported without execution", async () => {
+test("removed default and missing final configuration are reported without execution", async () => {
   await fixture(async (root) => {
     for (
       const contents of [undefined, {}, { tasks: { check: "deno check" } }]
     ) {
       if (contents) {
-        await Deno.writeTextFile(
+        await writeTextFile(
           new URL("deno.json", root),
           JSON.stringify(contents),
         );
@@ -108,7 +117,7 @@ Deno.test("removed default and missing final configuration are reported without 
   });
 });
 
-Deno.test("failed final task preserves its exit code and task edits", async () => {
+test("failed final task preserves its exit code and task edits", async () => {
   await fixture(async (root) => {
     await config(
       root,
@@ -124,14 +133,14 @@ Deno.test("failed final task preserves its exit code and task edits", async () =
       error.message,
       "no feature-content commits were created",
     );
-    assertEquals(await Deno.readTextFile(new URL("fix-me", root)), "visible");
+    assertEquals(await readTextFile(new URL("fix-me", root)), "visible");
   });
 });
 
-Deno.test("ambiguous final configuration stops before task execution", async () => {
+test("ambiguous final configuration stops before task execution", async () => {
   await fixture(async (root) => {
     await config(root, "deno eval 'Deno.exit(23)'");
-    await Deno.writeTextFile(new URL("deno.jsonc", root), "{}");
+    await writeTextFile(new URL("deno.jsonc", root), "{}");
     await assertRejects(
       () => runFinalProjectTask(root, [changed]),
       Error,
@@ -141,14 +150,14 @@ Deno.test("ambiguous final configuration stops before task execution", async () 
 });
 
 async function config(root: URL, command: string) {
-  await Deno.writeTextFile(
+  await writeTextFile(
     new URL("deno.json", root),
     JSON.stringify({ tasks: { default: command } }),
   );
 }
 
 async function fixture(action: (root: URL) => Promise<void>) {
-  const path = await Deno.makeTempDir({
+  const path = await makeTempDir({
     dir: "/tmp/opencode",
     prefix: "hj-final-task-",
   });
@@ -156,6 +165,6 @@ async function fixture(action: (root: URL) => Promise<void>) {
   try {
     await action(root);
   } finally {
-    await Deno.remove(root, { recursive: true });
+    await remove(root, { recursive: true });
   }
 }

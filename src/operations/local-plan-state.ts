@@ -18,7 +18,9 @@ export async function containedUrl(
   for (const part of parts.slice(0, -1)) {
     parent = new URL(`${encodeURIComponent(part)}/`, parent);
     try {
-      if ((await fs.lstat(parent)).isSymbolicLink()) {
+      if (
+        (await fs.lstat(new URL(parent.href.slice(0, -1)))).isSymbolicLink()
+      ) {
         throw new TypeError("Repository path traverses a symlink.");
       }
     } catch (error) {

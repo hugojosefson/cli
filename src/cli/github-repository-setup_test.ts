@@ -1,3 +1,9 @@
+import process from "node:process";
+import { makeTempDir, remove } from "../testing/files-test-fixtures.ts";
+import { test as nativeTest } from "node:test";
+import { trackTests } from "../testing/inventory-test-fixtures.ts";
+const test = trackTests(import.meta.url, nativeTest);
+import { runCommand } from "../runtime/command.ts";
 import {
   assertEquals,
   assertRejects,
@@ -43,7 +49,7 @@ const request = {
   defaults: [],
 };
 async function fixture(fn: (root: URL) => Promise<void>) {
-  const dir = await Deno.makeTempDir({
+  const dir = await makeTempDir({
     dir: "/tmp/opencode",
     prefix: "github-setup-",
   });
@@ -54,23 +60,23 @@ async function fixture(fn: (root: URL) => Promise<void>) {
     GIT_COMMITTER_EMAIL: "test@example.invalid",
   };
   const previous = new Map(
-    Object.keys(identities).map((key) => [key, Deno.env.get(key)]),
+    Object.keys(identities).map((key) => [key, process.env[key]]),
   );
   for (const [key, value] of Object.entries(identities)) {
-    Deno.env.set(key, value);
+    process.env[key] = value;
   }
   try {
     await fn(new URL(`file://${dir}/`));
   } finally {
     for (const [key, value] of previous) {
-      if (value === undefined) Deno.env.delete(key);
-      else Deno.env.set(key, value);
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
     }
-    await Deno.remove(dir, { recursive: true });
+    await remove(dir, { recursive: true });
   }
 }
 
-Deno.test("GitHub creation displays resolved plan before mutations and verifies origin", async () => {
+test("GitHub creation displays resolved plan before mutations and verifies origin", async () => {
   await fixture(async (root) => {
     const setup = new Setup();
     const events: string[] = [];
@@ -105,20 +111,20 @@ Deno.test("GitHub creation displays resolved plan before mutations and verifies 
       "Remote: add origin https://github.com/person/project.git",
     );
     assertStringIncludes(result, "Created and linked");
-    const history = await new Deno.Command("git", {
+    const history = await runCommand("git", {
       cwd: root,
       args: ["log", "--format=%s"],
       stdout: "piped",
-    }).output();
+    });
     assertEquals(
       new TextDecoder().decode(history.stdout).trim(),
       "chore: init repo",
     );
-    const configured = await new Deno.Command("git", {
+    const configured = await runCommand("git", {
       cwd: root,
       args: ["config", "--local", "--get", "remote.origin.url"],
       stdout: "piped",
-    }).output();
+    });
     assertEquals(
       new TextDecoder().decode(configured.stdout).trim(),
       "https://github.com/person/project.git",
@@ -126,7 +132,7 @@ Deno.test("GitHub creation displays resolved plan before mutations and verifies 
   });
 });
 
-Deno.test("GitHub visibility flags override defaults and presets", async () => {
+test("GitHub visibility flags override defaults and presets", async () => {
   for (
     const [flags, expected] of [
       [["--github-repo", "--github-public"], "public"],
@@ -156,7 +162,7 @@ Deno.test("GitHub visibility flags override defaults and presets", async () => {
   }
 });
 
-Deno.test("unresolved automated visibility has no writes and --yes never guesses", async () => {
+test("unresolved automated visibility has no writes and --yes never guesses", async () => {
   await fixture(async (root) => {
     const setup = new Setup();
     await assertRejects(
@@ -179,7 +185,7 @@ Deno.test("unresolved automated visibility has no writes and --yes never guesses
   });
 });
 
-Deno.test("interactive visibility is shown but creation still needs confirmation", async () => {
+test("interactive visibility is shown but creation still needs confirmation", async () => {
   await fixture(async (root) => {
     const setup = new Setup();
     await assertRejects(
@@ -213,15 +219,15 @@ Deno.test("interactive visibility is shown but creation still needs confirmation
   });
 });
 
-Deno.test("existing remotes survive inaccessible GitHub detection", async () => {
+test("existing remotes survive inaccessible GitHub detection", async () => {
   await fixture(async (root) => {
-    await new Deno.Command("git", {
+    await runCommand("git", {
       cwd: root,
       args: ["init"],
-      stdout: "null",
-      stderr: "null",
-    }).output();
-    await new Deno.Command("git", {
+      stdout: "piped",
+      stderr: "piped",
+    });
+    await runCommand("git", {
       cwd: root,
       args: [
         "remote",
@@ -229,7 +235,7 @@ Deno.test("existing remotes survive inaccessible GitHub detection", async () => 
         "upstream",
         "https://example.invalid/existing.git",
       ],
-    }).output();
+    });
     const setup = new Setup();
     await assertRejects(
       () =>
@@ -252,7 +258,7 @@ Deno.test("existing remotes survive inaccessible GitHub detection", async () => 
   });
 });
 
-Deno.test("creation failure is explicit and never initializes or retries", async () => {
+test("creation failure is explicit and never initializes or retries", async () => {
   await fixture(async (root) => {
     const setup = new Setup();
     let calls = 0;
@@ -278,20 +284,20 @@ Deno.test("creation failure is explicit and never initializes or retries", async
   });
 });
 
-Deno.test("creation followed by a remote race preserves new remote and reports recovery", async () => {
+test("creation followed by a remote race preserves new remote and reports recovery", async () => {
   await fixture(async (root) => {
     const setup = new Setup();
     setup.create = async () => {
-      await new Deno.Command("git", {
+      await runCommand("git", {
         cwd: root,
         args: ["init"],
-        stdout: "null",
-        stderr: "null",
-      }).output();
-      await new Deno.Command("git", {
+        stdout: "piped",
+        stderr: "piped",
+      });
+      await runCommand("git", {
         cwd: root,
         args: ["remote", "add", "origin", "https://example.invalid/race.git"],
-      }).output();
+      });
     };
     await assertRejects(
       () =>
@@ -313,7 +319,7 @@ Deno.test("creation followed by a remote race preserves new remote and reports r
   });
 });
 
-Deno.test("repository options validate input and configuration persists visibility", async () => {
+test("repository options validate input and configuration persists visibility", async () => {
   assertThrows(
     () =>
       parseFeatures(["repo", "features", "--github-owner=../bad"], registry),
@@ -380,7 +386,7 @@ function github(setup: Setup, initiallyLinked = false): GithubWriter {
   };
 }
 
-Deno.test("feature setup creates once, refreshes detection, and preserves existing links", async () => {
+test("feature setup creates once, refreshes detection, and preserves existing links", async () => {
   await fixture(async (root) => {
     const setup = new Setup();
     const features = { features: [githubRepoFeature], capabilities: [] };
@@ -410,7 +416,7 @@ Deno.test("feature setup creates once, refreshes detection, and preserves existi
   });
 });
 
-Deno.test("status never invokes repository creation or visibility prompts", async () => {
+test("status never invokes repository creation or visibility prompts", async () => {
   await fixture(async (root) => {
     const setup = new Setup();
     const features = { features: [githubRepoFeature], capabilities: [] };
@@ -511,7 +517,7 @@ Deno.test("a GitHub preset signs in before resolving an unreadable existing remo
   });
 });
 
-Deno.test("later feature failures retain the created repository and report retry instructions", async () => {
+test("later feature failures retain the created repository and report retry instructions", async () => {
   await fixture(async (root) => {
     const setup = new Setup();
     const features = {
@@ -565,7 +571,7 @@ Deno.test("later feature failures retain the created repository and report retry
   });
 });
 
-Deno.test("repository setup respects an explicit request to disable Git", async () => {
+test("repository setup respects an explicit request to disable Git", async () => {
   await fixture(async (root) => {
     const setup = new Setup();
     await assertRejects(
@@ -586,7 +592,7 @@ Deno.test("repository setup respects an explicit request to disable Git", async 
   });
 });
 
-Deno.test("setup retains the child command exit code after repository creation", async () => {
+test("setup retains the child command exit code after repository creation", async () => {
   await fixture(async (root) => {
     const setup = new Setup();
     const features = {

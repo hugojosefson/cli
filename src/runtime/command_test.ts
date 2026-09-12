@@ -1,8 +1,11 @@
+import { test as nativeTest } from "node:test";
+import { trackTests } from "../testing/inventory-test-fixtures.ts";
+const test = trackTests(import.meta.url, nativeTest);
 import { assertEquals, assertRejects } from "@std/assert";
 import { runCommand } from "./command.ts";
 import { isNotFound } from "./errors.ts";
 
-Deno.test("native commands preserve input, separate output, cwd and exit status", async () => {
+test("native commands preserve input, separate output, cwd and exit status", async () => {
   const result = await runCommand("sh", {
     args: ["-c", 'cat; printf "%s" "$HJ_COMMAND_TEST" >&2; exit 7'],
     cwd: new URL("file:///tmp/opencode/"),
@@ -20,14 +23,14 @@ Deno.test("native commands preserve input, separate output, cwd and exit status"
   assertEquals(new TextDecoder().decode(pwd.stdout).trim(), "/tmp/opencode");
 });
 
-Deno.test("native commands close stdin and preserve terminating signals", async () => {
+test("native commands close stdin and preserve terminating signals", async () => {
   const result = await runCommand("sh", { args: ["-c", "cat; kill -TERM $$"] });
   assertEquals(result.success, false);
   assertEquals(result.code, 143);
   assertEquals(result.stdout.length, 0);
 });
 
-Deno.test("filesystem errors distinguish absence from denied access", async () => {
+test("filesystem errors distinguish absence from denied access", async () => {
   const error = await assertRejects(() =>
     runCommand("git", {
       args: ["--version"],
@@ -42,7 +45,7 @@ Deno.test("filesystem errors distinguish absence from denied access", async () =
   );
 });
 
-Deno.test("native commands drain large output while writing large input", async () => {
+test("native commands drain large output while writing large input", async () => {
   const result = await runCommand("sh", {
     args: ["-c", "head -c 1048576 /dev/zero; cat"],
     input: new Uint8Array(1048576).fill(7),

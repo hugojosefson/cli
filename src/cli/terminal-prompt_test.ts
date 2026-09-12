@@ -1,3 +1,6 @@
+import { test as nativeTest } from "node:test";
+import { trackTests } from "../testing/inventory-test-fixtures.ts";
+const test = trackTests(import.meta.url, nativeTest);
 import { assertEquals, assertRejects, assertStringIncludes } from "@std/assert";
 import { promptFeatureActions } from "./prompt-feature-actions.ts";
 import { PromptCancelled } from "./prompt-cancelled.ts";
@@ -44,7 +47,7 @@ function terminal() {
   };
 }
 
-Deno.test("portable action prompt filters and keeps selection order across filters", async () => {
+test("portable action prompt filters and keeps selection order across filters", async () => {
   const io = terminal();
   try {
     const selected = promptFeatureActions(actions, io);
@@ -72,7 +75,7 @@ Deno.test("portable action prompt filters and keeps selection order across filte
   }
 });
 
-Deno.test("portable action prompt safely handles unmatched literal filters and deselection", async () => {
+test("portable action prompt safely handles unmatched literal filters and deselection", async () => {
   const io = terminal();
   try {
     const selected = selectTerminalActions(actions, io);
@@ -88,7 +91,7 @@ Deno.test("portable action prompt safely handles unmatched literal filters and d
 });
 
 for (const key of ["\x03", "\x04", "\x1b", "end"]) {
-  Deno.test(`portable prompts cancel and restore input for ${JSON.stringify(key)}`, async () => {
+  test(`portable prompts cancel and restore input for ${JSON.stringify(key)}`, async () => {
     for (
       const prompt of [
         (io: ReturnType<typeof terminal>) => selectTerminalActions(actions, io),
@@ -111,7 +114,7 @@ for (const key of ["\x03", "\x04", "\x1b", "end"]) {
   });
 }
 
-Deno.test("portable text prompts accept edited explicit answers and never invent defaults", async () => {
+test("portable text prompts accept edited explicit answers and never invent defaults", async () => {
   for (const [keys, expected] of [["publiX\x7fc\r", "public"], ["\r", ""]]) {
     const io = terminal();
     try {
@@ -138,7 +141,7 @@ Deno.test("portable text prompts accept edited explicit answers and never invent
   }
 });
 
-Deno.test("cancelled action prompts cannot become an empty successful feature request", async () => {
+test("cancelled action prompts cannot become an empty successful feature request", async () => {
   const io = terminal();
   try {
     const selected = promptFeatureActions(actions, io);

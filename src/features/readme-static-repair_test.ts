@@ -1,3 +1,6 @@
+import { test as nativeTest } from "node:test";
+import { trackTests } from "../testing/inventory-test-fixtures.ts";
+const test = trackTests(import.meta.url, nativeTest);
 import { assertEquals } from "@std/assert";
 import type { ArtifactObservation } from "../api/artifact-inspection.ts";
 import type { OperationContext } from "../api/repository-context.ts";
@@ -30,7 +33,7 @@ function context(
   };
 }
 
-Deno.test("readme-static preserves selected writable content", async () => {
+test("readme-static preserves selected writable content", async () => {
   const drifted = context({
     kind: "file",
     content: "# edited\n",
@@ -45,7 +48,7 @@ Deno.test("readme-static preserves selected writable content", async () => {
   });
 });
 
-Deno.test("readme-static repairs explicitly selected non-writable content", async () => {
+test("readme-static repairs explicitly selected non-writable content", async () => {
   const drifted = context({
     kind: "file",
     content: "# edited\n",
@@ -73,7 +76,7 @@ Deno.test("readme-static repairs explicitly selected non-writable content", asyn
   ]);
 });
 
-Deno.test("readme-static preserves unselected writable content and blocks ambiguity", async () => {
+test("readme-static preserves unselected writable content and blocks ambiguity", async () => {
   const unselected = context(
     { kind: "file", content: "# edited\n", digest: "x", mode: 0o644 },
     { kind: "features", featureIds: [] },

@@ -1,3 +1,16 @@
+import { isNotFound } from "../runtime/errors.ts";
+import { test as nativeTest } from "node:test";
+import { trackTests } from "../testing/inventory-test-fixtures.ts";
+const test = trackTests(import.meta.url, nativeTest);
+import {
+  chmod,
+  fixtureStat,
+  makeTempDir,
+  readTextFile,
+  remove,
+  writeTextFile,
+} from "../testing/files-test-fixtures.ts";
+import { runCommand } from "../runtime/command.ts";
 import {
   assert,
   assertEquals,
@@ -39,12 +52,12 @@ function runFeatures(...args: Parameters<typeof actualRunFeatures>) {
   );
 }
 
-Deno.test("reports status and commits only planned README changes", async () => {
+test("reports status and commits only planned README changes", async () => {
   await withRepository(async (root) => {
     await git(["init"], root);
     await git(["config", "user.name", "Test User"], root);
     await git(["config", "user.email", "test@example.invalid"], root);
-    await Deno.writeTextFile(new URL("keep.txt", root), "keep\n");
+    await writeTextFile(new URL("keep.txt", root), "keep\n");
     await git(["add", "keep.txt"], root);
     await git(["commit", "-m", "chore: seed"], root);
 
@@ -85,11 +98,11 @@ Deno.test("reports status and commits only planned README changes", async () => 
       await gitText(["show", "--format=", "--name-only", "HEAD"], root),
       "README.md",
     );
-    assertEquals((await Deno.stat(new URL("keep.txt", root))).isFile, true);
+    assertEquals((await fixtureStat(new URL("keep.txt", root))).isFile, true);
   });
 });
 
-Deno.test("reports local changes without Git and reports a repeat as unchanged", async () => {
+test("reports local changes without Git and reports a repeat as unchanged", async () => {
   await withRepository(async (root) => {
     const first = await run(root, "--deno-fmt");
     assertStringIncludes(first, "Applied local changes.");
@@ -101,13 +114,13 @@ Deno.test("reports local changes without Git and reports a repeat as unchanged",
   });
 });
 
-Deno.test("repair preserves writable static README content", async () => {
+test("repair preserves writable static README content", async () => {
   await withRepository(async (root) => {
     await git(["init"], root);
     await git(["config", "user.name", "Test User"], root);
     await git(["config", "user.email", "test@example.invalid"], root);
-    await Deno.writeTextFile(new URL("README.md", root), "# edited\n");
-    await Deno.chmod(new URL("README.md", root), 0o755);
+    await writeTextFile(new URL("README.md", root), "# edited\n");
+    await chmod(new URL("README.md", root), 0o755);
     await git(["add", "README.md"], root);
     await git(["commit", "-m", "chore: seed"], root);
 
@@ -120,11 +133,11 @@ Deno.test("repair preserves writable static README content", async () => {
     );
     assert(!result.includes("Committed each changed feature"));
     assertEquals(
-      await Deno.readTextFile(new URL("README.md", root)),
+      await readTextFile(new URL("README.md", root)),
       "# edited\n",
     );
     assertEquals(
-      (await Deno.stat(new URL("README.md", root))).mode! & 0o777,
+      (await fixtureStat(new URL("README.md", root))).mode! & 0o777,
       0o755,
     );
     assertEquals(
@@ -134,12 +147,12 @@ Deno.test("repair preserves writable static README content", async () => {
   });
 });
 
-Deno.test("commits planned deno-fmt changes through the generic Git path", async () => {
+test("commits planned deno-fmt changes through the generic Git path", async () => {
   await withRepository(async (root) => {
     await git(["init"], root);
     await git(["config", "user.name", "Test User"], root);
     await git(["config", "user.email", "test@example.invalid"], root);
-    await Deno.writeTextFile(new URL("keep.txt", root), "keep\n");
+    await writeTextFile(new URL("keep.txt", root), "keep\n");
     await git(["add", "keep.txt"], root);
     await git(["commit", "-m", "chore: seed"], root);
 
@@ -158,12 +171,12 @@ Deno.test("commits planned deno-fmt changes through the generic Git path", async
   });
 });
 
-Deno.test("commits planned deno-lib files through the generic Git path", async () => {
+test("commits planned deno-lib files through the generic Git path", async () => {
   await withRepository(async (root) => {
     await git(["init"], root);
     await git(["config", "user.name", "Test User"], root);
     await git(["config", "user.email", "test@example.invalid"], root);
-    await Deno.writeTextFile(new URL("keep.txt", root), "keep\n");
+    await writeTextFile(new URL("keep.txt", root), "keep\n");
     await git(["add", "keep.txt"], root);
     await git(["commit", "-m", "chore: seed"], root);
     const result = await runFeatures(
@@ -181,12 +194,12 @@ Deno.test("commits planned deno-lib files through the generic Git path", async (
   });
 });
 
-Deno.test("commits planned deno-cli files through the generic Git path", async () => {
+test("commits planned deno-cli files through the generic Git path", async () => {
   await withRepository(async (root) => {
     await git(["init"], root);
     await git(["config", "user.name", "Test User"], root);
     await git(["config", "user.email", "test@example.invalid"], root);
-    await Deno.writeTextFile(new URL("keep.txt", root), "keep\n");
+    await writeTextFile(new URL("keep.txt", root), "keep\n");
     await git(["add", "keep.txt"], root);
     await git(["commit", "-m", "chore: seed"], root);
     const result = await runFeatures(
@@ -201,13 +214,13 @@ Deno.test("commits planned deno-cli files through the generic Git path", async (
   });
 });
 
-Deno.test("composes Deno CLI and server transitions from one plan snapshot", async () => {
+test("composes Deno CLI and server transitions from one plan snapshot", async () => {
   await withRepository(async (root) => {
     await run(root, "--deno-cli", "--deno-server");
     await smoke(root, "test/cli_test.ts", "test/server_test.ts");
     await deniedServe(root);
     assert(
-      (await Deno.readTextFile(
+      (await readTextFile(
         new URL("src/cli/commands.ts", root),
       )).includes(
         "serveCommand",
@@ -216,7 +229,7 @@ Deno.test("composes Deno CLI and server transitions from one plan snapshot", asy
     await run(root, "--no-deno-server");
     await smoke(root, "test/cli_test.ts");
     assert(
-      !(await Deno.readTextFile(
+      !(await readTextFile(
         new URL("src/cli/commands.ts", root),
       )).includes(
         "serveCommand",
@@ -228,19 +241,19 @@ Deno.test("composes Deno CLI and server transitions from one plan snapshot", asy
   });
 });
 
-Deno.test("composes CLI into an existing server and shared lib directories", async () => {
+test("composes CLI into an existing server and shared lib directories", async () => {
   await withRepository(async (root) => {
     await run(root, "--deno-server");
     await run(root, "--deno-cli");
     await smoke(root, "test/cli_test.ts", "test/server_test.ts");
     await run(root, "--no-deno-cli", "--no-deno-server");
     await run(root, "--deno-lib", "--deno-cli");
-    assert((await Deno.stat(new URL("src/lib/mod.ts", root))).isFile);
-    assert((await Deno.stat(new URL("src/cli/cli.ts", root))).isFile);
+    assert((await fixtureStat(new URL("src/lib/mod.ts", root))).isFile);
+    assert((await fixtureStat(new URL("src/cli/cli.ts", root))).isFile);
   });
 });
 
-Deno.test("interactive empty selection returns status without changes", async () => {
+test("interactive empty selection returns status without changes", async () => {
   await withRepository(async (root) => {
     const result = await runFeatures(
       root,
@@ -259,7 +272,7 @@ Deno.test("interactive empty selection returns status without changes", async ()
   });
 });
 
-Deno.test("MPL and Unlicense do not resolve attribution", async () => {
+test("MPL and Unlicense do not resolve attribution", async () => {
   for (const id of ["license-mpl-2.0", "license-unlicense"]) {
     await withRepository(async (root) => {
       const provider = licenseCatalog.find((item) => item.id === id)!;
@@ -300,7 +313,7 @@ Deno.test("MPL and Unlicense do not resolve attribution", async () => {
   }
 });
 
-Deno.test("owns the static README license section and blocks custom content", async () => {
+test("owns the static README license section and blocks custom content", async () => {
   await withRepository(async (root) => {
     const mit = licenseCatalog.find((provider) =>
       provider.id === "license-mit"
@@ -342,7 +355,7 @@ Deno.test("owns the static README license section and blocks custom content", as
       "[MIT](./LICENSE)",
       "Custom terms apply.",
     );
-    await Deno.writeTextFile(new URL("README.md", root), custom);
+    await writeTextFile(new URL("README.md", root), custom);
     const license = await read(root, "LICENSE");
     await assertRejects(() =>
       runFeatureOperation(
@@ -356,7 +369,7 @@ Deno.test("owns the static README license section and blocks custom content", as
   });
 });
 
-Deno.test("replaces an injected MIT license in a generated README without partial changes", async () => {
+test("replaces an injected MIT license in a generated README without partial changes", async () => {
   await withRepository(async (root) => {
     const registry = generatedLicenseRegistry();
     const services = {
@@ -396,24 +409,24 @@ Deno.test("replaces an injected MIT license in a generated README without partia
       "[Apache-2.0](./LICENSE)",
     );
     assertEquals(
-      (await Deno.stat(new URL("README.md", root))).mode! & 0o777,
+      (await fixtureStat(new URL("README.md", root))).mode! & 0o777,
       0o444,
     );
     assertEquals(await buildReadme(root), await read(root, "README.md"));
 
-    await Deno.chmod(new URL("README.md", root), 0o644);
+    await chmod(new URL("README.md", root), 0o644);
     await runFeatureOperation(
       root,
       parseFeatures(["repo", "features", "--repair"], registry),
       registry,
     );
     assertEquals(
-      (await Deno.stat(new URL("README.md", root))).mode! & 0o777,
+      (await fixtureStat(new URL("README.md", root))).mode! & 0o777,
       0o444,
     );
 
     const source = await read(root, "readme/README.md");
-    await Deno.writeTextFile(
+    await writeTextFile(
       new URL("readme/README.md", root),
       source.replace("## License\n\n[Apache-2.0](../LICENSE)\n", ""),
     );
@@ -428,7 +441,7 @@ Deno.test("replaces an injected MIT license in a generated README without partia
     );
     assertEquals(await buildReadme(root), await read(root, "README.md"));
 
-    await Deno.chmod(new URL("readme/README.md", root), 0o444);
+    await chmod(new URL("readme/README.md", root), 0o444);
     await runFeatureOperation(
       root,
       parseFeatures(
@@ -438,11 +451,11 @@ Deno.test("replaces an injected MIT license in a generated README without partia
       registry,
     );
     assertEquals(
-      (await Deno.stat(new URL("readme/README.md", root))).mode! & 0o777,
+      (await fixtureStat(new URL("readme/README.md", root))).mode! & 0o777,
       0o644,
     );
 
-    await Deno.remove(new URL("README.md", root));
+    await remove(new URL("README.md", root));
     await runFeatureOperation(
       root,
       parseFeatures(
@@ -453,7 +466,7 @@ Deno.test("replaces an injected MIT license in a generated README without partia
     );
     assertEquals(await buildReadme(root), await read(root, "README.md"));
     assertEquals(
-      (await Deno.stat(new URL("README.md", root))).mode! & 0o777,
+      (await fixtureStat(new URL("README.md", root))).mode! & 0o777,
       0o444,
     );
 
@@ -469,7 +482,7 @@ Deno.test("replaces an injected MIT license in a generated README without partia
   });
 });
 
-Deno.test("requires confirmation before preflight or mutation", async () => {
+test("requires confirmation before preflight or mutation", async () => {
   await withRepository(async (root) => {
     const confirmations: unknown[] = [];
     const registry = confirmationRegistry(confirmations);
@@ -498,7 +511,7 @@ Deno.test("requires confirmation before preflight or mutation", async () => {
   });
 });
 
-Deno.test("validation failures report the expected and observed feature state", async () => {
+test("validation failures report the expected and observed feature state", async () => {
   await withRepository(async (root) => {
     const base = confirmationRegistry([]);
     const feature = base.features[0];
@@ -635,16 +648,16 @@ function generatedLicenseRegistry(): FeatureRegistry {
 
 async function fileExists(root: URL, path: string): Promise<boolean> {
   try {
-    await Deno.stat(new URL(path, root));
+    await fixtureStat(new URL(path, root));
     return true;
   } catch (error) {
-    if (error instanceof Deno.errors.NotFound) return false;
+    if (isNotFound(error)) return false;
     throw error;
   }
 }
 
 function read(root: URL, path: string): Promise<string> {
-  return Deno.readTextFile(new URL(path, root));
+  return readTextFile(new URL(path, root));
 }
 
 function featureStatus(git: string): string {
@@ -655,30 +668,30 @@ function featureStatus(git: string): string {
 async function withRepository(
   action: (root: URL) => Promise<void>,
 ): Promise<void> {
-  const path = await Deno.makeTempDir({
+  const path = await makeTempDir({
     dir: "/tmp/opencode",
     prefix: "hj-cli-features-",
   });
   try {
     await action(new URL(`file://${path}/`));
   } finally {
-    await Deno.remove(path, { recursive: true });
+    await remove(path, { recursive: true });
   }
 }
 
 async function git(args: readonly string[], cwd: URL): Promise<void> {
-  const result = await new Deno.Command("git", {
+  const result = await runCommand("git", {
     args: [...args],
     cwd: cwd.pathname,
-  }).output();
+  });
   if (!result.success) throw new Error(`git failed: ${args[0]}`);
 }
 
 async function gitText(args: readonly string[], cwd: URL): Promise<string> {
-  const result = await new Deno.Command("git", {
+  const result = await runCommand("git", {
     args: [...args],
     cwd: cwd.pathname,
-  }).output();
+  });
   if (!result.success) throw new Error(`git failed: ${args[0]}`);
   return new TextDecoder().decode(result.stdout).trim();
 }
@@ -691,18 +704,18 @@ async function run(root: URL, ...flags: string[]): Promise<string> {
 }
 
 async function smoke(root: URL, ...paths: string[]): Promise<void> {
-  const result = await new Deno.Command("deno", {
+  const result = await runCommand("deno", {
     args: ["test", ...paths],
     cwd: root.pathname,
-  }).output();
+  });
   assert(result.success, new TextDecoder().decode(result.stderr));
 }
 
 async function deniedServe(root: URL): Promise<void> {
-  const result = await new Deno.Command("deno", {
+  const result = await runCommand("deno", {
     args: ["run", "--deny-net", "src/cli/cli.ts", "serve"],
     cwd: root.pathname,
-  }).output();
+  });
   assert(result.success, new TextDecoder().decode(result.stderr));
   assertEquals(
     new TextDecoder().decode(result.stdout).trim(),
@@ -710,7 +723,7 @@ async function deniedServe(root: URL): Promise<void> {
   );
 }
 
-Deno.test("interactive cancellation preserves its exit meaning and never applies saved defaults", async () => {
+test("interactive cancellation preserves its exit meaning and never applies saved defaults", async () => {
   await withRepository(async (root) => {
     class DiagnosticGithub extends LocalGithubClient {
       override get diagnostics(): readonly string[] {

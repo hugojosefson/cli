@@ -1,3 +1,14 @@
+import { test as nativeTest } from "node:test";
+import { trackTests } from "../testing/inventory-test-fixtures.ts";
+const test = trackTests(import.meta.url, nativeTest);
+import {
+  chmod,
+  makeTempDir,
+  mkdir,
+  remove,
+  writeTextFile,
+} from "../testing/files-test-fixtures.ts";
+import { runCommand } from "../runtime/command.ts";
 import {
   assert,
   assertEquals,
@@ -14,7 +25,7 @@ import {
   updateEditorconfig,
 } from "./editorconfig-content.ts";
 
-Deno.test("EditorConfig independent lifecycle creates exact starter and removes owned files", async () => {
+test("EditorConfig independent lifecycle creates exact starter and removes owned files", async () => {
   await repository(async (context) => {
     assertEquals(feature.dependencies.requires, []);
     assertEquals((await feature.detect(context)).state, "disabled");
@@ -36,12 +47,12 @@ Deno.test("EditorConfig independent lifecycle creates exact starter and removes 
   });
 });
 
-Deno.test("EditorConfig preserves custom section precedence, case, values, CRLF and file mode", async () => {
+test("EditorConfig preserves custom section precedence, case, values, CRLF and file mode", async () => {
   await repository(async (context) => {
     const custom =
       "# user\r\nROOT = false\r\n[*.md]\r\ntrim_trailing_whitespace = false\r\n[*]\r\nINDENT_SIZE = 4\r\nindent_style = tab\r\n[Makefile]\r\nindent_style = tab";
     await write(context, custom);
-    await Deno.chmod(new URL(".editorconfig", context.repositoryRoot), 0o600);
+    await chmod(new URL(".editorconfig", context.repositoryRoot), 0o600);
     await apply(context, true);
     const text = (await context.files.readText(".editorconfig"))!;
     assertStringIncludes(text, custom.slice(custom.indexOf("[*.md]")));
@@ -59,7 +70,7 @@ Deno.test("EditorConfig preserves custom section precedence, case, values, CRLF 
   });
 });
 
-Deno.test("EditorConfig repairs missing entries and relinquishes edited entries", async () => {
+test("EditorConfig repairs missing entries and relinquishes edited entries", async () => {
   await repository(async (context) => {
     await apply(context, true);
     await write(
@@ -87,7 +98,7 @@ Deno.test("EditorConfig repairs missing entries and relinquishes edited entries"
   });
 });
 
-Deno.test("EditorConfig never adopts an unowned complete starter or removes duplicate entries", async () => {
+test("EditorConfig never adopts an unowned complete starter or removes duplicate entries", async () => {
   await repository(async (context) => {
     await write(context, "");
     assertEquals((await feature.checkDisable(context)).result, "no-op");
@@ -95,7 +106,7 @@ Deno.test("EditorConfig never adopts an unowned complete starter or removes dupl
     assertEquals((await feature.detect(context)).state, "enabled");
     assertEquals((await feature.checkEnable(context)).result, "no-op");
     assertEquals((await feature.checkDisable(context)).result, "no-op");
-    await Deno.remove(new URL(".editorconfig", context.repositoryRoot));
+    await remove(new URL(".editorconfig", context.repositoryRoot));
     await apply(context, true);
     await write(context, editorconfigStarter + "indent_size = 2\n");
     await apply(context, false);
@@ -107,42 +118,44 @@ Deno.test("EditorConfig never adopts an unowned complete starter or removes dupl
   });
 });
 
-Deno.test("EditorConfig blocks invalid content, metadata, directories and symlinks", async () => {
+test("EditorConfig blocks invalid content, metadata, directories and symlinks", async () => {
   await repository(async (context) => {
     await write(context, "invalid line\n");
     assertEquals((await feature.detect(context)).state, "ambiguous");
     assertEquals((await feature.checkEnable(context)).result, "blocked");
     assertEquals((await feature.checkDisable(context)).result, "blocked");
-    await Deno.remove(new URL(".editorconfig", context.repositoryRoot));
-    await Deno.mkdir(new URL(".editorconfig", context.repositoryRoot));
+    await remove(new URL(".editorconfig", context.repositoryRoot));
+    await mkdir(new URL(".editorconfig", context.repositoryRoot));
     assertEquals((await feature.checkEnable(context)).result, "blocked");
-    await Deno.remove(new URL(".editorconfig", context.repositoryRoot));
+    await remove(new URL(".editorconfig", context.repositoryRoot), {
+      recursive: true,
+    });
     await apply(context, true);
-    await Deno.writeTextFile(
+    await writeTextFile(
       new URL(".hj/editorconfig.json", context.repositoryRoot),
       '{"version":2}',
     );
     assertEquals((await feature.checkEnable(context)).result, "blocked");
-    await Deno.writeTextFile(
+    await writeTextFile(
       new URL(".hj/editorconfig.json", context.repositoryRoot),
       "not json",
     );
     assertEquals((await feature.detect(context)).state, "ambiguous");
-    await Deno.remove(new URL(".editorconfig", context.repositoryRoot));
-    const link = await new Deno.Command("deno", {
+    await remove(new URL(".editorconfig", context.repositoryRoot));
+    const link = await runCommand("deno", {
       args: [
         "eval",
         "await Deno.symlink(Deno.args[0], Deno.args[1]);",
         ".hj/editorconfig.json",
         new URL(".editorconfig", context.repositoryRoot).pathname,
       ],
-    }).output();
+    });
     assert(link.success, new TextDecoder().decode(link.stderr));
     assertEquals((await feature.checkEnable(context)).result, "blocked");
   });
 });
 
-Deno.test("EditorConfig rejects stale file and ownership guards", async () => {
+test("EditorConfig rejects stale file and ownership guards", async () => {
   await repository(async (context) => {
     let check = await feature.checkEnable(context);
     assert(check.result === "allowed");
@@ -156,7 +169,7 @@ Deno.test("EditorConfig rejects stale file and ownership guards", async () => {
     check = await feature.checkDisable(context);
     assert(check.result === "allowed");
     const disable = await feature.planDisable(context, check);
-    await Deno.writeTextFile(
+    await writeTextFile(
       new URL(".hj/editorconfig.json", context.repositoryRoot),
       "{}",
     );
@@ -166,7 +179,7 @@ Deno.test("EditorConfig rejects stale file and ownership guards", async () => {
   });
 });
 
-Deno.test("EditorConfig accepts bracket globs and comments and fills a preamble without newline", () => {
+test("EditorConfig accepts bracket globs and comments and fills a preamble without newline", () => {
   const result = updateEditorconfig("# custom", undefined, true);
   assertStringIncludes(result.content, "# custom\nroot = true\n");
   const input =
@@ -189,7 +202,7 @@ async function apply(context: OperationContext, enabled: boolean) {
   );
 }
 function write(context: OperationContext, content: string) {
-  return Deno.writeTextFile(
+  return writeTextFile(
     new URL(".editorconfig", context.repositoryRoot),
     content,
   );
@@ -197,7 +210,7 @@ function write(context: OperationContext, content: string) {
 async function repository(
   action: (context: OperationContext) => Promise<void>,
 ) {
-  const path = await Deno.makeTempDir({
+  const path = await makeTempDir({
     dir: "/tmp/opencode",
     prefix: "hj-editorconfig-",
   });
@@ -223,6 +236,6 @@ async function repository(
       options: {},
     });
   } finally {
-    await Deno.remove(root, { recursive: true });
+    await remove(root, { recursive: true });
   }
 }

@@ -1,3 +1,6 @@
+import { test as nativeTest } from "node:test";
+import { trackTests } from "../testing/inventory-test-fixtures.ts";
+const test = trackTests(import.meta.url, nativeTest);
 import { assertEquals, assertRejects } from "@std/assert";
 import {
   areaFromLabels,
@@ -6,7 +9,7 @@ import {
 } from "./github-project-area.ts";
 import type { JsonObject } from "../api/json.ts";
 
-Deno.test("Area extracts only nonempty area labels with stable ordering", () => {
+test("Area extracts only nonempty area labels with stable ordering", () => {
   assertEquals(
     areaFromLabels([
       "bug",
@@ -24,7 +27,7 @@ Deno.test("Area extracts only nonempty area labels with stable ordering", () => 
   );
   assertEquals(areaReady({ conflict: false, items: [] }), false);
 });
-Deno.test("Area ignores other repositories and refuses partial labels", async () => {
+test("Area ignores other repositories and refuses partial labels", async () => {
   let partial = false;
   let invalid = false;
   let actual: string | null = null;

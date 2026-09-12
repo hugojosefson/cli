@@ -1,3 +1,6 @@
+import { test as nativeTest } from "node:test";
+import { trackTests } from "../testing/inventory-test-fixtures.ts";
+const test = trackTests(import.meta.url, nativeTest);
 import { assertEquals, assertRejects } from "@std/assert";
 import type { ChangePlan } from "../api/change-plan.ts";
 import type {
@@ -105,7 +108,7 @@ const remoteFilePlan = (expectedContent = "expected\n") =>
     },
   ]);
 
-Deno.test("GitHub plans batch settings and order rulesets", async () => {
+test("GitHub plans batch settings and order rulesets", async () => {
   const writer = new Writer();
   await applyGithubChangePlans(writer, [
     plan([{
@@ -135,7 +138,7 @@ Deno.test("GitHub plans batch settings and order rulesets", async () => {
     "delete:q",
   ]);
 });
-Deno.test("GitHub ruleset plan failure stops later operations", async () => {
+test("GitHub ruleset plan failure stops later operations", async () => {
   const writer = new Writer();
   writer.fail = true;
   await assertRejects(() =>
@@ -143,7 +146,7 @@ Deno.test("GitHub ruleset plan failure stops later operations", async () => {
   );
   assertEquals(writer.calls, ["upsert:a"]);
 });
-Deno.test("GitHub remote file preconditions reject unavailable or malformed data", async () => {
+test("GitHub remote file preconditions reject unavailable or malformed data", async () => {
   for (
     const remote of [
       undefined,
@@ -160,7 +163,7 @@ Deno.test("GitHub remote file preconditions reject unavailable or malformed data
     assertEquals(writer.calls, []);
   }
 });
-Deno.test("GitHub apply rereads remote file preconditions before mutations", async () => {
+test("GitHub apply rereads remote file preconditions before mutations", async () => {
   const writer = new Writer();
   const plan = remoteFilePlan();
   writer.remote = { kind: "file", content: "expected\n" };
@@ -169,7 +172,7 @@ Deno.test("GitHub apply rereads remote file preconditions before mutations", asy
   await assertRejects(() => applyGithubChangePlans(writer, [plan]));
   assertEquals(writer.calls, []);
 });
-Deno.test("GitHub ruleset transitions reread exact state after each request", async () => {
+test("GitHub ruleset transitions reread exact state after each request", async () => {
   const writer = new Writer();
   await applyGithubChangePlans(writer, [plan([{
     kind: "github-ruleset-transition",
@@ -189,7 +192,7 @@ Deno.test("GitHub ruleset transitions reread exact state after each request", as
   assertEquals(writer.calls, ["upsert:a", "upsert:b"]);
   assertEquals(writer.reads, 4);
 });
-Deno.test("GitHub applies main rulesets before a disjoint tag transition", async () => {
+test("GitHub applies main rulesets before a disjoint tag transition", async () => {
   const writer = new Writer();
   await applyGithubChangePlans(writer, [plan([rule("main"), {
     kind: "github-ruleset-transition",
@@ -203,7 +206,7 @@ Deno.test("GitHub applies main rulesets before a disjoint tag transition", async
   }])]);
   assertEquals(writer.calls, ["upsert:main", "upsert:tag-a"]);
 });
-Deno.test("GitHub plans reject contradictory and unsupported remote operations", async () => {
+test("GitHub plans reject contradictory and unsupported remote operations", async () => {
   const writer = new Writer();
   const duplicates = plan([{
     kind: "delete-github-resource",

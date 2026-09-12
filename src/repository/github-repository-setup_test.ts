@@ -1,3 +1,6 @@
+import { test as nativeTest } from "node:test";
+import { trackTests } from "../testing/inventory-test-fixtures.ts";
+const test = trackTests(import.meta.url, nativeTest);
 import { assertEquals, assertRejects, assertStringIncludes } from "@std/assert";
 import { LocalGithubRepositorySetup } from "./github-repository-setup.ts";
 import type { GithubCommandResult } from "./github-command.ts";
@@ -18,7 +21,7 @@ const target = {
   visibility: "private" as const,
 };
 
-Deno.test("repository adapter creates personal and organization repositories without initial files", async () => {
+test("repository adapter creates personal and organization repositories without initial files", async () => {
   for (const owner of ["person", "team"]) {
     const calls: { args: readonly string[]; stdin?: string }[] = [];
     const setup = new LocalGithubRepositorySetup({
@@ -53,7 +56,7 @@ Deno.test("repository adapter creates personal and organization repositories wit
   }
 });
 
-Deno.test("repository adapter rejects collisions and unavailable reads before writes", async () => {
+test("repository adapter rejects collisions and unavailable reads before writes", async () => {
   for (
     const response of [ok({ full_name: "person/project" }), {
       success: false,
@@ -75,7 +78,7 @@ Deno.test("repository adapter rejects collisions and unavailable reads before wr
   }
 });
 
-Deno.test("repository adapter rejects malformed identity and creation responses", async () => {
+test("repository adapter rejects malformed identity and creation responses", async () => {
   const invalid = new LocalGithubRepositorySetup({
     run: () => Promise.resolve(ok({ login: "../bad" })),
   });
@@ -98,7 +101,7 @@ Deno.test("repository adapter rejects malformed identity and creation responses"
   );
 });
 
-Deno.test("repository adapter redacts unavailable transport and failed mutations", async () => {
+test("repository adapter redacts unavailable transport and failed mutations", async () => {
   const unavailable = new LocalGithubRepositorySetup({
     run() {
       throw new Error("secret");

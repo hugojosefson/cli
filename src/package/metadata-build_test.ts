@@ -1,3 +1,16 @@
+import { sourceFile } from "../testing/runtime-test-fixtures.ts";
+import { test as nativeTest } from "node:test";
+import { trackTests } from "../testing/inventory-test-fixtures.ts";
+const test = trackTests(import.meta.url, nativeTest);
+import {
+  fixtureStat,
+  mkdir,
+  readTextFile,
+  remove,
+  rename,
+  writeTextFile,
+} from "../testing/files-test-fixtures.ts";
+import { runCommand } from "../runtime/command.ts";
 import {
   assert,
   assertEquals,
@@ -14,12 +27,12 @@ import {
   context,
   withRepository,
   writeConfig,
-} from "../features/jsr-package-feature-support.ts";
+} from "../features/jsr-package-test-fixtures.ts";
 import { denoTaskDefinitions } from "../features/deno-tasks.ts";
 import { packageMetadataTask } from "../features/deno-cli-artifacts.ts";
 import { hjPackageReference } from "../features/hj-package.ts";
 
-Deno.test("configured rename rebuilds CLI help and retained README references from JSON and JSONC", async () => {
+test("configured rename rebuilds CLI help and retained README references from JSON and JSONC", async () => {
   for (const filename of ["deno.json", "deno.jsonc"]) {
     await withRepository(async (root) => {
       const config = {
@@ -29,7 +42,7 @@ Deno.test("configured rename rebuilds CLI help and retained README references fr
       };
       await writeConfig(root, config);
       if (filename === "deno.jsonc") {
-        await Deno.rename(new URL("deno.json", root), new URL(filename, root));
+        await rename(new URL("deno.json", root), new URL(filename, root));
       }
       const current = { ...context(root), resolvedChanges: [] };
       const check = await denoCliFeature.checkEnable(current);
@@ -40,54 +53,54 @@ Deno.test("configured rename rebuilds CLI help and retained README references fr
       );
       const source =
         "# {{package.name}}\n\n[![JSR]({{package.badge}})]({{package.url}})\n\n[API]({{package.api}})\n\n```sh\n{{package.install}}\n{{package.run}} help\n```\n\nCustom @acme/original-tool stays.\n";
-      await Deno.mkdir(new URL("readme", root));
-      await Deno.writeTextFile(new URL("readme/README.md", root), source);
-      await Deno.writeTextFile(
+      await mkdir(new URL("readme", root));
+      await writeTextFile(new URL("readme/README.md", root), source);
+      await writeTextFile(
         new URL("example.ts", root),
         'import { example } from "./mod.ts";\n',
       );
-      await Deno.writeTextFile(
+      await writeTextFile(
         new URL("mod.ts", root),
         "export const example = 1;\n",
       );
       // Both checkout and installed executions run with another project's cwd.
       const caller = new URL("caller/", root);
-      await Deno.mkdir(caller);
-      await Deno.writeTextFile(
+      await mkdir(caller);
+      await writeTextFile(
         new URL("deno.json", caller),
         '{"name":"@wrong/caller"}',
       );
       const executable = new URL("src/cli/cli.ts", root);
-      const before = await new Deno.Command("deno", {
+      const before = await runCommand("deno", {
         args: ["run", executable.href, "help"],
         cwd: caller,
-      }).output();
+      });
       assert(before.success, new TextDecoder().decode(before.stderr));
       assertStringIncludes(
         new TextDecoder().decode(before.stdout),
         "Usage: original-tool",
       );
       const path = new URL(filename, root);
-      await Deno.writeTextFile(
+      await writeTextFile(
         path,
-        (await Deno.readTextFile(path)).replace(
+        (await readTextFile(path)).replace(
           "@acme/original-tool",
           "@other/renamed-tool",
         ),
       );
       // Run the contributed build task against this checkout's CLI, without a registry release.
-      const cli = new URL("../cli/cli.ts", import.meta.url).href;
-      const text = await Deno.readTextFile(path);
-      await Deno.writeTextFile(path, text.replaceAll(hjPackageReference, cli));
-      const rebuild = await new Deno.Command("deno", {
+      const cli = sourceFile("src/cli/cli.ts").href;
+      const text = await readTextFile(path);
+      await writeTextFile(path, text.replaceAll(hjPackageReference, cli));
+      const rebuild = await runCommand("deno", {
         args: ["task", "default"],
         cwd: root,
-      }).output();
+      });
       assert(rebuild.success, new TextDecoder().decode(rebuild.stderr));
-      const after = await new Deno.Command("deno", {
+      const after = await runCommand("deno", {
         args: ["run", executable.href, "help"],
         cwd: caller,
-      }).output();
+      });
       assert(after.success, new TextDecoder().decode(after.stderr));
       assertStringIncludes(
         new TextDecoder().decode(after.stdout),
@@ -105,11 +118,11 @@ Deno.test("configured rename rebuilds CLI help and retained README references fr
         ]
       ) assertStringIncludes(readme, expected);
       assertStringIncludes(
-        await Deno.readTextFile(new URL("readme/README.md", root)),
+        await readTextFile(new URL("readme/README.md", root)),
         "{{package.name}}",
       );
-      assertEquals(await Deno.readTextFile(new URL("README.md", root)), readme);
-      await Deno.writeTextFile(
+      assertEquals(await readTextFile(new URL("README.md", root)), readme);
+      await writeTextFile(
         new URL("readme/README.md", root),
         source + "\n```ts\n@@include(../example.ts)\n```\n",
       );
@@ -118,7 +131,7 @@ Deno.test("configured rename rebuilds CLI help and retained README references fr
         'from "@other/renamed-tool"',
       );
       const installation = new URL("installed/", root);
-      const install = await new Deno.Command("deno", {
+      const install = await runCommand("deno", {
         args: [
           "install",
           "--global",
@@ -129,19 +142,19 @@ Deno.test("configured rename rebuilds CLI help and retained README references fr
           executable.href,
         ],
         cwd: caller,
-      }).output();
+      });
       assert(install.success, new TextDecoder().decode(install.stderr));
-      const installed = await new Deno.Command("sh", {
+      const installed = await runCommand("sh", {
         args: [new URL("bin/renamed-tool", installation).pathname, "help"],
         cwd: caller,
-      }).output();
+      });
       assert(installed.success, new TextDecoder().decode(installed.stderr));
       assertStringIncludes(
         new TextDecoder().decode(installed.stdout),
         "Usage: renamed-tool",
       );
       assertStringIncludes(packageMetadataTask.command, "package build");
-      await Deno.writeTextFile(
+      await writeTextFile(
         new URL("readme/README.md", root),
         "{{package.unknown}}",
       );
@@ -159,26 +172,26 @@ Deno.test("configured rename rebuilds CLI help and retained README references fr
   }
 });
 
-Deno.test("generated README keeps configured name references and custom prose", async () => {
+test("generated README keeps configured name references and custom prose", async () => {
   await withRepository(async (root) => {
     await writeConfig(root, { name: "@acme/deno-original" });
     await runCli(root, ["repo", "features", "--readme-build"]);
     const source = new URL("readme/README.md", root);
     assertStringIncludes(
-      await Deno.readTextFile(source),
+      await readTextFile(source),
       "# {{package.name}}\n",
     );
-    const originalOutput = await Deno.readTextFile(new URL("README.md", root));
+    const originalOutput = await readTextFile(new URL("README.md", root));
     assertStringIncludes(originalOutput, "# @acme/deno-original\n");
     assertStringIncludes(originalOutput, "Requires [Deno](https://deno.com/).");
-    await Deno.writeTextFile(
+    await writeTextFile(
       source,
-      (await Deno.readTextFile(source)) + "\nCustom prose.\n",
+      (await readTextFile(source)) + "\nCustom prose.\n",
     );
     const path = new URL("deno.json", root);
-    await Deno.writeTextFile(
+    await writeTextFile(
       path,
-      (await Deno.readTextFile(path)).replace(
+      (await readTextFile(path)).replace(
         "@acme/deno-original",
         "@acme/other-tool",
       ),
@@ -188,21 +201,21 @@ Deno.test("generated README keeps configured name references and custom prose", 
       originalOutput.replace("@acme/deno-original", "@acme/other-tool") +
         "\nCustom prose.\n",
     );
-    await Deno.writeTextFile(source, "{{package.constructor}}");
+    await writeTextFile(source, "{{package.constructor}}");
     await assertRejects(
       () => runCli(root, ["readme", "build"]),
       Error,
       "Unknown package reference",
     );
     await writeConfig(root, { exports: "./mod.ts" });
-    await Deno.writeTextFile(source, "{{package.install}}");
+    await writeTextFile(source, "{{package.install}}");
     await assertRejects(
       () => runCli(root, ["readme", "build"]),
       Error,
       "scoped JSR name",
     );
-    await Deno.writeTextFile(source, "@@include(../example.ts)");
-    await Deno.writeTextFile(
+    await writeTextFile(source, "@@include(../example.ts)");
+    await writeTextFile(
       new URL("example.ts", root),
       'import {} from "./mod.ts";',
     );
@@ -213,7 +226,7 @@ Deno.test("generated README keeps configured name references and custom prose", 
   });
 });
 
-Deno.test("CLI metadata composes with formatter tasks in an existing empty config", async () => {
+test("CLI metadata composes with formatter tasks in an existing empty config", async () => {
   await withRepository(async (root) => {
     await writeConfig(root, {});
     await runCli(root, [
@@ -224,42 +237,42 @@ Deno.test("CLI metadata composes with formatter tasks in an existing empty confi
       "--deno-server",
     ]);
     const config = JSON.parse(
-      await Deno.readTextFile(new URL("deno.json", root)),
+      await readTextFile(new URL("deno.json", root)),
     );
     assertEquals(config.tasks["package-metadata"], packageMetadataTask);
-    const output = await new Deno.Command("deno", {
+    const output = await runCommand("deno", {
       args: ["run", new URL("src/cli/cli.ts", root).href, "help"],
-    }).output();
+    });
     assert(output.success, new TextDecoder().decode(output.stderr));
   });
 });
 
-Deno.test("CLI disable removes only its owned metadata task and retains installed source", async () => {
+test("CLI disable removes only its owned metadata task and retains installed source", async () => {
   for (const custom of [false, true]) {
     await withRepository(async (root) => {
       await writeConfig(root, { name: "@scope/tool" });
       await runCli(root, ["repo", "features", "--deno-cli"]);
       const path = new URL("deno.json", root);
       if (custom) {
-        const config = JSON.parse(await Deno.readTextFile(path));
+        const config = JSON.parse(await readTextFile(path));
         config.tasks["package-metadata"] = "custom command";
-        await Deno.writeTextFile(path, JSON.stringify(config));
+        await writeTextFile(path, JSON.stringify(config));
       }
       await runCli(root, ["repo", "features", "--no-deno-cli"]);
-      const config = JSON.parse(await Deno.readTextFile(path));
+      const config = JSON.parse(await readTextFile(path));
       assertEquals(
         config.tasks["package-metadata"],
         custom ? "custom command" : undefined,
       );
       assert(
-        (await Deno.stat(new URL("src/cli/package-metadata.json", root)))
+        (await fixtureStat(new URL("src/cli/package-metadata.json", root)))
           .isFile,
       );
     });
   }
 });
 
-Deno.test("initial CLI metadata uses the planned JSR identity before configuration is written", async () => {
+test("initial CLI metadata uses the planned JSR identity before configuration is written", async () => {
   await withRepository(async (root) => {
     const current = context(root, undefined, ["deno-fmt", "deno-cli"]);
     const { inspectDenoCliArtifacts } = await import(
@@ -281,26 +294,26 @@ Deno.test("initial CLI metadata uses the planned JSR identity before configurati
   });
 });
 
-Deno.test("server repair includes metadata required by an older CLI registry", async () => {
+test("server repair includes metadata required by an older CLI registry", async () => {
   await withRepository(async (root) => {
     await writeConfig(root, { name: "@scope/tool" });
     await runCli(root, ["repo", "features", "--deno-cli", "--deno-server"]);
-    await Deno.remove(new URL("src/cli/package-metadata.json", root));
+    await remove(new URL("src/cli/package-metadata.json", root));
     const path = new URL("deno.json", root);
-    const config = JSON.parse(await Deno.readTextFile(path));
+    const config = JSON.parse(await readTextFile(path));
     delete config.tasks["package-metadata"];
-    await Deno.writeTextFile(path, JSON.stringify(config));
+    await writeTextFile(path, JSON.stringify(config));
     await runCli(root, ["repo", "features", "--deno-server", "--repair"]);
-    const output = await new Deno.Command("deno", {
+    const output = await runCommand("deno", {
       args: ["run", new URL("src/cli/cli.ts", root).href, "help"],
-    }).output();
+    });
     assert(output.success, new TextDecoder().decode(output.stderr));
     assertStringIncludes(
       new TextDecoder().decode(output.stdout),
       "Usage: tool",
     );
     assertEquals(
-      JSON.parse(await Deno.readTextFile(path)).tasks["package-metadata"],
+      JSON.parse(await readTextFile(path)).tasks["package-metadata"],
       packageMetadataTask,
     );
   });

@@ -1,8 +1,11 @@
+import { test as nativeTest } from "node:test";
+import { trackTests } from "../testing/inventory-test-fixtures.ts";
+const test = trackTests(import.meta.url, nativeTest);
 import { assertEquals, assertStringIncludes } from "@std/assert";
 import { formatFeatureResult, formatFeatureStatus } from "./format-features.ts";
 import { builtInFeatureRegistry } from "../features/built-in-feature-registry.ts";
 
-Deno.test("status shows all distinct issues and identifies missing results", () => {
+test("status shows all distinct issues and identifies missing results", () => {
   const subject = { kind: "file", identifier: "deno.json" };
   const problem = {
     code: "custom",
@@ -33,7 +36,7 @@ Deno.test("status shows all distinct issues and identifies missing results", () 
   assertStringIncludes(output.replace(/ +/g, " "), "git unknown");
 });
 
-Deno.test("feature rows style names and wrapped details according to state", () => {
+test("feature rows style names and wrapped details according to state", () => {
   const registry = {
     features: builtInFeatureRegistry.features.filter((feature) =>
       feature.metadata.id === "git"
@@ -88,7 +91,7 @@ Deno.test("feature rows style names and wrapped details according to state", () 
   );
 });
 
-Deno.test("operation summaries report local and remote changes with optional color", () => {
+test("operation summaries report local and remote changes with optional color", () => {
   for (
     const result of [
       {

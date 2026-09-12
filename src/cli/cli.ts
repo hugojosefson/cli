@@ -19,7 +19,9 @@ try {
   if (error instanceof PromptCancelled) {
     process.exitCode = 0;
   } else {
-    console.error(formatCliError(error, terminalColor(process.stderr)));
+    process.stderr.write(
+      formatCliError(error, terminalColor(process.stderr)) + "\n",
+    );
     process.exitCode = error instanceof CommandFailure ? error.exitCode : 1;
   }
 }

@@ -1,3 +1,12 @@
+import { test as nativeTest } from "node:test";
+import { trackTests } from "../testing/inventory-test-fixtures.ts";
+const test = trackTests(import.meta.url, nativeTest);
+import { runCommand } from "../runtime/command.ts";
+import {
+  makeTempDir,
+  readTextFile,
+  remove,
+} from "../testing/files-test-fixtures.ts";
 import { assertEquals, assertRejects } from "@std/assert";
 import type {
   GithubResource,
@@ -10,7 +19,7 @@ import { githubSettings } from "./github-features.ts";
 import { parseFeatures } from "../cli/parse-features.ts";
 import { runFeatureOperation } from "../cli/run-features.ts";
 
-Deno.test("Github settings require confirmation and only patch their requested field", async () => {
+test("Github settings require confirmation and only patch their requested field", async () => {
   await withRoot(async (root) => {
     const github = new FakeGithub({ has_issues: false, has_wiki: true });
     const args = parseFeatures(
@@ -39,7 +48,7 @@ Deno.test("Github settings require confirmation and only patch their requested f
   });
 });
 
-Deno.test("GitHub private visibility can be explicitly disabled", async () => {
+test("GitHub private visibility can be explicitly disabled", async () => {
   await withRoot(async (root) => {
     const github = new FakeGithub({ private: true });
     await runFeatureOperation(
@@ -56,7 +65,7 @@ Deno.test("GitHub private visibility can be explicitly disabled", async () => {
   });
 });
 
-Deno.test("Github preset values are independently overridable", async () => {
+test("Github preset values are independently overridable", async () => {
   await withRoot(async (root) => {
     const github = new FakeGithub({
       allow_auto_merge: false,
@@ -82,7 +91,7 @@ Deno.test("Github preset values are independently overridable", async () => {
   });
 });
 
-Deno.test("GitHub public preset overlays GitHub but yields to private flag", async () => {
+test("GitHub public preset overlays GitHub but yields to private flag", async () => {
   await withRoot(async (root) => {
     const github = new FakeGithub(Object.fromEntries(
       githubSettings.map(({ field, enabled }) => [field, enabled]),
@@ -116,15 +125,15 @@ Deno.test("GitHub public preset overlays GitHub but yields to private flag", asy
   });
 });
 
-Deno.test("pure GitHub preset blocks inaccessible repositories before mutation", async () => {
+test("pure GitHub preset blocks inaccessible repositories before mutation", async () => {
   await withRoot(async (root) => {
-    await new Deno.Command("git", {
+    await runCommand("git", {
       cwd: root,
       args: ["init"],
-      stdout: "null",
-      stderr: "null",
-    }).output();
-    await new Deno.Command("git", {
+      stdout: "piped",
+      stderr: "piped",
+    });
+    await runCommand("git", {
       cwd: root,
       args: [
         "remote",
@@ -132,7 +141,7 @@ Deno.test("pure GitHub preset blocks inaccessible repositories before mutation",
         "origin",
         "https://github.com/person/existing.git",
       ],
-    }).output();
+    });
     const github = new FakeGithub({}, false);
     await assertRejects(
       () =>
@@ -153,7 +162,7 @@ Deno.test("pure GitHub preset blocks inaccessible repositories before mutation",
   });
 });
 
-Deno.test("pure GitHub preset confirms before one atomic patch", async () => {
+test("pure GitHub preset confirms before one atomic patch", async () => {
   await withRoot(async (root) => {
     const values = Object.fromEntries(
       githubSettings.map(({ field, enabled }) => [field, !enabled]),
@@ -185,7 +194,7 @@ Deno.test("pure GitHub preset confirms before one atomic patch", async () => {
   });
 });
 
-Deno.test("unavailable GitHub setting fields fail closed", async () => {
+test("unavailable GitHub setting fields fail closed", async () => {
   await withRoot(async (root) => {
     const github = new FakeGithub({}, true, new Set(["has_issues"]));
     await assertRejects(
@@ -207,7 +216,7 @@ Deno.test("unavailable GitHub setting fields fail closed", async () => {
   });
 });
 
-Deno.test("mixed operations apply GitHub before local changes", async () => {
+test("mixed operations apply GitHub before local changes", async () => {
   await withRoot(async (root) => {
     const github = new FakeGithub({ has_issues: false });
     await runFeatureOperation(
@@ -222,7 +231,7 @@ Deno.test("mixed operations apply GitHub before local changes", async () => {
     );
     assertEquals(github.patches, [{ has_issues: true }]);
     assertEquals(
-      (await Deno.readTextFile(new URL("README.md", root))).startsWith(
+      (await readTextFile(new URL("README.md", root))).startsWith(
         "# hj-github-",
       ),
       true,
@@ -328,13 +337,13 @@ async function digest(name: string, value: boolean): Promise<string> {
   );
 }
 async function withRoot(action: (root: URL) => Promise<void>): Promise<void> {
-  const path = await Deno.makeTempDir({
+  const path = await makeTempDir({
     dir: "/tmp/opencode",
     prefix: "hj-github-",
   });
   try {
     await action(new URL(`file://${path}/`));
   } finally {
-    await Deno.remove(path, { recursive: true });
+    await remove(path, { recursive: true });
   }
 }

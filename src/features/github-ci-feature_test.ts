@@ -1,3 +1,14 @@
+import { test as nativeTest } from "node:test";
+import { trackTests } from "../testing/inventory-test-fixtures.ts";
+const test = trackTests(import.meta.url, nativeTest);
+import {
+  makeTempDir,
+  mkdir,
+  readTextFile,
+  remove,
+  writeTextFile,
+} from "../testing/files-test-fixtures.ts";
+import { runCommand } from "../runtime/command.ts";
 import {
   inspectLegacyGithubCi,
   legacyCiCheckCompatibility,
@@ -86,7 +97,7 @@ function exact(
   };
 }
 
-Deno.test("github-ci owns deterministic pull-request and dependency workflows", () => {
+test("github-ci owns deterministic pull-request and dependency workflows", () => {
   const ci = githubCiArtifacts[0].content;
   const deps = githubCiArtifacts[1].content;
   assertStringIncludes(ci, "pull_request:");
@@ -124,26 +135,26 @@ Deno.test("github-ci owns deterministic pull-request and dependency workflows", 
   );
 });
 
-Deno.test("github-ci workflows are valid formatted YAML", async () => {
-  const root = await Deno.makeTempDir({
+test("github-ci workflows are valid formatted YAML", async () => {
+  const root = await makeTempDir({
     dir: "/tmp/opencode",
     prefix: "hj-ci-workflows-",
   });
   try {
     for (const artifact of githubCiArtifacts) {
       const path = `${root}/${artifact.path.split("/").at(-1)}`;
-      await Deno.writeTextFile(path, artifact.content);
-      const result = await new Deno.Command("deno", {
+      await writeTextFile(path, artifact.content);
+      const result = await runCommand("deno", {
         args: ["fmt", "--check", path],
-      }).output();
+      });
       assertEquals(result.success, true);
     }
   } finally {
-    await Deno.remove(root, { recursive: true });
+    await remove(root, { recursive: true });
   }
 });
 
-Deno.test("github-ci detects absent, exact, drifted, and custom workflows", async () => {
+test("github-ci detects absent, exact, drifted, and custom workflows", async () => {
   assertEquals((await githubCiFeature.detect(context({}))).state, "disabled");
   const adopted = Object.fromEntries(
     githubCiArtifacts.map(({ path }) => [path, exact(path)]),
@@ -211,7 +222,7 @@ Deno.test("github-ci detects absent, exact, drifted, and custom workflows", asyn
   );
 });
 
-Deno.test("github-ci repairs marked drift without replacing custom workflows", async () => {
+test("github-ci repairs marked drift without replacing custom workflows", async () => {
   const drifted = context({
     [githubCiArtifacts[0].path]: {
       ...exact(githubCiArtifacts[0].path),
@@ -265,16 +276,16 @@ Deno.test("github-ci repairs marked drift without replacing custom workflows", a
   );
 });
 
-Deno.test("github-ci applies its full lifecycle without touching other workflows", async () => {
-  const path = await Deno.makeTempDir({
+test("github-ci applies its full lifecycle without touching other workflows", async () => {
+  const path = await makeTempDir({
     dir: "/tmp/opencode",
     prefix: "hj-github-ci-",
   });
   const root = new URL(`file://${path}/`);
   try {
-    await Deno.mkdir(new URL(".github/workflows/", root), { recursive: true });
+    await mkdir(new URL(".github/workflows/", root), { recursive: true });
     const unrelated = new URL(".github/workflows/custom.yaml", root);
-    await Deno.writeTextFile(unrelated, "name: Custom\n");
+    await writeTextFile(unrelated, "name: Custom\n");
     const actual = contextForRoot(root);
     const enable = await githubCiFeature.checkEnable(actual);
     if (enable.result !== "allowed") {
@@ -301,9 +312,9 @@ Deno.test("github-ci applies its full lifecycle without touching other workflows
       (await githubCiFeature.detect(contextForRoot(root))).state,
       "disabled",
     );
-    assertEquals(await Deno.readTextFile(unrelated), "name: Custom\n");
+    assertEquals(await readTextFile(unrelated), "name: Custom\n");
   } finally {
-    await Deno.remove(path, { recursive: true });
+    await remove(path, { recursive: true });
   }
 });
 
@@ -315,7 +326,7 @@ function contextForRoot(root: URL): OperationContext {
   };
 }
 
-Deno.test("CI bootstrap source is pinned, detected, repaired, and removable", async () => {
+test("CI bootstrap source is pinned, detected, repaired, and removable", async () => {
   const revision = "a".repeat(40);
   const bootstrap = {
     ...context({}),
@@ -377,10 +388,10 @@ Deno.test("CI bootstrap source is pinned, detected, repaired, and removable", as
   );
 });
 
-Deno.test("workflow source migration reaches enabled features through the CLI operation", async () => {
+test("workflow source migration reaches enabled features through the CLI operation", async () => {
   const { runFeatureOperation } = await import("../cli/run-features.ts");
   const { parseFeatures } = await import("../cli/parse-features.ts");
-  const path = await Deno.makeTempDir({
+  const path = await makeTempDir({
     dir: "/tmp/opencode",
     prefix: "hj-bootstrap-cli-",
   });
@@ -406,7 +417,7 @@ Deno.test("workflow source migration reaches enabled features through the CLI op
     await runFeatureOperation(root, enable, registry, undefined, services);
     const file = new URL(githubCiArtifacts[0].path, root);
     assertStringIncludes(
-      await Deno.readTextFile(file),
+      await readTextFile(file),
       "# hj-workflow-cli: github:",
     );
     const migrate = parseFeatures([
@@ -417,7 +428,7 @@ Deno.test("workflow source migration reaches enabled features through the CLI op
       "--repair",
     ], registry);
     await runFeatureOperation(root, migrate, registry, undefined, services);
-    assertEquals(await Deno.readTextFile(file), githubCiArtifacts[0].content);
+    assertEquals(await readTextFile(file), githubCiArtifacts[0].content);
     const again = await runFeatureOperation(
       root,
       migrate,
@@ -427,11 +438,11 @@ Deno.test("workflow source migration reaches enabled features through the CLI op
     );
     assertStringIncludes(again, "No changes");
   } finally {
-    await Deno.remove(root, { recursive: true });
+    await remove(root, { recursive: true });
   }
 });
 
-Deno.test("github-ci generates configured Deno pins and preserves them across default changes", async () => {
+test("github-ci generates configured Deno pins and preserves them across default changes", async () => {
   const configured = {
     ...context({}),
     options: { defaultDenoVersion: "2.8.1" },
@@ -495,7 +506,7 @@ Deno.test("github-ci generates configured Deno pins and preserves them across de
   );
 });
 
-Deno.test("invalid recorded Deno versions are drift instead of configuration errors", async () => {
+test("invalid recorded Deno versions are drift instead of configuration errors", async () => {
   const observations = Object.fromEntries(
     githubCiArtifacts.map((artifact) => [artifact.path, {
       ...exact(artifact.path),
@@ -511,7 +522,7 @@ Deno.test("invalid recorded Deno versions are drift instead of configuration err
   );
 });
 
-Deno.test("legacy CI recognizes exact generated action major versions only", async () => {
+test("legacy CI recognizes exact generated action major versions only", async () => {
   const observations = Object.fromEntries(
     legacyGithubCiArtifacts.map((artifact) => [artifact.path, {
       kind: "file" as const,
@@ -545,7 +556,7 @@ Deno.test("legacy CI recognizes exact generated action major versions only", asy
   );
 });
 
-Deno.test("legacy CI blocks edited, unreadable, and colliding workflows even with repair", async () => {
+test("legacy CI blocks edited, unreadable, and colliding workflows even with repair", async () => {
   const legacy = Object.fromEntries(
     legacyGithubCiArtifacts.map((artifact) => [artifact.path, {
       kind: "file" as const,
@@ -601,15 +612,15 @@ Deno.test("legacy CI blocks edited, unreadable, and colliding workflows even wit
   assertEquals((await githubCiFeature.detect(edited)).state, "ambiguous");
 });
 
-Deno.test("legacy CI migration removes duplicate workflows and preserves required checks", async () => {
+test("legacy CI migration removes duplicate workflows and preserves required checks", async () => {
   for (const collision of [0, 1, 2]) {
-    const directory = await Deno.makeTempDir({
+    const directory = await makeTempDir({
       dir: "/tmp/opencode",
       prefix: "hj-legacy-ci-",
     });
     const root = new URL(`file://${directory}/`);
     try {
-      await Deno.mkdir(new URL(".github/workflows/", root), {
+      await mkdir(new URL(".github/workflows/", root), {
         recursive: true,
       });
       for (
@@ -618,13 +629,13 @@ Deno.test("legacy CI migration removes duplicate workflows and preserves require
           ...githubCiArtifacts.slice(0, collision),
         ]
       ) {
-        await Deno.writeTextFile(
+        await writeTextFile(
           new URL(artifact.path, root),
           artifact.content,
         );
       }
       const release = new URL(".github/workflows/release.yaml", root);
-      await Deno.writeTextFile(release, "name: release\n");
+      await writeTextFile(release, "name: release\n");
       const actual = contextForRoot(root);
       const allowed = await githubCiFeature.checkEnable(actual);
       if (allowed.result !== "allowed") throw new Error("Expected migration");
@@ -648,19 +659,19 @@ Deno.test("legacy CI migration removes duplicate workflows and preserves require
       for (const artifact of legacyGithubCiArtifacts) {
         assertEquals(await migrated.files.exists(artifact.path), false);
       }
-      const content = await Deno.readTextFile(
+      const content = await readTextFile(
         new URL(githubCiArtifacts[0].path, root),
       );
       assertStringIncludes(content, "  check:\n");
       assertStringIncludes(content, legacyCiCheckCompatibility);
       assertStringIncludes(content, "if: ${{ always() }}");
-      const formatted = await new Deno.Command("deno", {
+      const formatted = await runCommand("deno", {
         args: [
           "fmt",
           "--check",
           new URL(githubCiArtifacts[0].path, root).pathname,
         ],
-      }).output();
+      });
       assertEquals(
         formatted.success,
         true,
@@ -669,13 +680,13 @@ Deno.test("legacy CI migration removes duplicate workflows and preserves require
       for (const result of ["success", "failure", "cancelled", "skipped"]) {
         const command = legacyCiCheckCompatibility.split("        run: ")[1]
           .trim();
-        const report = await new Deno.Command("sh", {
+        const report = await runCommand("sh", {
           args: ["-c", command],
           env: { HJ_CHECK_RESULT: result },
-        }).output();
+        });
         assertEquals(report.success, result === "success");
       }
-      assertEquals(await Deno.readTextFile(release), "name: release\n");
+      assertEquals(await readTextFile(release), "name: release\n");
       const disable = await githubCiFeature.checkDisable(migrated);
       if (disable.result !== "allowed") throw new Error("Expected disable");
       await applyLocalChangePlan(
@@ -687,29 +698,29 @@ Deno.test("legacy CI migration removes duplicate workflows and preserves require
         "disabled",
       );
     } finally {
-      await Deno.remove(directory, { recursive: true });
+      await remove(directory, { recursive: true });
     }
   }
 });
 
-Deno.test("legacy CI preview rejects edits before any replacement is written", async () => {
+test("legacy CI preview rejects edits before any replacement is written", async () => {
   for (
     const changedPath of [
       legacyGithubCiArtifacts[0].path,
       githubCiArtifacts[0].path,
     ]
   ) {
-    const directory = await Deno.makeTempDir({
+    const directory = await makeTempDir({
       dir: "/tmp/opencode",
       prefix: "hj-stale-ci-",
     });
     const root = new URL(`file://${directory}/`);
     try {
-      await Deno.mkdir(new URL(".github/workflows/", root), {
+      await mkdir(new URL(".github/workflows/", root), {
         recursive: true,
       });
       for (const artifact of legacyGithubCiArtifacts) {
-        await Deno.writeTextFile(
+        await writeTextFile(
           new URL(artifact.path, root),
           artifact.content,
         );
@@ -718,11 +729,11 @@ Deno.test("legacy CI preview rejects edits before any replacement is written", a
       const allowed = await githubCiFeature.checkEnable(actual);
       if (allowed.result !== "allowed") throw new Error("Expected migration");
       const plan = await githubCiFeature.planEnable(actual, allowed);
-      await Deno.writeTextFile(new URL(changedPath, root), "name: custom\n");
+      await writeTextFile(new URL(changedPath, root), "name: custom\n");
       await assertRejects(() => applyLocalChangePlan(root, plan));
       assertEquals(await actual.files.exists(githubCiArtifacts[1].path), false);
       assertEquals(
-        await Deno.readTextFile(new URL(changedPath, root)),
+        await readTextFile(new URL(changedPath, root)),
         "name: custom\n",
       );
       assertEquals(
@@ -730,23 +741,23 @@ Deno.test("legacy CI preview rejects edits before any replacement is written", a
         true,
       );
     } finally {
-      await Deno.remove(directory, { recursive: true });
+      await remove(directory, { recursive: true });
     }
   }
 });
 
-Deno.test("legacy CI selection migrates through the feature operation without repair", async () => {
+test("legacy CI selection migrates through the feature operation without repair", async () => {
   const { runFeatureOperation } = await import("../cli/run-features.ts");
   const { parseFeatures } = await import("../cli/parse-features.ts");
-  const directory = await Deno.makeTempDir({
+  const directory = await makeTempDir({
     dir: "/tmp/opencode",
     prefix: "hj-legacy-ci-cli-",
   });
   const root = new URL(`file://${directory}/`);
   try {
-    await Deno.mkdir(new URL(".github/workflows/", root), { recursive: true });
+    await mkdir(new URL(".github/workflows/", root), { recursive: true });
     for (const artifact of legacyGithubCiArtifacts) {
-      await Deno.writeTextFile(new URL(artifact.path, root), artifact.content);
+      await writeTextFile(new URL(artifact.path, root), artifact.content);
     }
     const registry = {
       features: [{ ...githubCiFeature, dependencies: { requires: [] } }],
@@ -772,6 +783,6 @@ Deno.test("legacy CI selection migrates through the feature operation without re
       false,
     );
   } finally {
-    await Deno.remove(directory, { recursive: true });
+    await remove(directory, { recursive: true });
   }
 });

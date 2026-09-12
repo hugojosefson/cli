@@ -1,3 +1,6 @@
+import { test as nativeTest } from "node:test";
+import { trackTests } from "../testing/inventory-test-fixtures.ts";
+const test = trackTests(import.meta.url, nativeTest);
 import { assertEquals } from "@std/assert";
 import { denoFmtFeature } from "./deno-fmt-feature.ts";
 import { denoLintFeature } from "./deno-task-features.ts";
@@ -8,7 +11,7 @@ import {
   ownedTasks,
   withRepository,
   writeConfig,
-} from "./jsr-package-feature-support.ts";
+} from "./jsr-package-test-fixtures.ts";
 
 for (
   const leafs of [
@@ -23,7 +26,7 @@ for (
   ] as const
 ) {
   for (const readme of [false, true]) {
-    Deno.test(`jsr-package recognizes local configuration with custom aggregates for ${leafs.join(",") || "no"} leaf tasks and readme ${readme}`, async () => {
+    test(`jsr-package recognizes local configuration with custom aggregates for ${leafs.join(",") || "no"} leaf tasks and readme ${readme}`, async () => {
       await withRepository(async (root) => {
         const tasks = ownedTasks(leafs, readme);
         await writeConfig(root, {
@@ -56,7 +59,7 @@ for (
   }
 }
 
-Deno.test("JSR aggregate remains exact for Deno formatting and leaf tasks", async () => {
+test("JSR aggregate remains exact for Deno formatting and leaf tasks", async () => {
   await withRepository(async (root) => {
     await writeConfig(root, {
       name: "@owner/repository",

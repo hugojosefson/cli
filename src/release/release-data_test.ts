@@ -1,3 +1,6 @@
+import { test as nativeTest } from "node:test";
+import { trackTests } from "../testing/inventory-test-fixtures.ts";
+const test = trackTests(import.meta.url, nativeTest);
 import { assertEquals, assertRejects, assertThrows } from "@std/assert";
 import {
   applyChangelogInsertion,
@@ -26,7 +29,7 @@ import {
 } from "./release-pr.ts";
 import { updateDenoConfigVersion } from "./version-file.ts";
 
-Deno.test("strict Conventional Commit validation rejects every malformed selected message", () => {
+test("strict Conventional Commit validation rejects every malformed selected message", () => {
   assertEquals(
     parseConventionalCommit(
       "feat(api)!: add endpoint\n\nBREAKING CHANGE: old endpoint removed",
@@ -46,7 +49,7 @@ Deno.test("strict Conventional Commit validation rejects every malformed selecte
   assertThrows(() => validateConventionalCommits(["Fix: uppercase type"]));
 });
 
-Deno.test("version changes preserve JSON and JSONC source details", () => {
+test("version changes preserve JSON and JSONC source details", () => {
   assertEquals(
     updateDenoConfigVersion(
       "deno.json",
@@ -66,7 +69,7 @@ Deno.test("version changes preserve JSON and JSONC source details", () => {
   assertThrows(() => updateDenoConfigVersion("deno.json", "{}", "1.0.0"));
 });
 
-Deno.test("changelog inserts after its preamble without changing prior text", () => {
+test("changelog inserts after its preamble without changing prior text", () => {
   const oldText = "# Changelog\n\nProject notes.\n\n## 1.0.0\n\n- First\n";
   const insertion = createChangelogInsertion(
     oldText,
@@ -79,7 +82,7 @@ Deno.test("changelog inserts after its preamble without changing prior text", ()
   );
 });
 
-Deno.test("release bundle is canonical, digest-checked, and path constrained", async () => {
+test("release bundle is canonical, digest-checked, and path constrained", async () => {
   const versionText = '{"version":"1.1.0"}';
   const oldVersionText = '{"version":"1.0.0"}';
   const oldChangelogText = "# Changelog\n\n";
@@ -125,7 +128,7 @@ Deno.test("release bundle is canonical, digest-checked, and path constrained", a
   );
 });
 
-Deno.test("GitHub output limit uses UTF-16 code units and permits exactly 1 MB", () => {
+test("GitHub output limit uses UTF-16 code units and permits exactly 1 MB", () => {
   assertEquals(githubOutputSize(["😀"]), 2);
   validateGithubOutputSize(["a".repeat(githubOutputLimit)]);
   assertThrows(() =>
@@ -133,7 +136,7 @@ Deno.test("GitHub output limit uses UTF-16 code units and permits exactly 1 MB",
   );
 });
 
-Deno.test("release PR ownership marker and body are deterministic", () => {
+test("release PR ownership marker and body are deterministic", () => {
   const ownership = {
     schema: 1 as const,
     selectedSha: "a".repeat(40),

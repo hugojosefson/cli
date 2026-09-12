@@ -1,3 +1,6 @@
+import { test as nativeTest } from "node:test";
+import { trackTests } from "../testing/inventory-test-fixtures.ts";
+const test = trackTests(import.meta.url, nativeTest);
 import { assertEquals } from "@std/assert";
 import type { Feature } from "../api/feature.ts";
 import type { FeatureChangeRequest } from "../api/feature-change.ts";
@@ -100,7 +103,7 @@ function detections(
   ) as Readonly<Record<string, FeatureDetection>>;
 }
 
-Deno.test("status-only does not select defaults", () => {
+test("status-only does not select defaults", () => {
   const result = resolveFeatureChanges(
     registry([feature("git")]),
     detections({ git: "disabled" }),
@@ -109,7 +112,7 @@ Deno.test("status-only does not select defaults", () => {
   assertEquals(result, { changes: [], issues: [] });
 });
 
-Deno.test("defaults select fallback features and configured capabilities", () => {
+test("defaults select fallback features and configured capabilities", () => {
   const features = [
     feature("git"),
     feature("readme", { provides: ["readme"] }),
@@ -131,7 +134,7 @@ Deno.test("defaults select fallback features and configured capabilities", () =>
   );
 });
 
-Deno.test("explicit changes override defaults", () => {
+test("explicit changes override defaults", () => {
   const result = resolveFeatureChanges(
     registry([feature("git")]),
     detections({ git: "disabled" }),
@@ -143,7 +146,7 @@ Deno.test("explicit changes override defaults", () => {
   assertEquals(result.changes, []);
 });
 
-Deno.test("explicit changes override presets regardless of request order", () => {
+test("explicit changes override presets regardless of request order", () => {
   const presets = [{
     id: "base",
     name: "Base",
@@ -167,7 +170,7 @@ Deno.test("explicit changes override presets regardless of request order", () =>
   }
 });
 
-Deno.test("preset selections coalesce and conflicting targets are deterministic", () => {
+test("preset selections coalesce and conflicting targets are deterministic", () => {
   const presets = [{
     id: "a",
     name: "A",
@@ -214,7 +217,7 @@ Deno.test("preset selections coalesce and conflicting targets are deterministic"
   assertEquals(reverse.issues, forward.issues);
 });
 
-Deno.test("more-specific presets override prefixes but not explicit flags", () => {
+test("more-specific presets override prefixes but not explicit flags", () => {
   const presets = [{
     id: "base",
     name: "Base",
@@ -254,7 +257,7 @@ Deno.test("more-specific presets override prefixes but not explicit flags", () =
   );
 });
 
-Deno.test("enabling includes transitive direct dependencies", () => {
+test("enabling includes transitive direct dependencies", () => {
   const result = resolveFeatureChanges(
     registry([
       feature("app", { dependencies: ["lib"] }),
@@ -271,7 +274,7 @@ Deno.test("enabling includes transitive direct dependencies", () => {
   ]);
 });
 
-Deno.test("an explicit disabled dependency blocks an enabled feature", () => {
+test("an explicit disabled dependency blocks an enabled feature", () => {
   const result = resolveFeatureChanges(
     registry([feature("app", { dependencies: ["lib"] }), feature("lib")]),
     detections({ app: "disabled", lib: "disabled" }),
@@ -286,7 +289,7 @@ Deno.test("an explicit disabled dependency blocks an enabled feature", () => {
   ]);
 });
 
-Deno.test("a required capability selects its default provider", () => {
+test("a required capability selects its default provider", () => {
   const result = resolveFeatureChanges(
     registry([
       feature("app", { requires: ["readme"] }),
@@ -305,7 +308,7 @@ Deno.test("a required capability selects its default provider", () => {
   ]);
 });
 
-Deno.test("an existing provider wins unless an explicit provider is enabled", () => {
+test("an existing provider wins unless an explicit provider is enabled", () => {
   const features = [
     feature("app", { requires: ["readme"] }),
     feature("static", { provides: ["readme"] }),
@@ -337,7 +340,7 @@ Deno.test("an existing provider wins unless an explicit provider is enabled", ()
   );
 });
 
-Deno.test("exclusive replacement records its replacement reason", () => {
+test("exclusive replacement records its replacement reason", () => {
   const result = resolveFeatureChanges(
     registry([
       feature("static", { provides: ["readme"] }),
@@ -364,7 +367,7 @@ Deno.test("exclusive replacement records its replacement reason", () => {
   ]);
 });
 
-Deno.test("multiple providers coexist and missing providers block", () => {
+test("multiple providers coexist and missing providers block", () => {
   const multiple = resolveFeatureChanges(
     registry([
       feature("one", { provides: ["log"] }),
@@ -387,7 +390,7 @@ Deno.test("multiple providers coexist and missing providers block", () => {
   ]);
 });
 
-Deno.test("disabling blocks direct dependents and unsatisfied capability consumers", () => {
+test("disabling blocks direct dependents and unsatisfied capability consumers", () => {
   const dependent = resolveFeatureChanges(
     registry([feature("app", { dependencies: ["lib"] }), feature("lib")]),
     detections({ app: "enabled", lib: "enabled" }),
@@ -409,7 +412,7 @@ Deno.test("disabling blocks direct dependents and unsatisfied capability consume
   ]);
 });
 
-Deno.test("explicitly disabling dependents is allowed and dependencies are not auto-removed", () => {
+test("explicitly disabling dependents is allowed and dependencies are not auto-removed", () => {
   const disabled = resolveFeatureChanges(
     registry([feature("app", { dependencies: ["lib"] }), feature("lib")]),
     detections({ app: "enabled", lib: "enabled" }),
@@ -427,7 +430,7 @@ Deno.test("explicitly disabling dependents is allowed and dependencies are not a
   assertEquals(orphan.changes.map((change) => change.featureId), ["app"]);
 });
 
-Deno.test("drifted features are present, ambiguous and unknown requested features block", () => {
+test("drifted features are present, ambiguous and unknown requested features block", () => {
   const drifted = resolveFeatureChanges(
     registry([feature("app", { dependencies: ["lib"] }), feature("lib")]),
     detections({ app: "disabled", lib: "drifted" }),
@@ -448,7 +451,7 @@ Deno.test("drifted features are present, ambiguous and unknown requested feature
   ]);
 });
 
-Deno.test("resolver blocks invalid registries, unknown defaults, and contradictory requests", () => {
+test("resolver blocks invalid registries, unknown defaults, and contradictory requests", () => {
   const invalid = resolveFeatureChanges(
     registry([feature("same"), feature("same")]),
     detections({ same: "disabled" }),
@@ -483,7 +486,7 @@ Deno.test("resolver blocks invalid registries, unknown defaults, and contradicto
   ]);
 });
 
-Deno.test("resolver reports unknown preset API input", () => {
+test("resolver reports unknown preset API input", () => {
   assertEquals(
     resolveFeatureChanges(
       registry([feature("app")]),
@@ -494,7 +497,7 @@ Deno.test("resolver reports unknown preset API input", () => {
   );
 });
 
-Deno.test("exclusive conflicts block ambiguous provider selection", () => {
+test("exclusive conflicts block ambiguous provider selection", () => {
   const features = [
     feature("app", { requires: ["readme"] }),
     feature("one", { provides: ["readme"] }),
@@ -528,7 +531,7 @@ Deno.test("exclusive conflicts block ambiguous provider selection", () => {
   ]);
 });
 
-Deno.test("providers resolve dependencies, explicit providers, and alternate removal", () => {
+test("providers resolve dependencies, explicit providers, and alternate removal", () => {
   const closure = resolveFeatureChanges(
     registry([
       feature("app", { requires: ["readme"] }),
@@ -582,7 +585,7 @@ Deno.test("providers resolve dependencies, explicit providers, and alternate rem
   });
 });
 
-Deno.test("disable order puts dependents before dependencies", () => {
+test("disable order puts dependents before dependencies", () => {
   const result = resolveFeatureChanges(
     registry([
       feature("z-app", { dependencies: ["a-lib"] }),
@@ -600,7 +603,7 @@ Deno.test("disable order puts dependents before dependencies", () => {
   ]);
 });
 
-Deno.test("release-tag and main-review conflicts reject either explicit enable direction", () => {
+test("release-tag and main-review conflicts reject either explicit enable direction", () => {
   const features = [
     feature("github-release-publish-tag", {
       conflicts: ["github-main-review"],
@@ -627,7 +630,7 @@ Deno.test("release-tag and main-review conflicts reject either explicit enable d
   }
 });
 
-Deno.test("tag publication cannot be disabled with protected tags", () => {
+test("tag publication cannot be disabled with protected tags", () => {
   const result = resolveFeatureChanges(
     registry([
       feature("github-release-publish-tag", {

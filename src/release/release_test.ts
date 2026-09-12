@@ -1,3 +1,6 @@
+import { test as nativeTest } from "node:test";
+import { trackTests } from "../testing/inventory-test-fixtures.ts";
+const test = trackTests(import.meta.url, nativeTest);
 import { assertEquals, assertThrows } from "@std/assert";
 import { getNextVersion, Logger } from "fork-version";
 import type { Config, ForkConfig } from "fork-version";
@@ -8,12 +11,12 @@ import { selectReleaseType } from "./release-type.ts";
 import { compareSemver, parseSemver } from "./semver.ts";
 import { selectVersionFileProvider } from "./version-file-provider.ts";
 
-Deno.test("release names remain fixed", () => {
+test("release names remain fixed", () => {
   assertEquals(releaseBranch("1.2.3"), "release-1.2.3");
   assertEquals(releaseCommitSubject("1.2.3"), "chore(release): 1.2.3");
 });
 
-Deno.test("selects one version-file provider", async () => {
+test("selects one version-file provider", async () => {
   const selected = await selectVersionFileProvider([{
     id: "deno",
     versionFile: () => Promise.resolve({ path: "deno.json", version: "1.0.0" }),
@@ -33,7 +36,7 @@ Deno.test("selects one version-file provider", async () => {
   assertEquals(ambiguous.providerIds, ["a", "b"]);
 });
 
-Deno.test("selects the greatest applicable previous tag and detects precedence conflicts", () => {
+test("selects the greatest applicable previous tag and detects precedence conflicts", () => {
   assertEquals(
     selectPreviousRelease([{
       name: "1.2.0",
@@ -93,7 +96,7 @@ Deno.test("selects the greatest applicable previous tag and detects precedence c
   );
 });
 
-Deno.test("SemVer parsing is exact and compares arbitrary-size identifiers", () => {
+test("SemVer parsing is exact and compares arbitrary-size identifiers", () => {
   assertEquals(parseSemver("1.2.3-"), undefined);
   assertEquals(parseSemver("1.2.3-01"), undefined);
   const lower = parseSemver("999999999999999999999999.0.0")!;
@@ -101,7 +104,7 @@ Deno.test("SemVer parsing is exact and compares arbitrary-size identifiers", () 
   assertEquals(compareSemver(lower, higher), -1);
 });
 
-Deno.test("validated Conventional Commits select the greatest release type", () => {
+test("validated Conventional Commits select the greatest release type", () => {
   assertEquals(selectReleaseType([]), undefined);
   assertEquals(selectReleaseType([{ type: "fix", breaking: false }]), "patch");
   assertEquals(
@@ -120,7 +123,7 @@ Deno.test("validated Conventional Commits select the greatest release type", () 
   );
 });
 
-Deno.test("fork-version adapter matches fork-version 5.2.0 for stable, prerelease, and build versions", async () => {
+test("fork-version adapter matches fork-version 5.2.0 for stable, prerelease, and build versions", async () => {
   for (
     const [currentVersion, releaseAs] of [
       ["1.2.3", "minor"],

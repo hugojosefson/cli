@@ -1,3 +1,13 @@
+import { test as nativeTest } from "node:test";
+import { trackTests } from "../testing/inventory-test-fixtures.ts";
+const test = trackTests(import.meta.url, nativeTest);
+import {
+  makeTempDir,
+  mkdir,
+  readTextFile,
+  remove,
+  writeTextFile,
+} from "../testing/files-test-fixtures.ts";
 import {
   assert,
   assertEquals,
@@ -30,7 +40,7 @@ import {
 } from "./synthetic-check.ts";
 import { releaseBranch } from "./names.ts";
 
-Deno.test("prepare and apply publish the exact rebased tree and remove only the release branch", async () => {
+test("prepare and apply publish the exact rebased tree and remove only the release branch", async () => {
   await withRelease(async (fixture) => {
     const github = await fixture.apply();
     await assertPublished(fixture, github);
@@ -60,7 +70,7 @@ Deno.test("prepare and apply publish the exact rebased tree and remove only the 
     );
     assert(github.mergedSha !== github.pr!.headSha);
     assertStringIncludes(
-      await Deno.readTextFile(fixture.values.get("GITHUB_STEP_SUMMARY")!),
+      await readTextFile(fixture.values.get("GITHUB_STEP_SUMMARY")!),
       "Release 0.1.0",
     );
     assertEquals(
@@ -70,7 +80,7 @@ Deno.test("prepare and apply publish the exact rebased tree and remove only the 
   });
 });
 
-Deno.test("apply resumes a reserved branch after interruption before PR creation", async () => {
+test("apply resumes a reserved branch after interruption before PR creation", async () => {
   await withRelease(async (fixture) => {
     const github = await fixture.github();
     github.interruptBeforePr = true;
@@ -91,7 +101,7 @@ Deno.test("apply resumes a reserved branch after interruption before PR creation
   });
 });
 
-Deno.test("apply confirms uncertain branch and PR writes before continuing", async () => {
+test("apply confirms uncertain branch and PR writes before continuing", async () => {
   await withRelease(async (fixture) => {
     const github = await fixture.github();
     github.uncertainWrites = true;
@@ -104,7 +114,7 @@ Deno.test("apply confirms uncertain branch and PR writes before continuing", asy
   });
 });
 
-Deno.test("apply and recovery preserve legacy release commits without a CI skip directive", async () => {
+test("apply and recovery preserve legacy release commits without a CI skip directive", async () => {
   await withRelease(async (fixture) => {
     const github = await fixture.github();
     github.interruptBeforePr = true;
@@ -153,7 +163,7 @@ Deno.test("apply and recovery preserve legacy release commits without a CI skip 
   });
 });
 
-Deno.test("recovery completes an interrupted tag publication and safely repeats the event", async () => {
+test("recovery completes an interrupted tag publication and safely repeats the event", async () => {
   await withRelease(async (fixture) => {
     const github = await fixture.github();
     github.interruptTag = true;
@@ -176,7 +186,7 @@ Deno.test("recovery completes an interrupted tag publication and safely repeats 
   });
 });
 
-Deno.test("recovery resumes after tag and branch cleanup when event delivery fails", async () => {
+test("recovery resumes after tag and branch cleanup when event delivery fails", async () => {
   await withRelease(async (fixture) => {
     const github = await fixture.github();
     github.interruptEvent = true;
@@ -196,7 +206,7 @@ Deno.test("recovery resumes after tag and branch cleanup when event delivery fai
   });
 });
 
-Deno.test("apply rejects a changed main before GitHub writes", async () => {
+test("apply rejects a changed main before GitHub writes", async () => {
   await withRelease(async (fixture) => {
     const github = await fixture.github();
     await runOrThrow(github.process, "git", [
@@ -215,7 +225,7 @@ Deno.test("apply rejects a changed main before GitHub writes", async () => {
   });
 });
 
-Deno.test("apply preserves a reserved branch with a different tree", async () => {
+test("apply preserves a reserved branch with a different tree", async () => {
   await withRelease(async (fixture) => {
     const github = await fixture.github();
     await runOrThrow(github.process, "git", [
@@ -241,7 +251,7 @@ Deno.test("apply preserves a reserved branch with a different tree", async () =>
   });
 });
 
-Deno.test("source-first collision closes the owned PR without publishing a tag", async () => {
+test("source-first collision closes the owned PR without publishing a tag", async () => {
   await withRelease(async (fixture) => {
     const github = await fixture.github();
     github.sourceWins = true;
@@ -304,7 +314,7 @@ type Fixture = {
 async function withRelease(
   action: (fixture: Fixture) => Promise<void>,
 ): Promise<void> {
-  const parent = await Deno.makeTempDir({
+  const parent = await makeTempDir({
     dir: "/tmp/opencode",
     prefix: "hj-orchestration-",
   });
@@ -312,7 +322,7 @@ async function withRelease(
   let serial = 0;
   try {
     const seed = toFileUrl(`${parent}/seed/`);
-    await Deno.mkdir(seed);
+    await mkdir(seed);
     const process = localReleaseProcess(seed);
     await runOrThrow(process, "git", [
       "init",
@@ -322,7 +332,7 @@ async function withRelease(
     ]);
     await runOrThrow(process, "git", ["init", "--initial-branch=main"]);
     await identity(process);
-    await Deno.writeTextFile(
+    await writeTextFile(
       new URL("deno.json", seed),
       '{"version":"0.0.0","tasks":{"all":"deno eval \'Deno.exit(0)\'"}}\n',
     );
@@ -341,10 +351,10 @@ async function withRelease(
     ]);
     const environment = { get: (name: string) => values.get(name) };
     const prepare = async (root: URL, local: ReleaseProcess) => {
-      await Deno.writeTextFile(values.get("GITHUB_OUTPUT")!, "");
+      await writeTextFile(values.get("GITHUB_OUTPUT")!, "");
       await publishTagPrepare(root, environment, local);
       const output = Object.fromEntries(
-        (await Deno.readTextFile(values.get("GITHUB_OUTPUT")!)).trim().split(
+        (await readTextFile(values.get("GITHUB_OUTPUT")!)).trim().split(
           "\n",
         ).map((line) => {
           const index = line.indexOf("=");
@@ -391,7 +401,7 @@ async function withRelease(
     };
     await action(fixture);
   } finally {
-    await Deno.remove(parent, { recursive: true });
+    await remove(parent, { recursive: true });
   }
 }
 

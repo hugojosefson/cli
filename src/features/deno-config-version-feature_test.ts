@@ -1,3 +1,6 @@
+import { test as nativeTest } from "node:test";
+import { trackTests } from "../testing/inventory-test-fixtures.ts";
+const test = trackTests(import.meta.url, nativeTest);
 import { assertEquals, assertRejects } from "@std/assert";
 import type { ArtifactObservation } from "../api/artifact-inspection.ts";
 import type { OperationContext } from "../api/repository-context.ts";
@@ -37,7 +40,7 @@ function file(content: string): ArtifactObservation {
   return { kind: "file", content, digest: "digest", mode: 0o644 };
 }
 
-Deno.test("Deno config version detects absent, exact, malformed, and duplicate configurations", async () => {
+test("Deno config version detects absent, exact, malformed, and duplicate configurations", async () => {
   const cases = [
     [{}, "disabled"],
     [{ "deno.json": file('{"version":"1.2.3"}\n') }, "enabled"],
@@ -52,7 +55,7 @@ Deno.test("Deno config version detects absent, exact, malformed, and duplicate c
   }
 });
 
-Deno.test("Deno config version never creates or removes version data", async () => {
+test("Deno config version never creates or removes version data", async () => {
   const absent = context({});
   const valid = context({ "deno.json": file('{"version":"1.2.3"}\n') });
   const malformed = context({ "deno.json": file('{"version":3}\n') });

@@ -1,10 +1,13 @@
+import { test as nativeTest } from "node:test";
+import { trackTests } from "../testing/inventory-test-fixtures.ts";
+const test = trackTests(import.meta.url, nativeTest);
 import { assertEquals, assertRejects } from "@std/assert";
 import {
   apacheSourceUrl,
   createApacheTextSource,
 } from "./license-apache-2.0-source.ts";
 
-Deno.test("Apache source uses its pinned URL, placeholders, cache, and errors", async () => {
+test("Apache source uses its pinned URL, placeholders, cache, and errors", async () => {
   let calls = 0;
   const source = createApacheTextSource((url) => {
     calls++;

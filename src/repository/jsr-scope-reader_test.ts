@@ -1,7 +1,10 @@
+import { test as nativeTest } from "node:test";
+import { trackTests } from "../testing/inventory-test-fixtures.ts";
+const test = trackTests(import.meta.url, nativeTest);
 import { assert, assertEquals, assertFalse } from "@std/assert";
 import { AuthenticatedJsrScopeReader } from "./jsr-scope-reader.ts";
 
-Deno.test("JSR discovery reads every actual membership through bearer authentication", async () => {
+test("JSR discovery reads every actual membership through bearer authentication", async () => {
   const reader = new AuthenticatedJsrScopeReader(
     () => "secret-user-token",
     (url, init) => {
@@ -26,7 +29,7 @@ Deno.test("JSR discovery reads every actual membership through bearer authentica
   });
 });
 
-Deno.test("JSR discovery distinguishes missing authentication, zero memberships, and failures", async () => {
+test("JSR discovery distinguishes missing authentication, zero memberships, and failures", async () => {
   for (const token of [undefined, "", "  "]) {
     const reader = new AuthenticatedJsrScopeReader(() => token, () => {
       throw new Error("must not request");

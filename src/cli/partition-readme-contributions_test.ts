@@ -1,3 +1,6 @@
+import { test as nativeTest } from "node:test";
+import { trackTests } from "../testing/inventory-test-fixtures.ts";
+const test = trackTests(import.meta.url, nativeTest);
 import { assertEquals, assertStringIncludes } from "@std/assert";
 import type { ChangePlan } from "../api/change-plan.ts";
 import { partitionReadmeContributions } from "./partition-readme-contributions.ts";
@@ -13,7 +16,7 @@ const file = (text: string) => ({
 const decode = (value: ReturnType<typeof file> | undefined) =>
   value ? new TextDecoder().decode(value.bytes) : "";
 
-Deno.test("cumulative README snapshots keep additions with each owner and restore earlier contributions", () => {
+test("cumulative README snapshots keep additions with each owner and restore earlier contributions", () => {
   const features = [
     feature("deno-lib", full),
     feature("readme-static", `# Package\n\n${requirement}`),
@@ -35,7 +38,7 @@ Deno.test("cumulative README snapshots keep additions with each owner and restor
   assertEquals(decode(features[2].files.get("README.md")), full);
 });
 
-Deno.test("README removals wait for their owning feature and retain unrelated prose", () => {
+test("README removals wait for their owning feature and retain unrelated prose", () => {
   const final = `# Package\n\n${requirement}\nCustom text.\n`;
   const baseline =
     `# Package\n\n${requirement}\n${api}\n${example}\nCustom text.\n`;

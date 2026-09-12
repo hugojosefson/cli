@@ -1,9 +1,12 @@
+import { test as nativeTest } from "node:test";
+import { trackTests } from "../testing/inventory-test-fixtures.ts";
+const test = trackTests(import.meta.url, nativeTest);
 import type { GithubCommandRunner } from "./github-command.ts";
 import { assertEquals, assertRejects, assertStringIncludes } from "@std/assert";
 import { LocalGithubClient } from "./local-github-client.ts";
 import { mainProtectionDefinition } from "../features/github-protection-definitions.ts";
 
-Deno.test("concurrent GitHub feature reads share requests but later reads stay fresh", async () => {
+test("concurrent GitHub feature reads share requests but later reads stay fresh", async () => {
   const responses = [
     json({ nameWithOwner: "owner/repo" }),
     json({ has_issues: false, has_wiki: true }),
@@ -30,7 +33,7 @@ Deno.test("concurrent GitHub feature reads share requests but later reads stay f
   assertEquals(runner.calls.length, 4);
 });
 
-Deno.test("LocalGithubClient checks repository access, reads, and atomically patches settings", async () => {
+test("LocalGithubClient checks repository access, reads, and atomically patches settings", async () => {
   const runner = new FakeRunner([
     json({ nameWithOwner: "owner/repo", defaultBranchRef: { name: "main" } }),
     json({ has_issues: false, has_wiki: true }),
@@ -70,7 +73,7 @@ Deno.test("LocalGithubClient checks repository access, reads, and atomically pat
   ]);
 });
 
-Deno.test("LocalGithubClient fails closed for malformed repository data and stale settings", async () => {
+test("LocalGithubClient fails closed for malformed repository data and stale settings", async () => {
   const malformed = new LocalGithubClient(
     new URL("file:///tmp/opencode/"),
     new FakeRunner([
@@ -99,7 +102,7 @@ Deno.test("LocalGithubClient fails closed for malformed repository data and stal
   assertEquals(runner.calls.length, 3);
 });
 
-Deno.test("LocalGithubClient treats failing repository commands and missing fields as unavailable", async () => {
+test("LocalGithubClient treats failing repository commands and missing fields as unavailable", async () => {
   const failing = new LocalGithubClient(
     new URL("file:///tmp/opencode/"),
     new FakeRunner([
@@ -120,7 +123,7 @@ Deno.test("LocalGithubClient treats failing repository commands and missing fiel
   );
 });
 
-Deno.test("LocalGithubClient models tag-ruleset eligibility fail closed", async () => {
+test("LocalGithubClient models tag-ruleset eligibility fail closed", async () => {
   const eligible = async (repository: object, owner: object) => {
     const client = new LocalGithubClient(
       new URL("file:///tmp/opencode/"),
@@ -177,7 +180,7 @@ Deno.test("LocalGithubClient models tag-ruleset eligibility fail closed", async 
   );
 });
 
-Deno.test("LocalGithubClient reads Actions pull-request permission and fails closed", async () => {
+test("LocalGithubClient reads Actions pull-request permission and fails closed", async () => {
   const runner = new FakeRunner([
     json({ nameWithOwner: "owner/repo" }),
     json({ can_approve_pull_request_reviews: true }),
@@ -212,7 +215,7 @@ Deno.test("LocalGithubClient reads Actions pull-request permission and fails clo
   );
 });
 
-Deno.test("LocalGithubClient reads remote default-branch files without a checkout", async () => {
+test("LocalGithubClient reads remote default-branch files without a checkout", async () => {
   const present = githubRunner([json({
     data: {
       repository: { object: { isBinary: false, text: "workflow\n" } },
@@ -250,7 +253,7 @@ Deno.test("LocalGithubClient reads remote default-branch files without a checkou
   );
 });
 
-Deno.test("LocalGithubClient canonicalizes complete repository rulesets", async () => {
+test("LocalGithubClient canonicalizes complete repository rulesets", async () => {
   const detail = reverseArrays({ ...mainProtectionDefinition, id: 41 });
   const runner = githubRunner([
     json([{ id: 41, source_type: "Repository" }]),
@@ -275,7 +278,7 @@ Deno.test("LocalGithubClient canonicalizes complete repository rulesets", async 
   }]);
 });
 
-Deno.test("LocalGithubClient retains inherited rulesets and paginates their details", async () => {
+test("LocalGithubClient retains inherited rulesets and paginates their details", async () => {
   const inherited = Array.from({ length: 100 }, (_, index) => ({
     id: index + 1,
     source_type: "Organization",
@@ -295,7 +298,7 @@ Deno.test("LocalGithubClient retains inherited rulesets and paginates their deta
   ]);
 });
 
-Deno.test("LocalGithubClient rejects repeated full ruleset pages before details", async () => {
+test("LocalGithubClient rejects repeated full ruleset pages before details", async () => {
   const page = Array.from({ length: 100 }, (_, index) => ({
     id: index + 1,
     source_type: "Repository",
@@ -311,7 +314,7 @@ Deno.test("LocalGithubClient rejects repeated full ruleset pages before details"
   });
 });
 
-Deno.test("LocalGithubClient reads legacy and inherited protection layers", async () => {
+test("LocalGithubClient reads legacy and inherited protection layers", async () => {
   const runner = githubRunner([
     json([{ id: 1, source: "owner", source_type: "Organization" }]),
     json({ ...mainProtectionDefinition, id: 1 }),
@@ -347,7 +350,7 @@ Deno.test("LocalGithubClient reads legacy and inherited protection layers", asyn
   });
 });
 
-Deno.test("LocalGithubClient fails closed when legacy protection availability is unknown", async () => {
+test("LocalGithubClient fails closed when legacy protection availability is unknown", async () => {
   const runner = githubRunner([
     json([]),
     json({ allow_rebase_merge: true }),
@@ -357,7 +360,7 @@ Deno.test("LocalGithubClient fails closed when legacy protection availability is
   assertEquals(await githubClient(runner).protection(), undefined);
 });
 
-Deno.test("ruleset-protected branches can have no legacy protection", async () => {
+test("ruleset-protected branches can have no legacy protection", async () => {
   for (
     const [body, absent] of [
       [{ message: "Branch not protected", status: "404" }, true],
@@ -393,7 +396,7 @@ Deno.test("ruleset-protected branches can have no legacy protection", async () =
   }
 });
 
-Deno.test("LocalGithubClient fails closed for malformed ruleset responses", async () => {
+test("LocalGithubClient fails closed for malformed ruleset responses", async () => {
   const malformed = [
     { ...mainProtectionDefinition, id: 1, bypass_actors: undefined },
     { ...mainProtectionDefinition, id: 1, conditions: undefined },
@@ -421,7 +424,7 @@ Deno.test("LocalGithubClient fails closed for malformed ruleset responses", asyn
   assertEquals(await githubClient(malformedSummary).rulesets(), undefined);
 });
 
-Deno.test("LocalGithubClient paginates lifecycle REST reads", async () => {
+test("LocalGithubClient paginates lifecycle REST reads", async () => {
   const runs = githubRunner([
     json({
       workflow_runs: [
@@ -475,7 +478,7 @@ Deno.test("LocalGithubClient paginates lifecycle REST reads", async () => {
   });
 });
 
-Deno.test("LocalGithubClient rejects malformed lifecycle REST responses", async () => {
+test("LocalGithubClient rejects malformed lifecycle REST responses", async () => {
   const cases: [
     "workflowRuns" | "openPullRequests" | "branches" | "tags",
     unknown,
@@ -512,7 +515,7 @@ Deno.test("LocalGithubClient rejects malformed lifecycle REST responses", async 
   assertEquals(await githubClient(repeated).branches(), undefined);
 });
 
-Deno.test("LocalGithubClient paginates and validates default-branch history", async () => {
+test("LocalGithubClient paginates and validates default-branch history", async () => {
   const commit = (n: number) => ({
     oid: oid(n),
     messageHeadline: `commit ${n}`,
@@ -619,7 +622,7 @@ Deno.test("LocalGithubClient paginates and validates default-branch history", as
   assertEquals(await githubClient(invalid).defaultBranchCommits(), undefined);
 });
 
-Deno.test("LocalGithubClient creates and updates guarded rulesets", async () => {
+test("LocalGithubClient creates and updates guarded rulesets", async () => {
   const createRunner = githubRunner([json([]), json({})]);
   await githubClient(createRunner).upsertResources([{
     resource: "repository-ruleset",
@@ -671,7 +674,7 @@ Deno.test("LocalGithubClient creates and updates guarded rulesets", async () => 
   });
 });
 
-Deno.test("LocalGithubClient rejects stale, duplicate, and contradictory ruleset upserts", async () => {
+test("LocalGithubClient rejects stale, duplicate, and contradictory ruleset upserts", async () => {
   const detail = { ...mainProtectionDefinition, id: 9 };
   const staleRunner = githubRunner([
     json([{ id: 9, source_type: "Repository" }]),
@@ -768,7 +771,7 @@ Deno.test("LocalGithubClient rejects stale, duplicate, and contradictory ruleset
   assertEquals(inheritedRunner.calls.length, 3);
 });
 
-Deno.test("LocalGithubClient deletes only freshly matching rulesets", async () => {
+test("LocalGithubClient deletes only freshly matching rulesets", async () => {
   const detail = { ...mainProtectionDefinition, id: 9 };
   const deleteRunner = githubRunner([
     json([{ id: 9, source_type: "Repository" }]),
@@ -858,7 +861,7 @@ function reverseArrays(value: unknown): unknown {
   return value;
 }
 
-Deno.test("repository lookup rejects malformed JSON shapes without throwing", async () => {
+test("repository lookup rejects malformed JSON shapes without throwing", async () => {
   for (
     const value of [null, [], { nameWithOwner: 123 }, {
       nameWithOwner: "a/b/c",
@@ -871,7 +874,7 @@ Deno.test("repository lookup rejects malformed JSON shapes without throwing", as
   }
 });
 
-Deno.test("GitHub read diagnostics retain HTTP status without exposing response secrets", async () => {
+test("GitHub read diagnostics retain HTTP status without exposing response secrets", async () => {
   const client = new LocalGithubClient(new URL("file:///tmp/opencode/"), {
     run: () =>
       Promise.resolve({
@@ -890,7 +893,7 @@ Deno.test("GitHub read diagnostics retain HTTP status without exposing response 
   ]);
 });
 
-Deno.test("GitHub mutation errors explain access failure without exposing stderr", async () => {
+test("GitHub mutation errors explain access failure without exposing stderr", async () => {
   const base = githubRunner([
     json({ has_issues: false }),
     json({ has_issues: false }),
@@ -920,7 +923,7 @@ Deno.test("GitHub mutation errors explain access failure without exposing stderr
   );
 });
 
-Deno.test("GitHub plan restrictions do not suggest that valid credentials are missing", async () => {
+test("GitHub plan restrictions do not suggest that valid credentials are missing", async () => {
   const client = new LocalGithubClient(new URL("file:///tmp/opencode/"), {
     run: () =>
       Promise.resolve({
@@ -940,7 +943,7 @@ Deno.test("GitHub plan restrictions do not suggest that valid credentials are mi
   ]);
 });
 
-Deno.test("GitHub rate-limit diagnostics do not suggest another login or expose response details", async () => {
+test("GitHub rate-limit diagnostics do not suggest another login or expose response details", async () => {
   const client = githubClient({
     run: () =>
       Promise.resolve({
@@ -958,7 +961,7 @@ Deno.test("GitHub rate-limit diagnostics do not suggest another login or expose 
   ]);
 });
 
-Deno.test("REST fallback preserves authoritative GitHub identity and feature reads during GraphQL outages", async () => {
+test("REST fallback preserves authoritative GitHub identity and feature reads during GraphQL outages", async () => {
   const runner = new FakeRunner([
     undefined,
     json({ full_name: "canonical/renamed", default_branch: "trunk" }),
@@ -991,7 +994,7 @@ Deno.test("REST fallback preserves authoritative GitHub identity and feature rea
   ]);
 });
 
-Deno.test("repository fallback rejects unavailable or malformed REST identity", async () => {
+test("repository fallback rejects unavailable or malformed REST identity", async () => {
   for (
     const value of [
       undefined,
@@ -1011,7 +1014,7 @@ Deno.test("repository fallback rejects unavailable or malformed REST identity", 
   }
 });
 
-Deno.test("GraphQL rate-limit diagnostics preserve only the classified reason", async () => {
+test("GraphQL rate-limit diagnostics preserve only the classified reason", async () => {
   for (const structured of [true, false]) {
     const client = githubClient({
       run: () =>
@@ -1035,7 +1038,7 @@ Deno.test("GraphQL rate-limit diagnostics preserve only the classified reason", 
   }
 });
 
-Deno.test("GitHub current GraphQL rate-limit shapes do not leak user IDs", async () => {
+test("GitHub current GraphQL rate-limit shapes do not leak user IDs", async () => {
   for (
     const error of [
       { type: "RATE_LIMIT" },

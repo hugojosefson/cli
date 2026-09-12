@@ -1,3 +1,16 @@
+import { runCliProcess } from "../testing/runtime-test-fixtures.ts";
+import { test as nativeTest } from "node:test";
+import { trackTests } from "../testing/inventory-test-fixtures.ts";
+const test = trackTests(import.meta.url, nativeTest);
+import { runCommand } from "../runtime/command.ts";
+import {
+  fixtureLstat,
+  makeTempDir,
+  mkdir,
+  remove,
+  rename,
+  writeTextFile,
+} from "../testing/files-test-fixtures.ts";
 import {
   assert,
   assertEquals,
@@ -8,23 +21,18 @@ import {
 import { LocalFileReader } from "./local-file-reader.ts";
 import { LocalGitReader } from "./local-git-reader.ts";
 
-Deno.test("repository commands explain missing Git before optional GitHub checks", async () => {
+test("repository commands explain missing Git before optional GitHub checks", async () => {
   await withRepository(async (root) => {
-    const output = await new Deno.Command(Deno.execPath(), {
-      args: [
-        "run",
-        "--allow-all",
-        "--cached-only",
-        `--config=${new URL("../../deno.json", import.meta.url).pathname}`,
-        new URL("../cli/cli.ts", import.meta.url).pathname,
-        "repo",
-        "features",
-        "--deno-fmt",
-        "--yes",
-      ],
-      cwd: root,
-      env: { PATH: "" },
-    }).output();
+    // Bun treats an empty PATH as the system default. An explicit empty directory
+    // reliably makes Git unavailable under every supported runtime.
+    const emptyPath = new URL("empty-bin/", root);
+    await mkdir(emptyPath);
+    const output = await runCliProcess([
+      "repo",
+      "features",
+      "--deno-fmt",
+      "--yes",
+    ], { cwd: root, env: { PATH: emptyPath.pathname } });
     assertEquals(output.success, false);
     assertEquals(
       new TextDecoder().decode(output.stderr).trim(),
@@ -34,11 +42,11 @@ Deno.test("repository commands explain missing Git before optional GitHub checks
   });
 });
 
-Deno.test("LocalFileReader reads regular files and observes exact artifact kinds", async () => {
+test("LocalFileReader reads regular files and observes exact artifact kinds", async () => {
   await withRepository(async (root) => {
-    await Deno.writeTextFile(new URL("plain.txt", root), "hello\n");
-    await Deno.writeTextFile(new URL("data.json", root), '{"answer":42}\n');
-    await Deno.writeTextFile(new URL("target.txt", root), "target\n");
+    await writeTextFile(new URL("plain.txt", root), "hello\n");
+    await writeTextFile(new URL("data.json", root), '{"answer":42}\n');
+    await writeTextFile(new URL("target.txt", root), "target\n");
     await git(root, ["init", "--initial-branch=main"]);
     await createSymlink(root, "target.txt", "link");
     const reader = new LocalFileReader(root);
@@ -54,7 +62,7 @@ Deno.test("LocalFileReader reads regular files and observes exact artifact kinds
     });
     assertEquals(
       await reader.mode("plain.txt"),
-      (await Deno.lstat(new URL("plain.txt", root))).mode! & 0o777,
+      (await fixtureLstat(new URL("plain.txt", root))).mode! & 0o777,
     );
     assertEquals(await reader.observe("link"), {
       kind: "symlink",
@@ -122,11 +130,11 @@ Deno.test("the CLI reports missing gh and unattended sign-in before GitHub setup
   });
 });
 
-Deno.test("LocalFileReader hashes complete directory state in stable order", async () => {
+test("LocalFileReader hashes complete directory state in stable order", async () => {
   await withRepository(async (root) => {
-    await Deno.mkdir(new URL("tree/nested/", root), { recursive: true });
-    await Deno.writeTextFile(new URL("tree/z.txt", root), "z\n");
-    await Deno.writeTextFile(new URL("tree/nested/a.txt", root), "a\n");
+    await mkdir(new URL("tree/nested/", root), { recursive: true });
+    await writeTextFile(new URL("tree/z.txt", root), "z\n");
+    await writeTextFile(new URL("tree/nested/a.txt", root), "a\n");
     await git(root, ["init", "--initial-branch=main"]);
     await createSymlink(root, "nested/a.txt", "tree/current");
     const reader = new LocalFileReader(root);
@@ -134,13 +142,13 @@ Deno.test("LocalFileReader hashes complete directory state in stable order", asy
     const first = await reader.directoryStateDigest("tree");
     assert(first);
     assertEquals(await reader.directoryStateDigest("tree"), first);
-    await Deno.writeTextFile(new URL("tree/nested/a.txt", root), "changed\n");
+    await writeTextFile(new URL("tree/nested/a.txt", root), "changed\n");
     assert(await reader.directoryStateDigest("tree") !== first);
     assertEquals((await reader.observe("tree")).kind, "directory");
   });
 });
 
-Deno.test("local readers reject roots and paths outside the repository", async () => {
+test("local readers reject roots and paths outside the repository", async () => {
   assertThrows(() =>
     new LocalFileReader(new URL("https://example.test/repo/"))
   );
@@ -157,14 +165,14 @@ Deno.test("local readers reject roots and paths outside the repository", async (
     ) {
       await assertRejects(() => reader.exists(path), TypeError);
     }
-    await Deno.mkdir(new URL("linked/", root));
+    await mkdir(new URL("linked/", root));
     await git(root, ["init", "--initial-branch=main"]);
     await createSymlink(root, "/tmp", "linked/outside");
     await assertRejects(() => reader.exists("linked/outside/file"), TypeError);
   });
 });
 
-Deno.test("LocalGitReader handles non-repositories and unborn HEAD", async () => {
+test("LocalGitReader handles non-repositories and unborn HEAD", async () => {
   await withRepository(async (root) => {
     const reader = new LocalGitReader(root);
     assertEquals(await reader.isRepository(), false);
@@ -180,15 +188,15 @@ Deno.test("LocalGitReader handles non-repositories and unborn HEAD", async () =>
   });
 });
 
-Deno.test("LocalGitReader reads status with spaces and renames, remotes, and remote HEAD", async () => {
+test("LocalGitReader reads status with spaces and renames, remotes, and remote HEAD", async () => {
   await withRepository(async (root) => {
     await git(root, ["init", "--initial-branch=main"]);
     await git(root, ["config", "user.email", "test@example.test"]);
     await git(root, ["config", "user.name", "Test User"]);
-    await Deno.writeTextFile(new URL("before name.txt", root), "before\n");
+    await writeTextFile(new URL("before name.txt", root), "before\n");
     await git(root, ["add", "."]);
     await git(root, ["commit", "-m", "initial"]);
-    await Deno.rename(
+    await rename(
       new URL("before name.txt", root),
       new URL("after name.txt", root),
     );
@@ -229,22 +237,22 @@ Deno.test("LocalGitReader reads status with spaces and renames, remotes, and rem
 async function withRepository(
   action: (root: URL) => Promise<void>,
 ): Promise<void> {
-  const path = await Deno.makeTempDir({
+  const path = await makeTempDir({
     dir: "/tmp/opencode",
     prefix: "hj-reader-",
   });
   try {
     await action(new URL(`file://${path}/`));
   } finally {
-    await Deno.remove(path, { recursive: true });
+    await remove(path, { recursive: true });
   }
 }
 
 async function git(root: URL, args: readonly string[]): Promise<string> {
-  const output = await new Deno.Command("git", {
+  const output = await runCommand("git", {
     args: [...args],
     cwd: root.pathname,
-  }).output();
+  });
   if (!output.success) {
     throw new Error(new TextDecoder().decode(output.stderr));
   }
@@ -257,7 +265,7 @@ async function createSymlink(
   path: string,
 ): Promise<void> {
   const source = new URL(".symlink-target", root);
-  await Deno.writeTextFile(source, target);
+  await writeTextFile(source, target);
   const blob = (await git(root, ["hash-object", "-w", source.pathname])).trim();
   await git(root, [
     "update-index",
@@ -266,5 +274,5 @@ async function createSymlink(
     `120000,${blob},${path}`,
   ]);
   await git(root, ["checkout-index", "--force", "--", path]);
-  await Deno.remove(source);
+  await remove(source);
 }

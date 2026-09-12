@@ -1,3 +1,14 @@
+import { sourceFile } from "../testing/runtime-test-fixtures.ts";
+import { test as nativeTest } from "node:test";
+import { trackTests } from "../testing/inventory-test-fixtures.ts";
+const test = trackTests(import.meta.url, nativeTest);
+import {
+  makeTempDir,
+  mkdir,
+  remove,
+  writeTextFile,
+} from "../testing/files-test-fixtures.ts";
+import { runCommand } from "../runtime/command.ts";
 import { assertEquals, assertRejects, assertStringIncludes } from "@std/assert";
 import { builtInFeatureRegistry } from "../features/built-in-feature-registry.ts";
 import { formatCliOutput } from "./format-output.ts";
@@ -93,16 +104,16 @@ function publisherDependencies() {
   };
 }
 
-Deno.test("dispatches README builds and rejects extra arguments", async () => {
-  const path = await Deno.makeTempDir({
+test("dispatches README builds and rejects extra arguments", async () => {
+  const path = await makeTempDir({
     dir: "/tmp/opencode",
     prefix: "hj-cli-",
   });
   const root = new URL(`file://${path}/`);
   try {
-    await Deno.mkdir(new URL("readme", root));
-    await Deno.writeTextFile(new URL("readme/README.md", root), "# default\n");
-    await Deno.writeTextFile(new URL("other.md", root), "# other");
+    await mkdir(new URL("readme", root));
+    await writeTextFile(new URL("readme/README.md", root), "# default\n");
+    await writeTextFile(new URL("other.md", root), "# other");
     assertEquals(
       formatCliOutput(await runCli(root, ["readme", "build"])),
       "# default\n",
@@ -125,12 +136,12 @@ Deno.test("dispatches README builds and rejects extra arguments", async () => {
       "expected `hj readme build [input]`",
     );
   } finally {
-    await Deno.remove(path, { recursive: true });
+    await remove(path, { recursive: true });
   }
 });
 
-Deno.test("keeps repo features dispatch", async () => {
-  const path = await Deno.makeTempDir({
+test("keeps repo features dispatch", async () => {
+  const path = await makeTempDir({
     dir: "/tmp/opencode",
     prefix: "hj-cli-",
   });
@@ -150,7 +161,7 @@ Deno.test("keeps repo features dispatch", async () => {
       colors: { stdout: true },
     });
     assertStringIncludes(colored.output, "\x1b[2mdisabled\x1b[0m");
-    await Deno.writeTextFile(
+    await writeTextFile(
       new URL("deno.json", root),
       '{"tasks":{"fmt":"echo custom"}}',
     );
@@ -165,12 +176,12 @@ Deno.test("keeps repo features dispatch", async () => {
     assertStringIncludes(error.message, "\x1b[1mIssue\x1b[0m");
     assertStringIncludes(error.message, "\x1b[31m");
   } finally {
-    await Deno.remove(path, { recursive: true });
+    await remove(path, { recursive: true });
   }
 });
 
-Deno.test("dispatches source validation without a trailing root slash", async () => {
-  const path = await Deno.makeTempDir({
+test("dispatches source validation without a trailing root slash", async () => {
+  const path = await makeTempDir({
     dir: "/tmp/opencode",
     prefix: "hj-cli-release-",
   });
@@ -184,12 +195,12 @@ Deno.test("dispatches source validation without a trailing root slash", async ()
       "user.email",
       "test@example.invalid",
     ]);
-    await Deno.writeTextFile(new URL("base.txt", root), "base\n");
+    await writeTextFile(new URL("base.txt", root), "base\n");
     await runOrThrow(process, "git", ["add", "base.txt"]);
     await runOrThrow(process, "git", ["commit", "-m", "chore: base"]);
     const base = (await runOrThrow(process, "git", ["rev-parse", "HEAD"]))
       .trim();
-    await Deno.writeTextFile(new URL("feature.txt", root), "feature\n");
+    await writeTextFile(new URL("feature.txt", root), "feature\n");
     await runOrThrow(process, "git", ["add", "feature.txt"]);
     await runOrThrow(process, "git", ["commit", "-m", "feat: feature"]);
     const head = (await runOrThrow(process, "git", ["rev-parse", "HEAD"]))
@@ -213,11 +224,11 @@ Deno.test("dispatches source validation without a trailing root slash", async ()
       "Source commits are valid.\n",
     );
   } finally {
-    await Deno.remove(path, { recursive: true });
+    await remove(path, { recursive: true });
   }
 });
 
-Deno.test("rejects apply bundles and extra release arguments before process effects", async () => {
+test("rejects apply bundles and extra release arguments before process effects", async () => {
   let called = false;
   const dependencies = {
     releaseEnvironment: {
@@ -257,7 +268,7 @@ Deno.test("rejects apply bundles and extra release arguments before process effe
   );
 });
 
-Deno.test("dispatches publisher commands with injected dependencies and no cross-call", async () => {
+test("dispatches publisher commands with injected dependencies and no cross-call", async () => {
   const jsr = publisherDependencies();
   assertEquals(
     formatCliOutput(
@@ -287,7 +298,7 @@ Deno.test("dispatches publisher commands with injected dependencies and no cross
   assertEquals(github.state().githubCreates, 1);
 });
 
-Deno.test("rejects extra publisher arguments before injected process or APIs run", async () => {
+test("rejects extra publisher arguments before injected process or APIs run", async () => {
   for (const command of ["publish-jsr", "publish-github"]) {
     const fixture = publisherDependencies();
     await assertRejects(
@@ -309,8 +320,8 @@ Deno.test("rejects extra publisher arguments before injected process or APIs run
   }
 });
 
-Deno.test("loads fork-version only for usual tag preparation", async () => {
-  const path = await Deno.makeTempDir({
+test("loads fork-version only for usual tag preparation", async () => {
+  const path = await makeTempDir({
     dir: "/tmp/opencode",
     prefix: "hj-runtime-import-",
   });
@@ -318,7 +329,7 @@ Deno.test("loads fork-version only for usual tag preparation", async () => {
     const config = `${path}/deno.json`;
     const trap = `${path}/trap.ts`;
     const script = `${path}/isolation.ts`;
-    await Deno.writeTextFile(
+    await writeTextFile(
       config,
       JSON.stringify({
         imports: {
@@ -331,15 +342,15 @@ Deno.test("loads fork-version only for usual tag preparation", async () => {
         },
       }),
     );
-    await Deno.writeTextFile(
+    await writeTextFile(
       trap,
       'throw new Error("fork-version loaded");\nexport class Logger {}\nexport function getNextVersion() {}\n',
     );
-    await Deno.writeTextFile(
+    await writeTextFile(
       script,
-      runtimeIsolationScript(new URL("./run-cli.ts", import.meta.url).href),
+      runtimeIsolationScript(sourceFile("src/cli/run-cli.ts").href),
     );
-    const result = await new Deno.Command("deno", {
+    const result = await runCommand("deno", {
       args: [
         "run",
         "--quiet",
@@ -350,12 +361,12 @@ Deno.test("loads fork-version only for usual tag preparation", async () => {
       ],
       stdout: "piped",
       stderr: "piped",
-    }).output();
+    });
     if (!result.success) {
       throw new Error(new TextDecoder().decode(result.stderr));
     }
   } finally {
-    await Deno.remove(path, { recursive: true });
+    await remove(path, { recursive: true });
   }
 });
 
@@ -441,7 +452,7 @@ if (!trapped) throw new Error("usual preparation did not load fork-version");
 `;
 }
 
-Deno.test("help needs no repository, credentials, or release side effects", async () => {
+test("help needs no repository, credentials, or release side effects", async () => {
   const root = new URL("file:///tmp/opencode/nonexistent-help-root/");
   const services = {
     releaseEnvironment: {
@@ -473,18 +484,18 @@ Deno.test("help needs no repository, credentials, or release side effects", asyn
   );
 });
 
-Deno.test("executable help works without application permissions", async () => {
-  const output = await new Deno.Command("deno", {
+test("executable help works without application permissions", async () => {
+  const output = await runCommand("deno", {
     args: [
       "run",
       "--frozen",
-      new URL("./cli.ts", import.meta.url).href,
+      sourceFile("src/cli/cli.ts").href,
       "--help",
     ],
     stdin: "null",
     stdout: "piped",
     stderr: "piped",
-  }).output();
+  });
   assertEquals(output.success, true, new TextDecoder().decode(output.stderr));
   assertEquals(
     new TextDecoder().decode(output.stdout).includes("hj repo features"),

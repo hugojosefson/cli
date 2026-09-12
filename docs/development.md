@@ -26,21 +26,62 @@ Tasks provide the supported development interface:
 | `deno task coverage`                                           | Run the suite and print coverage.                             |
 | `deno task coverage-html`                                      | Build `.coverage/html/index.html` from the last coverage run. |
 
-Tests use temporary repositories under `/tmp/opencode` and remove their own
-fixtures. The test runner creates the parent directory on a fresh machine. It
-grants subprocess access to Git and Deno. Server tests make HTTP requests over
-the local loopback interface and test watch restarts. Network permissions are
-limited to `127.0.0.1`. Tests do not need GitHub credentials. The local runners
-remove dynamic-loader overrides from child environments. This prevents
-restricted Deno subprocesses from failing when a development shell sets
-`LD_LIBRARY_PATH`.
+Tests use native `node:test` registrations and portable `@std/assert`
+assertions. The shared suite runs in Deno 2.9.6, Node 24.21.0, Node 26.2.0, and
+Bun 1.4.2. Every runtime uses the same discovered source and script test files.
+The runner starts each file in an isolated process or Deno worker. Node runs one
+file at a time, and Bun gets a separate process for each file. Bun and Node
+allow 120 seconds per test.
 
-Run one coverage collection at a time. Each collection clears `.coverage` first.
-Coverage limits live in [deno.json](../deno.json), not in a second CI
-configuration. The report excludes test files and shared test fixtures. Deno
-reports loaded modules, so the total does not prove that every executable path
-has a test. The executable has a separate smoke test for help without
-application permissions.
+`deno task test` runs the Deno suite. After `deno task test-build`, use
+`deno task test --runtime node` or `deno task test --runtime bun` to run the
+complete suite in that runtime. Add `--executable /absolute/path` to select a
+runtime binary. File paths and `--filter` select tests for development. Filtered
+runs cannot satisfy the full matrix gate.
+
+`deno task test-matrix` builds the tests and runs all four runtimes.
+`deno task ci` collects Deno coverage once, then runs the three native suites.
+The existing required CI check includes this matrix, so a native test failure
+blocks an ordinary pull request merge. The runners record executed test and
+subtest names in `.hj/test-results`. The matrix requires identical file and test
+inventories, with every body complete and successful. Missing registrations,
+missing executions, skipped bodies, and failures fail the gate. Printed runner
+totals can differ because the runtimes count subtests differently.
+
+Native test builds require Node and npm on the development or CI host. The build
+uses the separately pinned dnt emitter with no Deno global or test shims.
+Test-only assertions and WebSocket dependencies use a separate frozen npm lock.
+The matrix installs exact Linux x64 glibc runtime binaries under
+`.hj/test-tools`. Those binaries use a separate integrity lock and require no
+installation scripts. The npm CLI package does not include these test
+dependencies or runtimes.
+
+Tests use temporary repositories under `/tmp/opencode` and remove their own
+fixtures. CLI subprocess fixtures use the selected host runtime. Generated Deno
+projects, tasks, servers, installations, and sandbox checks use real Deno from
+every host. The Deno runner grants subprocess access to Git, Deno, and the
+shell. Server fixtures use HTTP and WebSocket connections on `127.0.0.1`. Tests
+do not need GitHub credentials. The runners remove dynamic-loader environment
+overrides before starting restricted Deno processes.
+
+Keep cleanup in an awaited test body with `try/finally`. Do not put
+failure-sensitive cleanup in `after` or `afterEach` hooks. Deno 2.9.6 can return
+success when those `node:test` hooks fail. The runner contract tests exercise
+failing bodies, nested tests, awaited cleanup, and child processes, plus passing
+controls.
+
+The Deno `node:test` adapter disables resource and operation sanitizers. The
+previous default suite did not enable those sanitizers either. Separate
+subprocess fixtures explicitly enable native Deno sanitizers and test a leaked
+file against a correctly closed file. Real permission fixtures also test denied
+and allowed writes. These checks retain Deno diagnostics without claiming
+per-test leak detection for the shared suite.
+
+Run one coverage collection at a time because each collection clears
+`.coverage`. Coverage limits remain in [deno.json](../deno.json). The report
+excludes test files and shared test fixtures. Deno reports loaded modules, so
+the total does not prove that every executable path has a test. The executable
+also has a test for help without application permissions.
 
 ## Install from a checkout
 

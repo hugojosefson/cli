@@ -1,3 +1,6 @@
+import { test as nativeTest } from "node:test";
+import { trackTests } from "../testing/inventory-test-fixtures.ts";
+const test = trackTests(import.meta.url, nativeTest);
 import { assertEquals, assertThrows } from "@std/assert";
 import { builtInFeatureRegistry } from "../features/built-in-feature-registry.ts";
 import {
@@ -5,7 +8,7 @@ import {
   selectedFeatureActionsToRequest,
 } from "./feature-actions.ts";
 
-Deno.test("lists deterministic actions from feature detections", () => {
+test("lists deterministic actions from feature detections", () => {
   assertEquals(
     featureActions(
       builtInFeatureRegistry,
@@ -22,7 +25,7 @@ Deno.test("lists deterministic actions from feature detections", () => {
   );
 });
 
-Deno.test("converts selected actions into feature requests", () => {
+test("converts selected actions into feature requests", () => {
   assertEquals(
     selectedFeatureActionsToRequest(["enable:git", "repair:readme-static"]),
     {

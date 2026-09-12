@@ -1,3 +1,6 @@
+import { test as nativeTest } from "node:test";
+import { trackTests } from "../testing/inventory-test-fixtures.ts";
+const test = trackTests(import.meta.url, nativeTest);
 import { assertEquals, assertRejects, assertThrows } from "@std/assert";
 import {
   parseProjectAutoAdd,
@@ -11,7 +14,7 @@ import {
 } from "../projects/auto-add-test-fixtures.ts";
 import type { ProjectPage } from "../projects/browser-connection.ts";
 
-Deno.test("project auto-add validates all arguments before browser access", async () => {
+test("project auto-add validates all arguments before browser access", async () => {
   assertEquals(parseProjectAutoAdd(["--yes"]), {
     method: "auto",
     browserUrl: "ws://127.0.0.1:9222/session",
@@ -38,7 +41,7 @@ Deno.test("project auto-add validates all arguments before browser access", asyn
     "--yes",
   );
 });
-Deno.test("project auto-add closes its own tab on success and failure", async () => {
+test("project auto-add closes its own tab on success and failure", async () => {
   let closed = 0;
   let failure = false;
   const page: ProjectPage = {

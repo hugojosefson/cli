@@ -1,3 +1,6 @@
+import { test as nativeTest } from "node:test";
+import { trackTests } from "../testing/inventory-test-fixtures.ts";
+const test = trackTests(import.meta.url, nativeTest);
 import { assertEquals } from "@std/assert";
 import type { ArtifactObservation } from "../api/artifact-inspection.ts";
 import type { OperationContext } from "../api/repository-context.ts";
@@ -7,7 +10,7 @@ import { createLicenseMitFeature } from "./license-mit-feature.ts";
 const template = "Copyright <year> <copyright holders>\nterms\n";
 const apacheTemplate = "Apache [yyyy] [name of copyright owner]\nterms\n";
 
-Deno.test("MIT provider detects exact, drifted, and ambiguous LICENSE files", async () => {
+test("MIT provider detects exact, drifted, and ambiguous LICENSE files", async () => {
   const feature = createLicenseMitFeature(
     source(template),
     source(apacheTemplate),
@@ -36,7 +39,7 @@ Deno.test("MIT provider detects exact, drifted, and ambiguous LICENSE files", as
   );
 });
 
-Deno.test("MIT detection tolerates checkout permissions but rejects executable or read-only files", async () => {
+test("MIT detection tolerates checkout permissions but rejects executable or read-only files", async () => {
   const feature = createLicenseMitFeature(
     source(template),
     source(apacheTemplate),
@@ -55,7 +58,7 @@ Deno.test("MIT detection tolerates checkout permissions but rejects executable o
   }
 });
 
-Deno.test("MIT provider writes resolved attribution and repairs only mode drift", async () => {
+test("MIT provider writes resolved attribution and repairs only mode drift", async () => {
   const feature = createLicenseMitFeature(
     source(template),
     source(apacheTemplate),
@@ -91,7 +94,7 @@ Deno.test("MIT provider writes resolved attribution and repairs only mode drift"
   );
 });
 
-Deno.test("MIT provider removes only exact downloaded content", async () => {
+test("MIT provider removes only exact downloaded content", async () => {
   const feature = createLicenseMitFeature(
     source(template),
     source(apacheTemplate),
@@ -113,7 +116,7 @@ Deno.test("MIT provider removes only exact downloaded content", async () => {
   );
 });
 
-Deno.test("MIT provider does not download while LICENSE is absent", async () => {
+test("MIT provider does not download while LICENSE is absent", async () => {
   let calls = 0;
   const feature = createLicenseMitFeature(() => {
     calls++;

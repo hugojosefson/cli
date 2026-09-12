@@ -1,8 +1,11 @@
+import { test as nativeTest } from "node:test";
+import { trackTests } from "../testing/inventory-test-fixtures.ts";
+const test = trackTests(import.meta.url, nativeTest);
 import { assertEquals } from "@std/assert";
 import { builtInFeatureRegistry } from "../features/built-in-feature-registry.ts";
 import { workflowCliChanges } from "./workflow-cli-changes.ts";
 
-Deno.test("workflow source selection expands presets and dependencies without duplicate or disabled changes", () => {
+test("workflow source selection expands presets and dependencies without duplicate or disabled changes", () => {
   const request = {
     changes: [],
     presets: ["jsr"],

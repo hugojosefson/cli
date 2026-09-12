@@ -1,3 +1,16 @@
+import { test as nativeTest } from "node:test";
+import { trackTests } from "../testing/inventory-test-fixtures.ts";
+const test = trackTests(import.meta.url, nativeTest);
+import {
+  chmod,
+  fixtureStat,
+  makeTempDir,
+  mkdir,
+  readTextFile,
+  remove,
+  writeTextFile,
+} from "../testing/files-test-fixtures.ts";
+import { runCommand } from "../runtime/command.ts";
 import { assert, assertEquals } from "@std/assert";
 import type { OperationContext } from "../api/repository-context.ts";
 import { applyLocalChangePlan } from "../operations/local-change-plan.ts";
@@ -7,7 +20,7 @@ import { denoCliArtifacts } from "./deno-cli-artifacts.ts";
 import { denoCliFeature } from "./deno-cli-feature.ts";
 import { resolveFeatureChanges } from "./resolve-feature-changes.ts";
 
-Deno.test("deno-cli resolves deno-fmt and shares initial exports", async () => {
+test("deno-cli resolves deno-fmt and shares initial exports", async () => {
   assertEquals(denoCliArtifacts.map((artifact) => artifact.path), [
     "src/cli/cli.ts",
     "src/cli/command.ts",
@@ -53,16 +66,16 @@ Deno.test("deno-cli resolves deno-fmt and shares initial exports", async () => {
         await feature.planEnable(context(root, resolved), check),
       );
     }
-    const config = await Deno.readTextFile(new URL("deno.jsonc", root));
+    const config = await readTextFile(new URL("deno.jsonc", root));
     assert(config.includes('"./cli": "./src/cli/cli.ts"'));
     assert(config.includes('".": "./src/lib/mod.ts"'));
     for (const artifact of denoCliArtifacts) {
-      assert((await Deno.stat(new URL(artifact.path, root))).isFile);
+      assert((await fixtureStat(new URL(artifact.path, root))).isFile);
     }
-    const result = await new Deno.Command("deno", {
+    const result = await runCommand("deno", {
       args: ["test", "test/cli_test.ts"],
       cwd: root.pathname,
-    }).output();
+    });
     assert(
       result.success,
       `Generated CLI smoke test failed:\n${
@@ -72,16 +85,16 @@ Deno.test("deno-cli resolves deno-fmt and shares initial exports", async () => {
   });
 });
 
-Deno.test("deno-cli adopts, repairs content and mode, then preserves seed on disable", async () => {
+test("deno-cli adopts, repairs content and mode, then preserves seed on disable", async () => {
   await withRepository(async (root) => {
     await apply(root);
     assertEquals((await denoCliFeature.detect(context(root))).state, "enabled");
-    await Deno.writeTextFile(
+    await writeTextFile(
       new URL("src/cli/commands.ts", root),
       "edited\n",
     );
-    await Deno.chmod(new URL("src/cli/cli.ts", root), 0o644);
-    await Deno.chmod(new URL("src/cli/commands.ts", root), 0o755);
+    await chmod(new URL("src/cli/cli.ts", root), 0o644);
+    await chmod(new URL("src/cli/commands.ts", root), 0o755);
     assertEquals((await denoCliFeature.detect(context(root))).state, "enabled");
     assertEquals(
       (await denoCliFeature.checkEnable(context(root))).result,
@@ -90,11 +103,11 @@ Deno.test("deno-cli adopts, repairs content and mode, then preserves seed on dis
     await apply(root, { kind: "features", featureIds: ["deno-cli"] });
     for (const artifact of denoCliArtifacts) {
       assertEquals(
-        await Deno.readTextFile(new URL(artifact.path, root)),
+        await readTextFile(new URL(artifact.path, root)),
         artifact.content,
       );
       assertEquals(
-        (await Deno.stat(new URL(artifact.path, root))).mode! & 0o777,
+        (await fixtureStat(new URL(artifact.path, root))).mode! & 0o777,
         artifact.mode,
       );
     }
@@ -111,36 +124,34 @@ Deno.test("deno-cli adopts, repairs content and mode, then preserves seed on dis
       "disabled",
     );
     for (const artifact of denoCliArtifacts) {
-      assert((await Deno.stat(new URL(artifact.path, root))).isFile);
+      assert((await fixtureStat(new URL(artifact.path, root))).isFile);
     }
   });
 });
 
-Deno.test("deno-cli preserves JSONC and blocks path and export conflicts", async () => {
+test("deno-cli preserves JSONC and blocks path and export conflicts", async () => {
   await withRepository(async (root) => {
-    await Deno.writeTextFile(
+    await writeTextFile(
       new URL("deno.jsonc", root),
       '{\n  // keep\n  "name": "example"\n}\n',
     );
     await apply(root);
     assert(
-      (await Deno.readTextFile(new URL("deno.jsonc", root))).includes(
+      (await readTextFile(new URL("deno.jsonc", root))).includes(
         "// keep",
       ),
     );
   });
   await withRepository(async (root) => {
-    await Deno.mkdir(new URL("src/", root));
-    await Deno.writeTextFile(new URL("src/cli", root), "conflict\n", {
-      create: true,
-    });
+    await mkdir(new URL("src/", root));
+    await writeTextFile(new URL("src/cli", root), "conflict\n");
     assertEquals(
       (await denoCliFeature.checkEnable(context(root))).result,
       "blocked",
     );
   });
   await withRepository(async (root) => {
-    await Deno.writeTextFile(
+    await writeTextFile(
       new URL("deno.jsonc", root),
       '{ "exports": { "./cli": "./other.ts" } }\n',
     );
@@ -191,13 +202,13 @@ function context(
 async function withRepository(
   action: (root: URL) => Promise<void>,
 ): Promise<void> {
-  const path = await Deno.makeTempDir({
+  const path = await makeTempDir({
     dir: "/tmp/opencode",
     prefix: "hj-deno-cli-",
   });
   try {
     await action(new URL(`file://${path}/`));
   } finally {
-    await Deno.remove(path, { recursive: true });
+    await remove(path, { recursive: true });
   }
 }

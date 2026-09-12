@@ -1,7 +1,10 @@
+import { test as nativeTest } from "node:test";
+import { trackTests } from "../testing/inventory-test-fixtures.ts";
+const test = trackTests(import.meta.url, nativeTest);
 import { assertEquals, assertRejects } from "@std/assert";
 import { runOrThrow } from "./release-process.ts";
 
-Deno.test("release failures identify the operation and exit code without exposing process data", async () => {
+test("release failures identify the operation and exit code without exposing process data", async () => {
   const process = {
     run: () =>
       Promise.resolve({

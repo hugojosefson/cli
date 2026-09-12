@@ -1,3 +1,6 @@
+import { test as nativeTest } from "node:test";
+import { trackTests } from "../testing/inventory-test-fixtures.ts";
+const test = trackTests(import.meta.url, nativeTest);
 import { assertEquals, assertRejects } from "@std/assert";
 import type { FeatureDetection } from "../api/feature-detection.ts";
 import type { JsonObject } from "../api/json.ts";
@@ -75,7 +78,7 @@ function context(
   };
 }
 
-Deno.test("main protection plans generated CI and a separate review bypass", async () => {
+test("main protection plans generated CI and a separate review bypass", async () => {
   const mainContext = context([]);
   const mainAllowed = await githubMainProtectionFeature.checkEnable(
     mainContext,
@@ -121,7 +124,7 @@ Deno.test("main protection plans generated CI and a separate review bypass", asy
   }]);
 });
 
-Deno.test("main protection requires exact CI on the remote default branch", async () => {
+test("main protection requires exact CI on the remote default branch", async () => {
   for (
     const remote of [{ kind: "absent" as const }, {
       kind: "file" as const,
@@ -138,7 +141,7 @@ Deno.test("main protection requires exact CI on the remote default branch", asyn
   }
 });
 
-Deno.test("main protection replanning rejects a changed remote CI workflow", async () => {
+test("main protection replanning rejects a changed remote CI workflow", async () => {
   const operation = context([]);
   let reads = 0;
   operation.github!.remoteFile = () =>
@@ -154,7 +157,7 @@ Deno.test("main protection replanning rejects a changed remote CI workflow", asy
   );
 });
 
-Deno.test("protection definitions match accepted GitHub payloads", () => {
+test("protection definitions match accepted GitHub payloads", () => {
   assertEquals(mainProtectionDefinition, {
     bypass_actors: [],
     conditions: { ref_name: { exclude: [], include: ["~DEFAULT_BRANCH"] } },
@@ -238,7 +241,7 @@ Deno.test("protection definitions match accepted GitHub payloads", () => {
   });
 });
 
-Deno.test("protected tags adopt exact state and preserve unrelated rulesets", async () => {
+test("protected tags adopt exact state and preserve unrelated rulesets", async () => {
   const initial = context([]);
   const allowed = await githubProtectedTagsFeature.checkEnable(initial);
   if (allowed.result !== "allowed") throw new Error("expected allowed");
@@ -334,7 +337,7 @@ Deno.test("protected tags adopt exact state and preserve unrelated rulesets", as
   }]);
 });
 
-Deno.test("protected tags resume guarded transitions and reject unsafe reserved state", async () => {
+test("protected tags resume guarded transitions and reject unsafe reserved state", async () => {
   const guard = resource(protectedTagsGuardDefinition, "guard", 1);
   const release = resource(releaseTagsDefinition, "release", 2);
   const enableAllowed = await githubProtectedTagsFeature.checkEnable(
@@ -369,7 +372,7 @@ Deno.test("protected tags resume guarded transitions and reject unsafe reserved 
   );
 });
 
-Deno.test("unavailable and duplicate reserved rulesets are ambiguous", async () => {
+test("unavailable and duplicate reserved rulesets are ambiguous", async () => {
   assertEquals(
     (await githubMainProtectionFeature.detect(context(undefined))).state,
     "ambiguous",
@@ -389,7 +392,7 @@ Deno.test("unavailable and duplicate reserved rulesets are ambiguous", async () 
   );
 });
 
-Deno.test("ruleset drift requires repair and guards replacement", async () => {
+test("ruleset drift requires repair and guards replacement", async () => {
   const drift = resource(
     {
       ...mainProtectionDefinition,
@@ -439,7 +442,7 @@ Deno.test("ruleset drift requires repair and guards replacement", async () => {
   }]);
 });
 
-Deno.test("planning rejects ruleset state changes after an allowed check", async () => {
+test("planning rejects ruleset state changes after an allowed check", async () => {
   const changing = context([]);
   const duplicate = resource(mainProtectionDefinition, "duplicate", 6);
   let reads = 0;
@@ -452,7 +455,7 @@ Deno.test("planning rejects ruleset state changes after an allowed check", async
   );
 });
 
-Deno.test("disable deletes exact rulesets only with an optimistic guard", async () => {
+test("disable deletes exact rulesets only with an optimistic guard", async () => {
   const exact = resource(mainReviewDefinition, "exact", 4);
   const exactContext = context([exact]);
   const allowed = await githubMainReviewFeature.checkDisable(exactContext);
@@ -476,7 +479,7 @@ Deno.test("disable deletes exact rulesets only with an optimistic guard", async 
   );
 });
 
-Deno.test("API-added pull-request defaults participate in exact adoption", async () => {
+test("API-added pull-request defaults participate in exact adoption", async () => {
   const missingDefault = structuredClone(mainProtectionDefinition);
   const pullRequest = (missingDefault.rules as Array<{
     type: string;
@@ -491,7 +494,7 @@ Deno.test("API-added pull-request defaults participate in exact adoption", async
   );
 });
 
-Deno.test("protection dependencies and preset remain granular", () => {
+test("protection dependencies and preset remain granular", () => {
   assertEquals(githubMainProtectionFeature.dependencies.requires, [{
     featureId: "github-ci",
     reason: "Main protection requires generated GitHub CI.",
@@ -569,7 +572,7 @@ function resource(
   };
 }
 
-Deno.test("main protection accepts exact pinned CI and binds its observed source", async () => {
+test("main protection accepts exact pinned CI and binds its observed source", async () => {
   const { workflowCliArtifact } = await import("./workflow-cli.ts");
   const operation = context([]);
   const pinned = workflowCliArtifact(githubCiArtifacts[0], {
@@ -596,7 +599,7 @@ Deno.test("main protection accepts exact pinned CI and binds its observed source
   );
 });
 
-Deno.test("main protection accepts migrated CI with recorded pins and rejects custom edits", async () => {
+test("main protection accepts migrated CI with recorded pins and rejects custom edits", async () => {
   const { workflowCliArtifact } = await import("./workflow-cli.ts");
   const { legacyCiCheckCompatibility } = await import("./github-ci-legacy.ts");
   const { hjPackageReference } = await import("./hj-package.ts");
@@ -651,7 +654,7 @@ Deno.test("main protection accepts migrated CI with recorded pins and rejects cu
   }
 });
 
-Deno.test("linked but inaccessible GitHub features remain unknown instead of disabled", async () => {
+test("linked but inaccessible GitHub features remain unknown instead of disabled", async () => {
   const base = context([]);
   const features = builtInFeatureRegistry.features.filter((feature) =>
     [
