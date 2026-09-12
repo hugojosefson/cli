@@ -350,9 +350,10 @@ version for workflows, use the
 [workflow source option](releases.md#bootstrap-before-the-first-registry-version).
 
 `check` and `all` depend on `ci`, which runs non-mutating checks and enforces
-coverage limits. CI collects tests once through the coverage task. Detection
-accepts the project's custom file selections and runner scripts. A configured
-task is not proof that its checks pass. The CI result supplies that proof.
+coverage limits. CI collects Deno coverage once, then runs the same tests in
+Node 24, Node 26, and Bun. Detection accepts the project's custom file
+selections and runner scripts. A configured task is not proof that its checks
+pass. The CI result supplies that proof.
 
 Edit [readme/README.md](../readme/README.md), then run `deno task readme`. The
 build imports a generated Markdown fragment that links to a colored SVG example.
@@ -390,7 +391,8 @@ example removes manual output maintenance.
 
 The repository already uses `@std/assert` and named test steps. For example,
 `src/features/deno-task-features_real_test.ts` groups task-conflict cases with
-`await t.step(...)` and asserts each result. Run that example with
+`await testStep(t, ...)`, which awaits native `t.test(...)`, and asserts each
+result. Run that example with
 `deno task test src/features/deno-task-features_real_test.ts --filter "classifies task conflicts"`.
 This self-check passed with one test and four named steps. The starter test
 checks also run the generated library test and verify its two named steps. This
