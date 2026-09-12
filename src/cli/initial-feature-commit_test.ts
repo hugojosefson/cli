@@ -107,7 +107,8 @@ Deno.test("package README sections belong to the CLI, library, and JSR commits",
       const [owner, marker] of [
         ["deno-cli", "deno-cli:installation"],
         ["deno-lib", "deno-lib:example"],
-        ["jsr-package", "jsr-package:api"],
+        ["deno-lib", "deno-lib:api"],
+        ["jsr-package", "jsr-package:badges"],
       ]
     ) {
       const commit = history.find((line) =>

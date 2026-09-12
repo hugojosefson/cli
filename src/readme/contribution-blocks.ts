@@ -58,9 +58,16 @@ export async function reconcileBlocks(
   desired: readonly ReadmeContribution[],
   owner?: string,
 ): Promise<string> {
+  const install =
+    text.split(/^## /m).find((section) =>
+      /^(?:Install|Installation)\s*\n/.test(section)
+    ) ?? "";
   const pending = new Map(
     desired.filter((item) =>
-      item.id !== "jsr-package:installation" || !/^## Install\s*$/im.test(text)
+      (item.id !== "jsr-package:installation" ||
+        !/^## Install\s*$/im.test(text)) &&
+      (item.id !== "readme:requirements" ||
+        !/\[Deno\]\(https:\/\/deno\.com\/?\)/.test(install))
     ).map((item) => [item.id, item]),
   );
   for (const match of [...text.matchAll(pattern)]) {
