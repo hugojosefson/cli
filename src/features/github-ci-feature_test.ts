@@ -839,6 +839,21 @@ test("github-ci runtime matrix is explicit, gated, formatted and repairable", as
     "bun",
   ]);
   assertEquals(jobs.native.strategy["fail-fast"], false);
+  const cacheName = "Cache native test npm downloads";
+  assertEquals(
+    jobs.native.steps.filter((step: { name?: string }) =>
+      step.name === cacheName
+    ).length,
+    1,
+  );
+  assertEquals(
+    jobs.deno.steps.some((step: { name?: string }) => step.name === cacheName),
+    false,
+  );
+  assertEquals(
+    jobs.check.steps.some((step: { name?: string }) => step.name === cacheName),
+    false,
+  );
   assertEquals(jobs.check.needs, ["deno", "native"]);
   assertEquals(jobs.check.if, "${{ always() }}");
   assertEquals(jobs.check.steps[0].env, {

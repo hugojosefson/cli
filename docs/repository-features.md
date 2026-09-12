@@ -544,6 +544,12 @@ PR CI cancels superseded runs for the same workflow and pull request. Different
 PRs run independently. Dependency updates and release workflows retain separate
 concurrency groups and do not cancel in-progress mutations.
 
+Managed CI and release workflows cache Deno dependencies by lockfiles and the
+selected toolchain. The CLI repository also caches native test npm downloads.
+Every check still runs. See
+[cache behavior](development.md#workflow-dependency-caches) for directory
+settings, sharing limits, and cold-run behavior.
+
 If a repository uses CI from `git-hj-init`, select `--github-ci` to migrate its
 exact `deno.yaml` and `bump-deps.yaml` workflows. The plan lists each
 replacement. It removes recognized legacy files after writing `hj-ci.yaml` and

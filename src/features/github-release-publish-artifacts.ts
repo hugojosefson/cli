@@ -2,6 +2,10 @@
 
 import { workflowDenoVersion } from "./workflow-toolchain.ts";
 import { hjPackageReference } from "./hj-package.ts";
+import {
+  denoCacheInputs,
+  nativeNpmCacheStep,
+} from "./github-workflow-cache.ts";
 
 import type {
   ArtifactSchema,
@@ -65,7 +69,7 @@ jobs:
       - uses: ${deno}
         with:
           deno-version: ${workflowDenoVersion}
-      - name: Configure Git authentication
+${denoCacheInputs}${nativeNpmCacheStep}      - name: Configure Git authentication
         env:
           GH_TOKEN: \${{ github.token }}
         run: gh auth setup-git
@@ -100,7 +104,7 @@ jobs:
       - uses: ${deno}
         with:
           deno-version: ${workflowDenoVersion}
-      - name: Configure Git authentication
+${denoCacheInputs}      - name: Configure Git authentication
         env:
           GH_TOKEN: \${{ github.token }}
         run: gh auth setup-git
@@ -168,7 +172,7 @@ ${
       - uses: ${deno}
         with:
           deno-version: ${workflowDenoVersion}
-${
+${denoCacheInputs}${
       job === "npm"
         ? `      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:

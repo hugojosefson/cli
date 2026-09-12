@@ -515,6 +515,7 @@ test("release workflows use configured Deno versions without changing CLI source
       throw new Error("Expected file schema");
     }
     assertStringIncludes(generated.schema.content, "deno-version: 2.8.1");
+    assertStringIncludes(generated.schema.content, "cache-hash: deno-2.8.1-");
     assertStringIncludes(
       generated.schema.content,
       "# hj-workflow-cli: " + source,
@@ -539,6 +540,7 @@ test("release workflows use configured Deno versions without changing CLI source
       throw new Error("Expected file schema");
     }
     assertStringIncludes(overridden.schema.content, "deno-version: 2.9.0");
+    assertStringIncludes(overridden.schema.content, "cache-hash: deno-2.9.0-");
   }
 });
 
@@ -644,4 +646,75 @@ test("release task templates detect missing PATH and tar grants as repairable dr
       "differs",
     );
   }
+});
+
+test("managed workflows cache downloads while preserving execution and exact repair", async () => {
+  for (
+    const artifact of [
+      ...githubCiArtifacts,
+      publishTagArtifact,
+      publishJsrArtifact,
+      publishGithubArtifact,
+      publishNpmArtifact,
+    ]
+  ) {
+    const workflow = parse(artifact.content);
+    for (
+      const job of Object.values(workflow.jobs) as {
+        steps: { uses?: string; with?: Record<string, unknown> }[];
+      }[]
+    ) {
+      for (const step of job.steps) {
+        if (!step.uses?.startsWith("denoland/setup-deno@")) continue;
+        assertEquals(step.with?.cache, true);
+        assertStringIncludes(
+          String(step.with?.["cache-hash"]),
+          "hashFiles('**/deno.lock', 'toolchain.json')",
+        );
+        assertEquals(
+          String(step.with?.["cache-hash"]).includes("deno.json"),
+          false,
+        );
+        assertEquals(
+          String(step.with?.["cache-hash"]).includes("github.sha"),
+          false,
+        );
+      }
+    }
+  }
+  const tag = parse(publishTagArtifact.content);
+  const npm = tag.jobs["publish-tag-prepare"].steps.find((
+    step: { name?: string },
+  ) => step.name === "Cache native test npm downloads");
+  assertEquals(npm.with.path, "~/.npm");
+  assertEquals(
+    npm.if,
+    "hashFiles('scripts/test-build/dependencies/package-lock.json') != '' && hashFiles('scripts/test-build/tools/package-lock.json') != ''",
+  );
+  assertEquals(
+    tag.jobs["publish-tag-apply"].steps.some((step: { name?: string }) =>
+      step.name === npm.name
+    ),
+    false,
+  );
+  const before = publishTagArtifact.content.replaceAll(
+    "          cache: true\n",
+    "",
+  );
+  const inspection = await inspectReleaseArtifact(
+    context({ [publishTagArtifact.path]: exact(before) }),
+    publishTagArtifact,
+  );
+  assertEquals(inspection.result, "differs");
+  if (inspection.schema.kind !== "file") {
+    throw new Error("Expected file schema");
+  }
+  const { describeFileRepair } = await import("../cli/describe-file-repair.ts");
+  const details = describeFileRepair(
+    publishTagArtifact.path,
+    before,
+    inspection.schema.content,
+  ).join("\n");
+  assertStringIncludes(details, "cache = true");
+  assertStringIncludes(details, publishTagArtifact.path);
 });

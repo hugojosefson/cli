@@ -7,6 +7,7 @@ import {
   githubCiRuntimeMatrix,
   githubCiRuntimeMatrixMarker,
 } from "./github-ci-runtime-matrix.ts";
+import { denoCacheInputs } from "./github-workflow-cache.ts";
 
 import type {
   ArtifactObservation,
@@ -46,7 +47,7 @@ jobs:
       - uses: denoland/setup-deno@22d081ff2d3a40755e97629de92e3bcbfa7cf2ed # v2.0.5
         with:
           deno-version: ${workflowDenoVersion}
-      - run: deno task all
+${denoCacheInputs}      - run: deno task all
   hj-release-commit-validation:
     runs-on: ubuntu-latest
     permissions:
@@ -59,7 +60,7 @@ jobs:
       - uses: denoland/setup-deno@22d081ff2d3a40755e97629de92e3bcbfa7cf2ed # v2.0.5
         with:
           deno-version: ${workflowDenoVersion}
-      - name: Validate release commits
+${denoCacheInputs}      - name: Validate release commits
         env:
           HJ_RELEASE_ROUTE: source-validation
           HJ_SOURCE_BASE_SHA: \${{ github.event.pull_request.base.sha }}
@@ -100,7 +101,7 @@ jobs:
       - uses: denoland/setup-deno@22d081ff2d3a40755e97629de92e3bcbfa7cf2ed # v2.0.5
         with:
           deno-version: ${workflowDenoVersion}
-      - name: Update dependencies
+${denoCacheInputs}      - name: Update dependencies
         env:
           GH_TOKEN: \${{ github.token }}
         run: |
