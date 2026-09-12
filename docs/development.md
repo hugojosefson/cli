@@ -167,6 +167,7 @@ GitHub access, so an unauthenticated visitor can receive different results.
 | `deno-server`                   | Disabled       | This tool generates servers for other projects but does not serve requests itself.                        |
 | `deno-test`                     | Enabled        | The test runner and coverage checks exercise the implementation.                                          |
 | `deno-typecheck`                | Enabled        | Source and scripts receive type checks.                                                                   |
+| `git-ignore`                    | Disabled       | Existing custom exclusions remain unowned until this feature is selected.                                 |
 | `git`                           | Enabled        | The project has a Git history.                                                                            |
 | `github-auto-merge`             | Enabled        | Passing checks allow the release bot to merge its release PR.                                             |
 | `github-ci`                     | Enabled        | Managed CI runs project checks and supplies dependency updates.                                           |
