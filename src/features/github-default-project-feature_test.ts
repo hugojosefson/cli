@@ -98,6 +98,70 @@ Deno.test("GitHub preset includes the default project and allows an explicit opt
   });
 });
 
+Deno.test("default project status previews additive Area repair for each issue without writes", async () => {
+  await withProject(async (fixture, run) => {
+    await run("--github-default-project", "--yes");
+    fixture.areaValues.set("item-open-issue", "docs");
+    fixture.areaValues.set("item-closed-issue", "custom");
+    fixture.issueLabels.set("closed-issue", ["bug", "area:release"]);
+    const count = fixture.mutations.length;
+    const output = (await run()).replace(/\s+/g, " ");
+    assertStringIncludes(output, "drifted Repair would:");
+    assertStringIncludes(output, 'Add label "area:docs" to issue #1.');
+    assertEquals(output.includes("keep"), false);
+    assertEquals(output.includes("project Area for issue #1"), false);
+    assertStringIncludes(output, 'Add label "area:custom" to issue #2.');
+    assertStringIncludes(
+      output,
+      'Add "release" to project Area for issue #2.',
+    );
+    assertEquals(output.includes(" -> "), false);
+    assertEquals(output.includes("Reuse repository labels"), false);
+    assertEquals(fixture.mutations.length, count);
+    assertEquals(fixture.issueLabels.has("open-issue"), false);
+    await run("--repair", "--yes");
+    assertEquals(fixture.issueLabels.get("open-issue"), ["area:docs"]);
+    assertEquals(fixture.issueLabels.get("closed-issue"), [
+      "bug",
+      "area:release",
+      "area:custom",
+    ]);
+    assertEquals(
+      fixture.areaValues.get("item-closed-issue"),
+      "custom, release",
+    );
+    const repaired = await run();
+    assertEquals(repaired.includes("drifted"), false);
+    assertEquals(repaired.includes("Repair would:"), false);
+    const repairedCount = fixture.mutations.length;
+    await run("--repair", "--yes");
+    assertEquals(fixture.mutations.length, repairedCount);
+  });
+});
+
+Deno.test("default project status identifies missing configuration and issues", async () => {
+  await withProject(async (fixture, run) => {
+    await run("--github-default-project", "--yes");
+    fixture.fields = fixture.fields.filter((field) =>
+      !["Priority", "Area"].includes(String(field.name))
+    );
+    fixture.views = [];
+    fixture.issues.push({ id: "new", state: "OPEN" });
+    const count = fixture.mutations.length;
+    const output = (await run()).replace(/\s+/g, " ");
+    assertStringIncludes(output, "Create project Priority field.");
+    assertStringIncludes(output, "Set up project Board view.");
+    assertStringIncludes(output, "Create project Work view.");
+    assertStringIncludes(output, "Create project Area text field.");
+    assertStringIncludes(output, "Show Area in project Work and Board views.");
+    assertStringIncludes(
+      output,
+      "Add 1 missing repository issue(s) to the project.",
+    );
+    assertEquals(fixture.mutations.length, count);
+  });
+});
+
 Deno.test("default project refuses unavailable or conflicting configuration before mutations", async () => {
   await withProject(async (fixture, run) => {
     fixture.fail = "projectsV2(first";

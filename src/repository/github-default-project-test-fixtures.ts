@@ -37,6 +37,7 @@ export class ProjectFixture implements GithubCommandRunner {
   assignments: Record<string, unknown>[] = [];
   areaValues = new Map<string, string>();
   issueLabels = new Map<string, string[]>();
+  repositoryLabels = new Map<string, string>();
   mutations: string[] = [];
   hasProjects = false;
   fail?: string;
@@ -97,6 +98,44 @@ export class ProjectFixture implements GithubCommandRunner {
     const override = this.override?.(query, variables);
     if (override !== undefined) return output(override);
     if (query.startsWith("mutation")) this.mutations.push(query);
+    if (query.includes("label(name:$label)")) {
+      const names = [
+        ...this.repositoryLabels.keys(),
+        ...[...this.issueLabels.values()].flat(),
+      ];
+      const name = names.find((name) =>
+        name.toLowerCase() === variables.label.toLowerCase()
+      );
+      if (name && !this.repositoryLabels.has(name)) {
+        this.repositoryLabels.set(name, `label-${name}`);
+      }
+      return output({
+        data: {
+          repository: {
+            id: "repository",
+            label: name ? { id: this.repositoryLabels.get(name) } : null,
+          },
+        },
+      });
+    }
+    if (query.includes("createLabel(input")) {
+      const id = `label-${variables.name}`;
+      this.repositoryLabels.set(variables.name, id);
+      return output({ data: { createLabel: { label: { id } } } });
+    }
+    if (query.includes("addLabelsToLabelable(input")) {
+      const labels = this.issueLabels.get(variables.issue) ?? [];
+      for (const id of variables.labels) {
+        const name = [...this.repositoryLabels].find(([, value]) =>
+          value === id
+        )![0];
+        if (!labels.includes(name)) labels.push(name);
+      }
+      this.issueLabels.set(variables.issue, labels);
+      return output({
+        data: { addLabelsToLabelable: { labelable: { id: variables.issue } } },
+      });
+    }
     if (query.includes("createProjectV2(input")) {
       this.projects.push(this.project(variables.title));
       return output({
@@ -187,6 +226,11 @@ export class ProjectFixture implements GithubCommandRunner {
           id: `item-${issueId}`,
           content: issueId
             ? {
+              id: issueId,
+              number: this.issues.findIndex((issue) =>
+                    issue.id === issueId
+                  ) + 1 ||
+                999,
               repository: { nameWithOwner: "owner/repo" },
               labels: projectConnection(
                 (this.issueLabels.get(issueId) ?? []).map((name) => ({ name })),

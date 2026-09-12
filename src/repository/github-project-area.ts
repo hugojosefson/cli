@@ -1,4 +1,4 @@
-/** Project Area values are derived from this repository's area:* labels. */
+/** Synchronize project Area values and area:* labels without removing areas. */
 import type { JsonObject } from "../api/json.ts";
 import { object } from "./github-response.ts";
 
@@ -9,7 +9,15 @@ type Pages = (
 export interface ProjectAreaSnapshot {
   readonly fieldId?: string;
   readonly conflict: boolean;
-  readonly items: readonly { id: string; actual: string; desired: string }[];
+  readonly items: readonly {
+    id: string;
+    issueId: string;
+    issueNumber: number;
+    actual: string;
+    desired: string;
+    addedAreas: readonly string[];
+    missingLabels: readonly string[];
+  }[];
 }
 export function areaFromLabels(labels: readonly string[]): string {
   return [
@@ -22,7 +30,33 @@ export function areaFromLabels(labels: readonly string[]): string {
 }
 export function areaReady(snapshot: ProjectAreaSnapshot): boolean {
   return !!snapshot.fieldId && !snapshot.conflict &&
-    snapshot.items.every((item) => item.actual === item.desired);
+    snapshot.items.every((item) =>
+      item.actual === item.desired && item.missingLabels.length === 0
+    );
+}
+
+function names(value: string): string[] {
+  return [
+    ...new Set(value.split(",").map((name) => name.trim()).filter(Boolean)),
+  ];
+}
+
+function mergeAreas(actual: string, labels: readonly string[]) {
+  const existing = names(actual);
+  const labeled = names(areaFromLabels(labels));
+  // GitHub label names are case-insensitive. Keep existing spelling and text
+  // formatting when no Area value needs to be added.
+  const has = (values: readonly string[], name: string) =>
+    values.some((value) => value.toLowerCase() === name.toLowerCase());
+  const additions = labeled.filter((name) => !has(existing, name));
+  return {
+    addedAreas: additions,
+    desired: additions.length
+      ? [...existing, ...additions].sort().join(", ")
+      : actual,
+    missingLabels: existing.filter((name) => !has(labeled, name))
+      .map((name) => `area:${name}`),
+  };
 }
 export class GithubProjectArea {
   constructor(
@@ -47,12 +81,12 @@ export class GithubProjectArea {
     const fieldId = areas.length ? string(areas[0]?.id) : undefined;
     const nodes = await this.pages(async (cursor) => {
       const data = await this.query(
-        'query($project:ID!,$cursor:String){node(id:$project){... on ProjectV2{items(first:100,after:$cursor){nodes{id content{... on Issue{repository{nameWithOwner} labels(first:100){nodes{name}pageInfo{hasNextPage}}}} fieldValueByName(name:"Area"){... on ProjectV2ItemFieldTextValue{text}}}pageInfo{hasNextPage endCursor}}}}}',
+        'query($project:ID!,$cursor:String){node(id:$project){... on ProjectV2{items(first:100,after:$cursor){nodes{id content{... on Issue{id number repository{nameWithOwner} labels(first:100){nodes{name}pageInfo{hasNextPage}}}} fieldValueByName(name:"Area"){... on ProjectV2ItemFieldTextValue{text}}}pageInfo{hasNextPage endCursor}}}}}',
         { project: this.project, cursor },
       );
       return object(data.node)?.items;
     });
-    const items: { id: string; actual: string; desired: string }[] = [];
+    const items: ProjectAreaSnapshot["items"][number][] = [];
     for (const node of nodes) {
       const item = object(node);
       const issue = object(item?.content);
@@ -68,10 +102,17 @@ export class GithubProjectArea {
       if (value && typeof value.text !== "string") {
         throw new Error("Cannot read the project's Area value.");
       }
+      if (!Number.isSafeInteger(issue?.number) || Number(issue?.number) < 1) {
+        throw new Error("Cannot read GitHub Area issue number.");
+      }
+      const actual = value ? String(value.text) : "";
       items.push({
         id: string(item?.id),
-        actual: value ? String(value.text) : "",
-        desired: areaFromLabels(
+        issueId: string(issue?.id),
+        issueNumber: Number(issue!.number),
+        actual,
+        ...mergeAreas(
+          actual,
           labels.nodes.map((label) => string(object(label)?.name)),
         ),
       });
@@ -93,14 +134,25 @@ export class GithubProjectArea {
         object(object(result.createProjectV2Field)?.projectV2Field)?.id,
       );
     }
+    const labelIds = new Map<string, string>();
     for (const item of snapshot.items) {
-      if (item.actual === item.desired) continue;
-      if (!item.desired) {
+      const missingIds: string[] = [];
+      for (const name of item.missingLabels) {
+        const key = name.toLowerCase();
+        let id = labelIds.get(key);
+        if (!id) {
+          id = await this.#ensureLabel(name);
+          labelIds.set(key, id);
+        }
+        missingIds.push(id);
+      }
+      if (missingIds.length) {
         await this.query(
-          "mutation($project:ID!,$item:ID!,$field:ID!){clearProjectV2ItemFieldValue(input:{projectId:$project,itemId:$item,fieldId:$field}){projectV2Item{id}}}",
-          { project: this.project, item: item.id, field: fieldId },
+          "mutation($issue:ID!,$labels:[ID!]!){addLabelsToLabelable(input:{labelableId:$issue,labelIds:$labels}){labelable{... on Issue{id}}}}",
+          { issue: item.issueId, labels: missingIds },
         );
-      } else {
+      }
+      if (item.actual !== item.desired) {
         await this.query(
           "mutation($project:ID!,$item:ID!,$field:ID!,$text:String!){updateProjectV2ItemFieldValue(input:{projectId:$project,itemId:$item,fieldId:$field,value:{text:$text}}){projectV2Item{id}}}",
           {
@@ -113,7 +165,62 @@ export class GithubProjectArea {
       }
     }
   }
+
+  async #ensureLabel(label: string): Promise<string> {
+    const [owner, name] = this.repository.split("/");
+    const read = async () => {
+      const data = await this.query(
+        "query($owner:String!,$name:String!,$label:String!){repository(owner:$owner,name:$name){id label(name:$label){id}}}",
+        { owner, name, label },
+      );
+      const repository = object(data.repository);
+      const repositoryId = string(repository?.id);
+      // Only an explicit null means the label does not exist.
+      const id = repository?.label === null
+        ? undefined
+        : string(object(repository?.label)?.id);
+      return { repositoryId, id };
+    };
+    const current = await read();
+    if (current.id) return current.id;
+    try {
+      const result = await this.query(
+        'mutation($repository:ID!,$name:String!){createLabel(input:{repositoryId:$repository,name:$name,color:"ededed"}){label{id}}}',
+        { repository: current.repositoryId, name: label },
+      );
+      return string(object(object(result.createLabel)?.label)?.id);
+    } catch (error) {
+      // Another writer or an uncertain response can leave the label created.
+      // Read before deciding to fail; never repeat the creation blindly.
+      const after = await read();
+      if (after.id) return after.id;
+      throw error;
+    }
+  }
 }
+
+export function areaRepairDetails(snapshot: ProjectAreaSnapshot): string[] {
+  const details: string[] = [];
+  for (const item of snapshot.items) {
+    const subject = `issue #${item.issueNumber}`;
+    const quoted = (values: readonly string[]) =>
+      values.map((value) => JSON.stringify(value)).join(", ");
+    if (item.missingLabels.length) {
+      details.push(
+        `Add ${item.missingLabels.length === 1 ? "label" : "labels"} ${
+          quoted(item.missingLabels)
+        } to ${subject}.`,
+      );
+    }
+    if (item.addedAreas.length) {
+      details.push(
+        `Add ${quoted(item.addedAreas)} to project Area for ${subject}.`,
+      );
+    }
+  }
+  return details;
+}
+
 function string(value: unknown): string {
   if (typeof value !== "string" || !value) {
     throw new Error("Cannot read GitHub Area data.");
