@@ -13,6 +13,7 @@ import { object } from "./github-response.ts";
 import { digestBytes } from "./digest-bytes.ts";
 import {
   areaReady,
+  areaRepairDetails,
   GithubProjectArea,
   type ProjectAreaSnapshot,
 } from "./github-project-area.ts";
@@ -112,10 +113,36 @@ export class GithubDefaultProjectClient {
       statusOrderReady,
       missingIssues: snapshot.missing.length,
     };
+    const repairDetails: string[] = [];
+    if (!definition.hasStatus) {
+      repairDetails.push("Create project Status field.");
+    }
+    if (!definition.hasPriority) {
+      repairDetails.push("Create project Priority field.");
+    }
+    if (!definition.hasBoard) repairDetails.push("Set up project Board view.");
+    if (!definition.hasWork) repairDetails.push("Create project Work view.");
+    if (!snapshot.area?.fieldId) {
+      repairDetails.push("Create project Area text field.");
+    }
+    if (!definition.areaVisible) {
+      repairDetails.push("Show Area in project Work and Board views.");
+    }
+    if (!definition.statusOrderReady && definition.hasStatus) {
+      repairDetails.push(
+        "Place Backlog before Todo in project Status options.",
+      );
+    }
+    if (definition.missingIssues) {
+      repairDetails.push(
+        `Add ${definition.missingIssues} missing repository issue(s) to the project.`,
+      );
+    }
+    if (snapshot.area) repairDetails.push(...areaRepairDetails(snapshot.area));
     return {
       kind: defaultProjectResource,
       name: defaultProjectName,
-      definition,
+      definition: { ...definition, repairDetails },
       stateDigest: await digestBytes(
         new TextEncoder().encode(JSON.stringify(snapshot)),
       ),

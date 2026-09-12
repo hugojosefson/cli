@@ -523,12 +523,28 @@ custom status scheme without Todo stays unchanged. Priorities are `P1`, `P2`,
 and `P3`. Newly added open issues enter Todo. Closed issues enter Done. Existing
 item statuses and priorities stay unchanged.
 
-The `Area` text column contains values from `area:*` issue labels. For example,
-`area:cli` and `area:github` produce `cli, github`. Work and Board show Area
-beside Title. Setup updates this derived column when labels change and clears it
-when no area labels remain. It preserves the source labels and other fields.
-Newly auto-added issues receive Area values on the next explicit setup run.
-Repeated setup adds no duplicate project items or views.
+The `Area` text column and `area:*` issue labels hold the same areas. For
+example, `area:cli` and `area:github` correspond to `cli, github`. Work and
+Board show Area beside Title. Enter multiple Area values separated by commas.
+Area names have no fixed list; surrounding spaces and differences in
+capitalization do not affect matching.
+
+Setup and repair combine the areas from both places. They add missing Area
+values and missing issue labels, creating repository labels when needed. For
+example, an issue with Area `docs` and no labels keeps `docs` and receives the
+`area:docs` label. Existing areas, unrelated labels, and other project fields
+remain. To remove an area permanently, remove it from both the Area field and
+the issue's labels before the next repair. Removing it from only one place lets
+repair restore it from the other.
+
+Synchronization runs during explicit setup or repair, including for newly
+auto-added issues. Repeated setup adds no duplicate labels, project items, or
+views.
+
+`hj repo features` lists the additions that repair would make for each affected
+issue: labels to add to the issue and values to add to project Area. It also
+identifies missing project fields, views, or issues. Unchanged values are
+omitted. Inspection does not change the project or its issues.
 
 Create an issue with its project selected:
 

@@ -400,7 +400,7 @@ Deno.test("default project keeps custom views and moves Backlog without replacin
   assertEquals(fixture.mutations.length, before);
 });
 
-Deno.test("default project projects area labels and updates only Area values", async () => {
+Deno.test("default project repairs areas by adding values and labels without removing either", async () => {
   const fixture = new ProjectFixture();
   fixture.issueLabels.set("open-issue", [
     "area:github",
@@ -412,16 +412,125 @@ Deno.test("default project projects area labels and updates only Area values", a
   await apply(fixture);
   assertEquals(fixture.areaValues.get("item-open-issue"), "cli, github");
   assertEquals(fixture.areaValues.get("item-closed-issue"), "docs");
-  fixture.issueLabels.set("open-issue", ["area:release"]);
+  fixture.issueLabels.set("open-issue", ["area:release", "enhancement"]);
   fixture.issueLabels.set("closed-issue", []);
   assertEquals((await client(fixture).resource()).definition.areaReady, false);
   const assignments = [...fixture.assignments];
   await apply(fixture);
-  assertEquals(fixture.areaValues.get("item-open-issue"), "release");
-  assertEquals(fixture.areaValues.has("item-closed-issue"), false);
+  assertEquals(
+    fixture.areaValues.get("item-open-issue"),
+    "cli, github, release",
+  );
+  assertEquals(fixture.areaValues.get("item-closed-issue"), "docs");
+  assertEquals(fixture.issueLabels.get("open-issue"), [
+    "area:release",
+    "enhancement",
+    "area:cli",
+    "area:github",
+  ]);
+  assertEquals(fixture.issueLabels.get("closed-issue"), ["area:docs"]);
   assertEquals(fixture.assignments, assignments);
   const before = fixture.mutations.length;
   await apply(fixture);
+  assertEquals(fixture.mutations.length, before);
+});
+
+Deno.test("default project reuses repository labels and creates new areas once for multiple issues", async () => {
+  const fixture = new ProjectFixture();
+  await apply(fixture);
+  fixture.repositoryLabels.set("area:Docs", "existing-docs");
+  fixture.areaValues.set("item-open-issue", "docs, custom");
+  fixture.areaValues.set("item-closed-issue", "custom");
+  fixture.issueLabels.set("open-issue", ["bug"]);
+  const assignments = [...fixture.assignments];
+  await apply(fixture);
+  assertEquals(fixture.areaValues.get("item-open-issue"), "docs, custom");
+  assertEquals(fixture.areaValues.get("item-closed-issue"), "custom");
+  assertEquals(fixture.issueLabels.get("open-issue"), [
+    "bug",
+    "area:Docs",
+    "area:custom",
+  ]);
+  assertEquals(fixture.issueLabels.get("closed-issue"), ["area:custom"]);
+  assertEquals(fixture.repositoryLabels.get("area:Docs"), "existing-docs");
+  assertEquals(
+    fixture.mutations.filter((query) => query.includes("createLabel(input"))
+      .length,
+    1,
+  );
+  assertEquals((await client(fixture).resource()).definition.areaReady, true);
+  assertEquals(fixture.assignments, assignments);
+  const before = fixture.mutations.length;
+  await apply(fixture);
+  assertEquals(fixture.mutations.length, before);
+});
+
+Deno.test("default project retries a failed label assignment without losing areas or duplicating labels", async () => {
+  const fixture = new ProjectFixture();
+  await apply(fixture);
+  fixture.areaValues.set("item-open-issue", "docs");
+  fixture.issueLabels.set("open-issue", ["bug", "area:cli"]);
+  fixture.fail = "addLabelsToLabelable";
+  await assertRejects(() => apply(fixture));
+  assertEquals(fixture.areaValues.get("item-open-issue"), "docs");
+  assertEquals(fixture.issueLabels.get("open-issue"), ["bug", "area:cli"]);
+  assertEquals((await client(fixture).resource()).definition.areaReady, false);
+  fixture.fail = undefined;
+  await apply(fixture);
+  assertEquals(fixture.areaValues.get("item-open-issue"), "cli, docs");
+  assertEquals(fixture.issueLabels.get("open-issue"), [
+    "bug",
+    "area:cli",
+    "area:docs",
+  ]);
+  assertEquals(
+    fixture.mutations.filter((query) => query.includes("createLabel(input"))
+      .length,
+    1,
+  );
+});
+
+Deno.test("default project rereads uncertain label creation and rejects unavailable labels", async () => {
+  for (const created of [true, false]) {
+    const fixture = new ProjectFixture();
+    await apply(fixture);
+    fixture.areaValues.set("item-open-issue", "docs");
+    fixture.override = (query) => {
+      if (query.includes("createLabel(input")) {
+        if (created) fixture.repositoryLabels.set("area:docs", "raced-label");
+        return { errors: [{ message: "Creation response lost" }] };
+      }
+    };
+    if (created) {
+      await apply(fixture);
+      assertEquals(fixture.issueLabels.get("open-issue"), ["area:docs"]);
+      assertEquals(
+        (await client(fixture).resource()).definition.areaReady,
+        true,
+      );
+    } else {
+      await assertRejects(() => apply(fixture));
+      assertEquals(fixture.issueLabels.has("open-issue"), false);
+    }
+    assertEquals(fixture.areaValues.get("item-open-issue"), "docs");
+  }
+});
+
+Deno.test("default project refuses incomplete label lookups before creating labels", async () => {
+  const fixture = new ProjectFixture();
+  await apply(fixture);
+  fixture.areaValues.set("item-open-issue", "docs");
+  const before = fixture.mutations.length;
+  fixture.override = (query) => {
+    if (query.includes("label(name:$label)")) {
+      return { data: { repository: { id: "repository" } } };
+    }
+  };
+  await assertRejects(
+    () => apply(fixture),
+    Error,
+    "Cannot read GitHub Area data",
+  );
   assertEquals(fixture.mutations.length, before);
 });
 
