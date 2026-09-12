@@ -541,10 +541,9 @@ sections, edited values, removal, repair, and stale file guards.
 ## Local native npm build
 
 Run `deno task npm-build` to build the native ESM CLI and its complete
-dependency archive without publishing. Run
-`node .hj/npm/esm/src/cli/cli.js --help` or
-`bun .hj/npm/esm/src/cli/cli.js --help` to inspect it. Node 24+ and Bun 1.4.2+
-run ordinary commands directly. External Deno remains necessary for Deno project
+dependency archive without publishing. Run `node .hj/npm/esm/hj.js --help` or
+`bun .hj/npm/esm/hj.js --help` to inspect it. Node 24+ and Bun 1.4.2+ run
+ordinary commands directly. External Deno remains necessary for Deno project
 tasks. See [npm publication](npm-publication.md) for the frozen build toolchain,
 final archive contract, and installation regression commands.
 

@@ -4,6 +4,7 @@ import { createHash } from "node:crypto";
 import { isDeepStrictEqual } from "node:util";
 import { fileURLToPath } from "node:url";
 import { nativeBuildOptions } from "./options.ts";
+import { nativeLauncherSource, nativeRuntimeEngines } from "./launcher.ts";
 
 const root = new URL("../../", import.meta.url);
 const output = new URL(".hj/npm/", root);
@@ -128,7 +129,7 @@ await build(nativeBuildOptions(root, output, {
     type: "git",
     url: "git+https://github.com/hugojosefson/cli.git",
   },
-  engines: { node: ">=24", bun: ">=1.4.2" },
+  engines: nativeRuntimeEngines,
   os: ["linux"],
   cpu: ["x64"],
   libc: ["glibc"],
@@ -138,6 +139,10 @@ await build(nativeBuildOptions(root, output, {
 await Deno.remove(types);
 const manifestPath = new URL("package.json", output);
 const manifest = JSON.parse(await Deno.readTextFile(manifestPath));
+const launcher = new URL("esm/hj.js", output);
+await Deno.writeTextFile(launcher, nativeLauncherSource());
+await Deno.chmod(launcher, 0o755);
+manifest.bin = { hj: "./esm/hj.js" };
 for (
   const key of [
     "optionalDependencies",
@@ -169,7 +174,7 @@ await Deno.writeTextFile(
 );
 await Deno.writeTextFile(
   new URL("README.md", output),
-  "# hj\n\nRepository tools for Linux x64 glibc. Requires Node.js 24+ or Bun 1.4.2+.\n\nRun `npx @hugojosefson/cli --help` or `bunx --bun @hugojosefson/cli --help`. Ordinary commands run natively. Commands that run Deno project tasks need a compatible Deno executable.\n\nSee https://github.com/hugojosefson/cli for documentation.\n",
+  "# hj\n\nRepository tools for Linux x64 glibc. Requires Node.js 24+ or Bun 1.4.2+.\n\nRun `npx @hugojosefson/cli --help` or `bunx --bun --package @hugojosefson/cli hj --help`. Ordinary commands run natively. Commands that run Deno project tasks need a compatible Deno executable.\n\nSee https://github.com/hugojosefson/cli for documentation.\n",
 );
 const initial = JSON.parse(
   await npm([

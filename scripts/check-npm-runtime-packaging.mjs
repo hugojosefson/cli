@@ -9,6 +9,8 @@ import { spawn } from "node:child_process";
 import { createHash } from "node:crypto";
 import { once } from "node:events";
 import {
+  access,
+  chmod,
   copyFile,
   cp,
   mkdir,
@@ -16,6 +18,7 @@ import {
   readFile,
   realpath,
   rename,
+  rm,
   symlink,
   writeFile,
 } from "node:fs/promises";
@@ -222,6 +225,8 @@ async function inspectNative(archive) {
   assert.deepEqual(manifest.os, ["linux"]);
   assert.deepEqual(manifest.cpu, ["x64"]);
   assert.deepEqual(manifest.libc, ["glibc"]);
+  assert.equal(manifest.bin.hj, "./esm/hj.js");
+  assert(entries.includes("package/esm/hj.js"));
   assert(
     !entries.some((entry) =>
       entry.startsWith("package/esm/") &&
@@ -354,6 +359,28 @@ try {
     { name: "bun", command: bun, prefix: ["x", "--bun"], runtime: "bun" },
   ];
   for (const manager of managers) {
+    const managerPath = manager.runtime === "bun"
+      ? join(root, "explicit-bun-bin")
+      : cleanPath;
+    const unexpectedNode = join(root, "explicit-bun-started-node");
+    if (manager.runtime === "bun") {
+      await mkdir(managerPath);
+      for (
+        const command of [
+          "bun",
+          "sh",
+          "gzip",
+          ...(nativeArchives ? ["git"] : []),
+        ]
+      ) {
+        await symlink(join(cleanPath, command), join(managerPath, command));
+      }
+      await writeFile(
+        join(managerPath, "node"),
+        `#!/bin/sh\nprintf started > '${unexpectedNode}'\nexec '${process.execPath}' "$@"\n`,
+        { mode: 0o755 },
+      );
+    }
     for (const source of ["archive", "name"]) {
       const installation = join(root, `${manager.name}-${source}-installation`);
       await mkdir(installation);
@@ -386,6 +413,7 @@ try {
           ];
         let env = {
           ...environment(cwd, registry),
+          PATH: managerPath,
           HOME: home,
           npm_config_cache: join(installation, "npm-cache"),
           BUN_INSTALL_CACHE_DIR: join(installation, "bun-cache"),
@@ -441,7 +469,7 @@ try {
             await symlink(deno, join(taskPath, "deno"));
             env = {
               ...env,
-              PATH: `${taskPath}:${cleanPath}`,
+              PATH: `${taskPath}:${managerPath}`,
               DENO_DIR: join(installation, "deno-cache"),
             };
             await writeFile(
@@ -469,6 +497,9 @@ try {
           }
         } else if (failing) args.push("--fail");
         const result = await run(manager.command, args, { cwd, env });
+        if (manager.runtime === "bun") {
+          await assert.rejects(access(unexpectedNode));
+        }
         await writeFile(
           join(root, `${label}.log`),
           JSON.stringify(result, null, 2),
@@ -532,6 +563,143 @@ try {
         results.push({ label, exit: result.code, requests: observed });
         console.log(`${label}: passed`);
       }
+    }
+  }
+  if (nativeArchives) {
+    // Install the production archive through each real global package manager.
+    // Only that manager's runtime is on PATH; no installer or Deno can help hj.
+    for (const manager of managers) {
+      const cwd = join(root, `${manager.name} global caller with spaces`);
+      const home = join(root, `${manager.name} global home with spaces`);
+      const path = join(home, "runtime bin");
+      const prefix = join(home, "global installation");
+      const globalBin = join(prefix, "bin");
+      await mkdir(cwd);
+      await mkdir(path, { recursive: true });
+      for (const command of ["git", "sh", "gzip"]) {
+        await symlink(join(cleanPath, command), join(path, command));
+      }
+      await symlink(
+        manager.runtime === "bun" ? bun : process.execPath,
+        join(path, manager.runtime),
+      );
+      // An invalid project requirement must not affect ordinary native commands.
+      await writeFile(
+        join(cwd, ".deno-version"),
+        "invalid-unused-requirement\n",
+      );
+      const denoTrap = join(home, "deno-was-started");
+      await writeFile(
+        join(path, "deno"),
+        `#!/bin/sh\nprintf started > '${denoTrap}'\nexit 99\n`,
+        { mode: 0o755 },
+      );
+      const env = {
+        ...environment(home, registry),
+        PATH: `${globalBin}:${path}`,
+        npm_config_prefix: prefix,
+        BUN_INSTALL_GLOBAL_DIR: join(prefix, "bun-global"),
+        BUN_INSTALL_BIN: globalBin,
+      };
+      const npmCli = npmClis[manager.name === "npm11" ? 0 : 1];
+      const installArgs = manager.runtime === "bun"
+        ? ["add", "--global", first.manifest.name]
+        : [npmCli, "install", "--global", first.manifest.name];
+      for (const attempt of ["install", "repeat-install-upgrade"]) {
+        await checked(manager.command, installArgs, { cwd, env });
+        const executable = join(globalBin, binName);
+        const help = await checked(executable, ["--help"], { cwd, env });
+        assert.match(help, /hj: repository setup/);
+        const features = await checked(executable, ["repo", "features"], {
+          cwd,
+          env,
+        });
+        assert.match(features, /deno-cli/);
+        assert.match(features, /readme-static/);
+        const failed = await run(executable, ["--invalid-native-probe"], {
+          cwd,
+          env,
+        });
+        assert.equal(failed.code, 1);
+        assert.match(failed.stderr, /Unknown command/);
+        await assert.rejects(access(denoTrap));
+        results.push({ label: `${manager.name}-global-${attempt}`, exit: 0 });
+      }
+      const installedEntry = await realpath(join(globalBin, binName));
+      for (const runtime of [process.execPath, bun]) {
+        assert.match(
+          await checked(runtime, [installedEntry, "--help"], { cwd, env }),
+          /hj: repository setup/,
+        );
+      }
+      // Both are installed: verify Node wins without even probing Bun.
+      const both = join(home, "both runtime bin");
+      await mkdir(both);
+      await symlink(process.execPath, join(both, "node"));
+      const bunProbe = join(home, "bun-was-probed");
+      await writeFile(
+        join(both, "bun"),
+        `#!/bin/sh\nprintf probed > '${bunProbe}'\nexec '${bun}' "$@"\n`,
+        { mode: 0o755 },
+      );
+      await checked(join(globalBin, binName), ["--help"], {
+        cwd,
+        env: { ...env, PATH: both },
+      });
+      await assert.rejects(access(bunProbe));
+      // An unsuitable Node must not hide a suitable Bun. Simulate its version
+      // using real Node's preload so the production JavaScript probe evaluates it.
+      const oldVersion = join(home, "old-node.cjs");
+      await writeFile(
+        oldVersion,
+        'Object.defineProperty(process.versions, "node", { value: "22.0.0" });\n',
+      );
+      await rm(join(both, "node"));
+      await writeFile(
+        join(both, "node"),
+        `#!/bin/sh\nexec '${process.execPath}' --require '${oldVersion}' "$@"\n`,
+      );
+      await chmod(join(both, "node"), 0o755);
+      await checked(join(globalBin, binName), ["--help"], {
+        cwd,
+        env: { ...env, PATH: both },
+      });
+      await access(bunProbe);
+      const explicitOldNode = await run(process.execPath, [
+        "--require",
+        oldVersion,
+        installedEntry,
+        "--help",
+      ], { cwd, env });
+      assert.equal(explicitOldNode.code, 1);
+      assert.match(explicitOldNode.stderr, /hj requires Node.js/);
+      assert.equal(explicitOldNode.stdout, "");
+      await rm(join(both, "bun"));
+      for (const scenario of ["unsupported", "absent"]) {
+        if (scenario === "absent") await rm(join(both, "node"));
+        const unavailable = await run(join(globalBin, binName), ["--help"], {
+          cwd,
+          env: { ...env, PATH: both },
+        });
+        assert.equal(unavailable.code, 127, scenario);
+        assert.match(
+          unavailable.stderr,
+          /Install a supported runtime and add it to PATH/,
+        );
+        assert.equal(unavailable.stdout, "");
+      }
+      const removeArgs = manager.runtime === "bun"
+        ? ["remove", "--global", first.manifest.name]
+        : [npmCli, "uninstall", "--global", first.manifest.name];
+      await checked(manager.command, removeArgs, { cwd, env });
+      await assert.rejects(access(join(globalBin, binName)));
+      results.push({
+        label: `${manager.name}-global-runtime-selection-remove`,
+        exit: 0,
+      });
+      console.log(
+        `${manager.name}: global install, upgrade, selection and removal passed`,
+      );
     }
   }
   const evidence = {
