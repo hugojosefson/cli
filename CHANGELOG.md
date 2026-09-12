@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.0
+
+- feat(runtime): run application APIs natively on Node and Bun
+- test(package): verify native bundled JSR installation
+- feat(cli): use portable interactive prompts
+
 ## 0.8.3
 
 - fix(cli): keep feature repair output concise
