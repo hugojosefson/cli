@@ -89,6 +89,8 @@ Deno.test("EditorConfig repairs missing entries and relinquishes edited entries"
 
 Deno.test("EditorConfig never adopts an unowned complete starter or removes duplicate entries", async () => {
   await repository(async (context) => {
+    await write(context, "");
+    assertEquals((await feature.checkDisable(context)).result, "no-op");
     await write(context, editorconfigStarter);
     assertEquals((await feature.detect(context)).state, "enabled");
     assertEquals((await feature.checkEnable(context)).result, "no-op");
