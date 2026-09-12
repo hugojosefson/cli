@@ -332,5 +332,6 @@ The combined checkout repeated
 `deno task hj repo features --editorconfig --github-repo --yes` without changes.
 The existing repository link and modern CI and release workflows need no
 migration. The local npm build and its installed command passed their help
-checks without publication. The first scratchpad publication awaits npm's
-separate browser approval.
+checks without publication. The scratchpad package was published, its public
+archive passed installation checks, and repeated publisher commands verified the
+same release.
