@@ -16,6 +16,7 @@ import {
 } from "../repository/github-command.ts";
 import { LocalGithubClient } from "../repository/local-github-client.ts";
 import { defaultProjectResource } from "../repository/github-default-project.ts";
+import { ensureGithubAuthentication } from "./github-authentication.ts";
 
 export interface ProjectAutoAddOptions {
   readonly method: AutoAddMethod;
@@ -51,6 +52,7 @@ export function parseProjectAutoAdd(
 }
 
 export async function defaultAutoAddTarget(root: URL): Promise<AutoAddTarget> {
+  await ensureGithubAuthentication(root);
   const runner = localGithubCommand(root);
   const github = new LocalGithubClient(root, runner);
   const repository = await github.repository();

@@ -61,6 +61,7 @@ export class LocalGithubClient implements GithubWriter {
   refreshRepository(): void {
     this.#repository = undefined;
     this.#pendingReads.clear();
+    this.#diagnostics.clear();
   }
 
   repository(): Promise<GithubRepository | undefined> {
@@ -667,8 +668,8 @@ export class LocalGithubClient implements GithubWriter {
       const result = await this.#read(args);
       if (result.success || expectedFailure?.(result)) return result.stdout;
       this.#diagnostics.add(githubCommandFailure(args, result));
-    } catch {
-      this.#diagnostics.add(githubCommandFailure(args));
+    } catch (cause) {
+      this.#diagnostics.add(githubCommandFailure(args, undefined, cause));
     }
     return undefined;
   }
@@ -694,8 +695,8 @@ export class LocalGithubClient implements GithubWriter {
     let result;
     try {
       result = await this.#runner.run(args, stdin);
-    } catch {
-      throw new Error(githubCommandFailure(args));
+    } catch (cause) {
+      throw new Error(githubCommandFailure(args, undefined, cause));
     }
     if (!result.success) throw new Error(githubCommandFailure(args, result));
   }

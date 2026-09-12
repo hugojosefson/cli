@@ -110,7 +110,7 @@ export async function reconcileBlocks(
     } else {
       const order = [
         "readme:requirements",
-        "jsr-package:api",
+        "deno-lib:api",
         "jsr-package:installation",
         "deno-cli:installation",
         "deno-lib:example",

@@ -114,6 +114,8 @@ for (const provider of ["readme-static", "readme-build"]) {
           : "[test/lib_test.ts](./test/lib_test.ts)",
       );
       assert(output.indexOf("## Example usage") < output.indexOf("## License"));
+      assertStringIncludes(output, "hj:readme deno-lib:api");
+      assertEquals(output.includes("hj:readme jsr-package:api"), false);
       assertEquals(
         await read(root, "readme/install.sh"),
         "#!/usr/bin/env bash\ndeno add jsr:@sample/tool\n",
@@ -196,6 +198,7 @@ Deno.test("disabled owners remove unchanged blocks and examples but preserve cus
   await fixture(async (root) => {
     await enable(root, "readme-static");
     await runCli(root, ["repo", "features", "--no-deno-lib", "--yes"]);
+    assertEquals((await read(root, "README.md")).includes("## API"), false);
     assert(
       !(await read(root, "README.md")).includes("## Example usage"),
       await read(root, "README.md"),
@@ -214,6 +217,7 @@ Deno.test("disabled owners remove unchanged blocks and examples but preserve cus
       'console.log("custom public example");\n',
     );
     await runCli(root, ["repo", "features", "--no-deno-lib", "--yes"]);
+    assertEquals((await read(root, "README.md")).includes("## API"), false);
     assertEquals(
       await read(root, "readme/example-usage.ts"),
       'console.log("custom public example");\n',
@@ -477,6 +481,7 @@ Deno.test("built README removes disabled guides and preserves files included by 
   await fixture(async (root) => {
     await enable(root);
     await runCli(root, ["repo", "features", "--no-deno-lib", "--yes"]);
+    assertEquals((await read(root, "README.md")).includes("## API"), false);
     assert(!(await read(root, "README.md")).includes("## Example usage"));
     assertEquals(await buildReadme(root), await read(root, "README.md"));
     const source = await read(root, "readme/README.md");
@@ -587,5 +592,54 @@ Deno.test("unavailable GitHub observations preserve an owned CI badge until expl
       assertEquals(write.content.includes("github-ci:badge"), false);
     }
     assertEquals(await files.readText("README.md"), source);
+  });
+});
+
+for (const provider of ["readme-static", "readme-build"]) {
+  Deno.test(`${provider} migrates legacy API sections to library ownership and removes them from CLI packages`, async () => {
+    await fixture(async (root) => {
+      await enable(root, provider);
+      const path = provider === "readme-build"
+        ? "readme/README.md"
+        : "README.md";
+      const legacy = (await read(root, path)).replace(
+        "hj:readme deno-lib:api",
+        "hj:readme jsr-package:api",
+      );
+      await Deno.writeTextFile(new URL(path, root), legacy);
+      await runCli(root, ["repo", "features", "--deno-lib", "--yes"]);
+      const output = await read(root, "README.md");
+      assertStringIncludes(output, "hj:readme deno-lib:api");
+      assertEquals(output.match(/## API/g)?.length, 1);
+      assertEquals(output.includes("hj:readme jsr-package:api"), false);
+      await Deno.writeTextFile(
+        new URL(path, root),
+        (await read(root, path)).replace(
+          "hj:readme deno-lib:api",
+          "hj:readme jsr-package:api",
+        ),
+      );
+      await runCli(root, ["repo", "features", "--no-deno-lib", "--yes"]);
+      assertEquals((await read(root, "README.md")).includes("## API"), false);
+      await runCli(root, ["repo", "features", "--jsr-package", "--yes"]);
+      assertEquals((await read(root, "README.md")).includes("## API"), false);
+    });
+  });
+}
+
+Deno.test("customized legacy API sections survive ownership migration", async () => {
+  await fixture(async (root) => {
+    await enable(root, "readme-static");
+    const source = (await read(root, "README.md"))
+      .replace("hj:readme deno-lib:api", "hj:readme jsr-package:api")
+      .replace(
+        "See the API documentation on",
+        "Our custom API documentation is on",
+      );
+    await Deno.writeTextFile(new URL("README.md", root), source);
+    await runCli(root, ["repo", "features", "--deno-lib", "--yes"]);
+    const output = await read(root, "README.md");
+    assertStringIncludes(output, "Our custom API documentation is on");
+    assertEquals(output.match(/## API/g)?.length, 1);
   });
 });
