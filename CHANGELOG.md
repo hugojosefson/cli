@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.2
+
+- fix(github): share concurrent feature reads without caching later checks
+
 ## 0.2.1
 
 - chore: configure repository features
