@@ -5,6 +5,7 @@ import { workflowDenoVersion } from "./workflow-toolchain.ts";
 import { hjPackageReference } from "./hj-package.ts";
 
 import type {
+  ArtifactObservation,
   ArtifactSchema,
   ExactArtifactInspection,
 } from "../api/artifact-inspection.ts";
@@ -125,6 +126,26 @@ jobs:
 `,
 }] as const;
 
+/** Render the same exact CI variant for local adoption and remote protection. */
+export function renderGithubCiArtifact(
+  artifact: { readonly path: string; readonly content: string },
+  context: DetectionContext,
+  observation: ArtifactObservation,
+): { readonly path: string; readonly content: string } {
+  const migrated = artifact.path === githubCiArtifacts[0].path &&
+    observation.kind === "file" &&
+    observation.content.includes(
+      "# Retains the git-hj-init required test check.",
+    );
+  return workflowCliArtifact(
+    migrated
+      ? { ...artifact, content: artifact.content + legacyCiCheckCompatibility }
+      : artifact,
+    context,
+    observation,
+  );
+}
+
 export async function inspectGithubCiArtifacts(
   context: DetectionContext,
 ): Promise<readonly ExactArtifactInspection[]> {
@@ -132,20 +153,7 @@ export async function inspectGithubCiArtifacts(
     const observation = await context.files.observe(artifact.path);
     const schema: ArtifactSchema = {
       kind: "file",
-      ...workflowCliArtifact(
-        artifact.path === githubCiArtifacts[0].path &&
-          observation.kind === "file" &&
-          observation.content.includes(
-            "# Retains the git-hj-init required test check.",
-          )
-          ? {
-            ...artifact,
-            content: artifact.content + legacyCiCheckCompatibility,
-          }
-          : artifact,
-        context,
-        observation,
-      ),
+      ...renderGithubCiArtifact(artifact, context, observation),
       mode: 0o644,
     };
     // GitHub ignores workflow modes, while shared Git worktrees rewrite them.
