@@ -3,7 +3,7 @@ import {
   runModuleEval,
   sourceFile,
 } from "../testing/runtime-test-fixtures.ts";
-import { cp, readdir, symlink } from "node:fs/promises";
+import { cp, readdir, readFile, symlink } from "node:fs/promises";
 import { pathToFileURL } from "node:url";
 import { test as nativeTest } from "node:test";
 import { trackTests } from "../testing/inventory-test-fixtures.ts";
@@ -369,19 +369,28 @@ test("loads fork-version only for usual tag preparation", async () => {
     const config = `${path}/deno.json`;
     const trap = `${path}/trap.ts`;
     const script = `${path}/isolation.ts`;
+    const sourceConfig = JSON.parse(
+      await readFile(sourceFile("deno.json"), "utf8"),
+    ) as { imports: Record<string, string> };
+    const sourceLock = JSON.parse(
+      await readFile(sourceFile("deno.lock"), "utf8"),
+    ) as {
+      specifiers: Record<string, string>;
+      workspace: { dependencies: string[] };
+    };
+    // Keep the repository's transitive graph while replacing only the trapped import.
+    const replacedDependency = sourceConfig.imports["fork-version"];
+    delete sourceLock.specifiers[replacedDependency];
+    sourceLock.workspace.dependencies = sourceLock.workspace.dependencies
+      .filter(
+        (dependency) => dependency !== replacedDependency,
+      );
+    await writeTextFile(`${path}/deno.lock`, JSON.stringify(sourceLock));
     await writeTextFile(
       config,
       JSON.stringify({
-        imports: {
-          "@std/assert": "jsr:@std/assert@^1.0.19",
-          "@std/path": "jsr:@std/path@^1.1.3",
-          "fork-version": "./trap.ts",
-          "conventional-commits-parser":
-            "npm:conventional-commits-parser@7.1.2",
-          "conventional-changelog-writer":
-            "npm:conventional-changelog-writer@9.2.1",
-          "jsonc-parser": "npm:jsonc-parser@3.3.1",
-        },
+        imports: { ...sourceConfig.imports, "fork-version": "./trap.ts" },
+        lock: "./deno.lock",
       }),
     );
     await writeTextFile(
@@ -398,6 +407,7 @@ test("loads fork-version only for usual tag preparation", async () => {
         "--quiet",
         "--no-check",
         "--cached-only",
+        "--frozen",
         `--config=${config}`,
         script,
       ],
@@ -478,6 +488,7 @@ const invalidPublisher = {
 await rejectWithoutForkVersion(["release", "publish-jsr"], invalidPublisher);
 await rejectWithoutForkVersion(["release", "publish-github"], invalidPublisher);
 let trapped = false;
+let preparationError;
 try {
   await runCli(
     new URL("file:///tmp/opencode/"),
@@ -488,9 +499,10 @@ try {
     },
   );
 } catch (error) {
-  trapped = String(error).includes("fork-version loaded");
+  preparationError = String(error);
+  trapped = preparationError.includes("fork-version loaded");
 }
-if (!trapped) throw new Error("usual preparation did not load fork-version");
+if (!trapped) throw new Error("usual preparation did not load fork-version: " + preparationError);
 `;
 }
 
