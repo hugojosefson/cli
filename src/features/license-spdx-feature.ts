@@ -146,18 +146,28 @@ async function inspectLicense(
 }
 
 function detection(state: State, provider: SpdxLicenseProvider) {
+  const evidence = [{
+    code: `${provider.id}-inspected`,
+    kind: "license",
+    subject: subject(),
+    observation: state.kind === "absent"
+      ? "LICENSE is absent."
+      : state.kind === "alternate"
+      ? "LICENSE uses another recognized license."
+      : `LICENSE and its README link match ${provider.definition.name}.`,
+  }];
   if (state.kind === "absent") {
-    return { state: "disabled" as const, evidence: [] };
+    return { state: "disabled" as const, evidence };
   }
   if (state.kind === "alternate") {
     const safe = state.readme.section.kind === "missing" ||
       state.readme.section.kind === "alternate";
     return safe
-      ? { state: "disabled" as const, evidence: [] }
+      ? { state: "disabled" as const, evidence }
       : ambiguous(provider);
   }
   if (state.kind === "exact") {
-    return { state: "enabled" as const, evidence: [] };
+    return { state: "enabled" as const, evidence };
   }
   const drifted = state.kind === "drifted";
   return {

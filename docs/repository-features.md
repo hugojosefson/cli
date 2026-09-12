@@ -83,6 +83,17 @@ published.
 | `ambiguous` | Data is custom, conflicting, unreadable, or unsupported. Automatic changes are blocked. |
 | `unknown`   | No detection result is available.                                                       |
 
+A disabled feature is not a failed check. This CLI repository intentionally
+omits server and library entry points and uses one license and one README
+provider. See the
+[assessment of this repository](development.md#self-check-and-readme-choice) for
+every feature and its expected state.
+
+Managed workflows can retain an earlier exact JSR CLI version. That pin alone
+does not mean drift. Other workflow content must still match the managed
+template. Use `--repair --workflow-cli=jsr` with the selected workflow features
+to update their CLI pin explicitly.
+
 Deno tasks can use strings or objects, custom descriptions, and file selections.
 Detection follows simple task aliases and dependencies. It also recognizes local
 Deno runner scripts. Missing scripts, missing tasks, cycles, and unsupported

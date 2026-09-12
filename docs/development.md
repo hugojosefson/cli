@@ -152,50 +152,78 @@ owns the release invariants.
 
 ## Self-check and README choice
 
-The CLI was tested against this repository on 2026-09-11. Its status table
-reports managed features, not a general inventory of programming languages. The
-Details column explains custom configuration that cannot be adopted.
+Run `hj repo features` to inspect this checkout. Every registered feature is
+assessed below. Disabled features are intentional when they provide an
+alternative or a service that this CLI does not use. Remote states require
+GitHub access, so an unauthenticated visitor can receive different results.
 
-| Feature or group        | Expected state | Reason                                                                                                            |
-| ----------------------- | -------------- | ----------------------------------------------------------------------------------------------------------------- |
-| `git`                   | Enabled        | This is a Git repository.                                                                                         |
-| `readme-static`         | Enabled        | The root README is writable.                                                                                      |
-| `license-mit`           | Enabled        | LICENSE matches the MIT template and the README links to it.                                                      |
-| `deno-config-version`   | Enabled        | `deno.json` contains an exact SemVer version.                                                                     |
-| `deno-fmt`              | Enabled        | The `fmt` and `format` tasks provide formatting and its check.                                                    |
-| `deno-lint`             | Enabled        | The `lint` task runs Deno lint on source and scripts.                                                             |
-| `deno-test`             | Enabled        | The `test` task uses the local test runner.                                                                       |
-| `deno-typecheck`        | Enabled        | The `typecheck` task checks source and scripts.                                                                   |
-| `deno-cli`              | Enabled        | The explicit `./cli` export points to the CLI entry point.                                                        |
-| `jsr-package`           | Enabled        | Local package metadata, exports, and `publish-check` are configured. This does not mean the package is published. |
-| `deno-lib`              | Disabled       | The default export is the CLI. There is no library entry point.                                                   |
-| `deno-server`           | Disabled       | This package does not provide a server.                                                                           |
-| `readme-build`          | Disabled       | The README does not need includes or generated sections.                                                          |
-| Other license providers | Disabled       | MIT is the chosen license.                                                                                        |
-| `github-ci`             | Enabled        | Managed CI runs the project coverage checks and provides dependency updates.                                      |
-| GitHub release features | Enabled        | Main contains generated tag, JSR, and GitHub Release workflows.                                                   |
-| GitHub configuration    | Enabled        | The public repository uses rebase merging, auto-merge, and main and tag protection.                               |
+| Feature                         | Expected state | Why this matches the project                                                                              |
+| ------------------------------- | -------------- | --------------------------------------------------------------------------------------------------------- |
+| `deno-cli`                      | Enabled        | The package exports an executable CLI, including `./cli`.                                                 |
+| `deno-config-version`           | Enabled        | The package declares an exact release version.                                                            |
+| `deno-fmt`                      | Enabled        | Source formatting and its check are configured.                                                           |
+| `deno-lib`                      | Disabled       | The default export runs the CLI. There is no supported library API.                                       |
+| `deno-lint`                     | Enabled        | Source and scripts receive lint checks.                                                                   |
+| `deno-server`                   | Disabled       | This tool generates servers for other projects but does not serve requests itself.                        |
+| `deno-test`                     | Enabled        | The test runner and coverage checks exercise the implementation.                                          |
+| `deno-typecheck`                | Enabled        | Source and scripts receive type checks.                                                                   |
+| `git`                           | Enabled        | The project has a Git history.                                                                            |
+| `github-auto-merge`             | Enabled        | Passing checks allow the release bot to merge its release PR.                                             |
+| `github-ci`                     | Enabled        | Managed CI runs project checks and supplies dependency updates.                                           |
+| `github-delete-branch-on-merge` | Enabled        | Merged branches are removed automatically.                                                                |
+| `github-discussions`            | Disabled       | Issues provide the public feedback channel. A separate forum is not configured.                           |
+| `github-issues`                 | Enabled        | Visitors can report bugs and request changes.                                                             |
+| `github-main-protection`        | Enabled        | Required checks and linear history protect main.                                                          |
+| `github-main-review`            | Disabled       | Required human reviews would interrupt the automatic release flow.                                        |
+| `github-merge-commit`           | Disabled       | The project requires linear history without merge commits.                                                |
+| `github-private`                | Disabled       | The source is public. Disabled private visibility is intentional.                                         |
+| `github-projects`               | Enabled        | GitHub project integration is available. This does not claim that a project board exists.                 |
+| `github-protected-tags`         | Enabled        | Managed tag rules prevent release changes. The CLI enforces exact SemVer.                                 |
+| `github-rebase-merge`           | Enabled        | Rebase merging preserves individual commits and linear history.                                           |
+| `github-release-publish-github` | Enabled        | The generated workflow publishes GitHub Releases.                                                         |
+| `github-release-publish-jsr`    | Enabled        | The generated workflow publishes packages to JSR.                                                         |
+| `github-release-publish-tag`    | Enabled        | The generated workflow prepares release PRs and protected tags.                                           |
+| `github-repo`                   | Enabled        | The authenticated CLI can read the linked GitHub repository.                                              |
+| `github-squash-merge`           | Disabled       | The project preserves individual commits through rebase merging.                                          |
+| `github-update-branch`          | Enabled        | GitHub permits updating a PR branch before merge.                                                         |
+| `github-web-commit-signoff`     | Disabled       | The project does not require signoff through the GitHub web editor.                                       |
+| `github-wiki`                   | Disabled       | Documentation lives with the source in README and docs.                                                   |
+| `jsr-package`                   | Enabled        | Local package metadata and the publish check are configured. This state alone does not prove publication. |
+| `license-agpl-3.0-only`         | Disabled       | MIT is selected. This alternate license provider is intentionally inactive.                               |
+| `license-apache-2.0`            | Disabled       | MIT is selected. This alternate license provider is intentionally inactive.                               |
+| `license-bsd-2-clause`          | Disabled       | MIT is selected. This alternate license provider is intentionally inactive.                               |
+| `license-bsd-3-clause`          | Disabled       | MIT is selected. This alternate license provider is intentionally inactive.                               |
+| `license-cc-by-4.0`             | Disabled       | MIT is selected. This alternate license provider is intentionally inactive.                               |
+| `license-cc-by-nc-4.0`          | Disabled       | MIT is selected. This alternate license provider is intentionally inactive.                               |
+| `license-cc-by-nc-nd-4.0`       | Disabled       | MIT is selected. This alternate license provider is intentionally inactive.                               |
+| `license-cc-by-nc-sa-4.0`       | Disabled       | MIT is selected. This alternate license provider is intentionally inactive.                               |
+| `license-cc-by-nd-4.0`          | Disabled       | MIT is selected. This alternate license provider is intentionally inactive.                               |
+| `license-cc-by-sa-4.0`          | Disabled       | MIT is selected. This alternate license provider is intentionally inactive.                               |
+| `license-cc0-1.0`               | Disabled       | MIT is selected. This alternate license provider is intentionally inactive.                               |
+| `license-gpl-2.0-only`          | Disabled       | MIT is selected. This alternate license provider is intentionally inactive.                               |
+| `license-gpl-3.0-only`          | Disabled       | MIT is selected. This alternate license provider is intentionally inactive.                               |
+| `license-isc`                   | Disabled       | MIT is selected. This alternate license provider is intentionally inactive.                               |
+| `license-mit`                   | Enabled        | LICENSE and its README link select MIT.                                                                   |
+| `license-mpl-2.0`               | Disabled       | MIT is selected. This alternate license provider is intentionally inactive.                               |
+| `license-unlicense`             | Disabled       | MIT is selected. This alternate license provider is intentionally inactive.                               |
+| `readme-build`                  | Disabled       | The static README has no shared fragments or generated sections that need a build.                        |
+| `readme-static`                 | Enabled        | Visitors read the maintained root README directly.                                                        |
 
-The local task names now match the feature conventions. `check` runs all
-non-mutating checks. `all` depends on `ci`, which enforces coverage limits. CI
-runs coverage in place of the standalone test task, so it collects tests once.
-The package keeps its default CLI export for the documented installation command
-and adds an explicit `./cli` export for detection.
+All four managed workflow features are enabled. They can pin an earlier exact
+CLI version without being drifted. Detection still compares the complete
+workflow with its managed template. Changing permissions, commands, actions, or
+other content requires repair. To select the current CLI version explicitly, use
+the
+[workflow source option](releases.md#bootstrap-before-the-first-registry-version).
 
-Task detection accepts custom descriptions, file selections, and local runner
-scripts. CLI detection reads the declared entry point. License detection ignores
-group-write differences that Git does not preserve. These checks describe
-configuration. `deno task ci` tests whether the configured operations succeed.
+`check` runs non-mutating checks. `all` depends on `ci`, which enforces coverage
+limits. CI collects tests once through the coverage task. Detection accepts the
+project's custom file selections and runner scripts. A configured task is not
+proof that its checks pass. The CI result supplies that proof.
 
-Keep the static README. It has one source, links to separate guides, and no
-repeated fragments that need includes. Building it would add a generated file, a
-source directory, and a versioned task without removing duplicated content.
-Reconsider `readme-build` if the README needs shared fragments or generated
-reference material.
-
-Enabling a configured feature preserves its custom files. Removal and repairs
-still check ownership before changing generated content. Read current remote
-feature states with `hj repo features` because GitHub configuration can change.
+Keep the static README. It links to separate guides and has no duplicated
+fragments that need includes. Reconsider `readme-build` only when shared
+fragments or generated reference material remove repeated maintenance.
 
 ## First public release
 

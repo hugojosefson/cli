@@ -26,7 +26,13 @@ export async function detectReadmeBuild(
     !state.taskPresent && state.source.kind === "absent" &&
     !state.generatedMarker
   ) {
-    return { state: "disabled" as const, evidence };
+    return {
+      state: "disabled" as const,
+      evidence: [{
+        ...evidence[0],
+        observation: "README build source and task are absent.",
+      }],
+    };
   }
   if (state.source.kind !== "file" || state.output === undefined) {
     return ambiguous(evidence, "The generated README source is unsafe.");
@@ -41,7 +47,13 @@ export async function detectReadmeBuild(
     state.exactTask && state.exactDefault && state.rootMatches &&
     state.rootMode === 0o444
   ) {
-    return { state: "enabled" as const, evidence };
+    return {
+      state: "enabled" as const,
+      evidence: [{
+        ...evidence[0],
+        observation: "Generated README matches its source and build task.",
+      }],
+    };
   }
   return {
     state: "drifted" as const,

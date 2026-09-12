@@ -49,13 +49,37 @@ function classify(
   };
 }
 export function detected(states: readonly RulesetState[]) {
+  const evidence = states.map((state) => ({
+    code: "github-ruleset-inspected",
+    kind: "github-ruleset",
+    subject: {
+      kind: "github-ruleset",
+      identifier: String(state.definition.name),
+    },
+    observation: `${state.definition.name}: ${
+      state.kind === "exact"
+        ? "managed protection is active"
+        : state.kind === "absent"
+        ? "managed protection is absent"
+        : state.kind === "drifted"
+        ? "managed protection differs"
+        : "protection could not be confirmed"
+    }.`,
+  }));
+  const issues = evidence.filter((_, index) =>
+    !["exact", "absent"].includes(states[index].kind)
+  ).map((item) => ({
+    ...item,
+    resolution:
+      "Inspect GitHub rulesets and access before applying protection changes.",
+  }));
   if (states.some((state) => state.kind === "ambiguous")) {
-    return { state: "ambiguous" as const, evidence: [], issues: [] };
+    return { state: "ambiguous" as const, evidence, issues };
   }
   if (states.every((state) => state.kind === "absent")) {
-    return { state: "disabled" as const, evidence: [] };
+    return { state: "disabled" as const, evidence };
   }
   return states.every((state) => state.kind === "exact")
-    ? { state: "enabled" as const, evidence: [] }
-    : { state: "drifted" as const, evidence: [], issues: [] };
+    ? { state: "enabled" as const, evidence }
+    : { state: "drifted" as const, evidence, issues };
 }

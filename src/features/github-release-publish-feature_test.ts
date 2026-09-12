@@ -17,6 +17,11 @@ import {
 } from "./github-release-publish-feature.ts";
 import { parse } from "yaml";
 import { jsrReleaseArtifact } from "./jsr-release-artifacts.ts";
+import {
+  githubCiArtifacts,
+  inspectGithubCiArtifacts,
+} from "./github-ci-artifacts.ts";
+import { inspectReleaseArtifact } from "./github-release-publish-artifacts.ts";
 
 function context(
   observations: Record<string, ArtifactObservation>,
@@ -50,6 +55,81 @@ function context(
 function exact(content: string): ArtifactObservation {
   return { kind: "file", content, digest: "digest", mode: 0o644 };
 }
+
+Deno.test("workflow detection preserves exact registry pins and rejects other drift", async () => {
+  const prefix = hjPackageReference.slice(
+    0,
+    hjPackageReference.lastIndexOf("@") + 1,
+  );
+  const releases = [
+    { artifact: publishTagArtifact, feature: githubReleasePublishTagFeature },
+    { artifact: publishJsrArtifact, feature: githubReleasePublishJsrFeature },
+    {
+      artifact: publishGithubArtifact,
+      feature: githubReleasePublisherFeatures[1],
+    },
+  ];
+  const artifacts = [
+    ...githubCiArtifacts,
+    ...releases.map(({ artifact }) => artifact),
+  ];
+  for (const version of ["0.0.1", "12.3.4", "1.2.3-rc.1+build"]) {
+    const observations = Object.fromEntries(
+      artifacts.map((
+        artifact,
+      ) => [
+        artifact.path,
+        exact(
+          artifact.content.replaceAll(hjPackageReference, prefix + version),
+        ),
+      ]),
+    );
+    const ctx = context(observations);
+    const ci = await inspectGithubCiArtifacts(ctx);
+    assertEquals(ci.every((item) => item.result === "matches"), true);
+    for (const { artifact, feature } of releases) {
+      assertEquals((await feature.detect(ctx)).state, "enabled");
+      const selected: OperationContext = {
+        ...ctx,
+        options: { workflowCli: "jsr" },
+      };
+      const current = await inspectReleaseArtifact(selected, artifact);
+      assertEquals(
+        current.schema.kind === "file" && current.schema.content,
+        artifact.content,
+      );
+      const altered = context({
+        ...observations,
+        [artifact.path]: exact(
+          artifact.content.replaceAll(hjPackageReference, prefix + version)
+            .replace("timeout-minutes: 30", "timeout-minutes: 31"),
+        ),
+      });
+      assertEquals((await feature.detect(altered)).state, "drifted");
+    }
+  }
+  const inconsistent = publishTagArtifact.content.replace(
+    hjPackageReference,
+    prefix + "0.0.1",
+  );
+  assertEquals(
+    (await githubReleasePublishTagFeature.detect(
+      context({ [publishTagArtifact.path]: exact(inconsistent) }),
+    )).state,
+    "drifted",
+  );
+  for (const pin of ["latest", "^0.2.0", "01.2.3", "1.2.3;exit"]) {
+    const ctx = context({
+      [publishJsrArtifact.path]: exact(
+        publishJsrArtifact.content.replaceAll(hjPackageReference, prefix + pin),
+      ),
+    });
+    assertEquals(
+      (await githubReleasePublishJsrFeature.detect(ctx)).state,
+      "drifted",
+    );
+  }
+});
 
 const quiescentGithub: GithubReader = {
   repository: () => Promise.resolve(undefined),

@@ -6,7 +6,7 @@ import { inspectDenoConfig } from "./deno-config.ts";
 import { parseSemver } from "../release/semver.ts";
 
 type VersionState =
-  | { readonly kind: "enabled" }
+  | { readonly kind: "enabled"; readonly version: string }
   | { readonly kind: "disabled" }
   | { readonly kind: "ambiguous"; readonly observation: string };
 
@@ -34,7 +34,20 @@ export const denoConfigVersionFeature: Feature = {
   detect: async (context) => {
     const state = await inspectVersion(context);
     if (state.kind !== "ambiguous") {
-      return { state: state.kind, evidence: [] };
+      return {
+        state: state.kind,
+        evidence: [{
+          code: "deno-config-version-inspected",
+          kind: "deno-config-version",
+          subject: {
+            kind: "repository-path",
+            identifier: "deno.json|deno.jsonc",
+          },
+          observation: state.kind === "enabled"
+            ? `Deno config declares version ${state.version}.`
+            : "Deno config does not declare a release version.",
+        }],
+      };
     }
     return {
       state: "ambiguous",
@@ -108,5 +121,5 @@ async function inspectVersion(
       observation: "Deno config version is not exact SemVer.",
     };
   }
-  return { kind: "enabled" };
+  return { kind: "enabled", version: config.value.version };
 }
