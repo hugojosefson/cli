@@ -31,47 +31,51 @@ it with Node.js, Bun, or Deno in the repository you want to manage.
 
 <!-- /hj:readme -->
 
+## Prerequisites
+
+Use Linux x64 with glibc. Choose one of the tested runtimes: Node.js 24 or 26,
+Bun 1.4.2, or Deno 2.9.6.
+
 ## Install
 
-Linux x64 with glibc is the supported platform. The shared test suite runs in
-Node.js 24 and 26, Bun 1.4.2, and Deno 2.9.6.
+### Node.js
 
-With Node.js or Bun, inspect the current repository without a global install:
+Inspect the current repository without a global install:
 
 ```bash
 npx @hugojosefson/cli repo features
-bunx --bun --package @hugojosefson/cli hj repo features
 ```
 
-The [npm package](https://www.npmjs.com/package/@hugojosefson/cli) includes its
-JSR dependencies. It needs no JSR registry configuration. Ordinary commands run
-in Node.js or Bun. A command that runs a project's Deno tasks selects a suitable
-Deno executable and downloads it when needed. See
-[local Deno selection](../docs/local-deno-runtime.md) for version requirements,
-cache reuse, and offline use.
-
-To install the `hj` command globally with npm:
+Or install the `hj` command globally:
 
 ```bash
 npm install --global @hugojosefson/cli
 ```
 
-With [Deno](https://deno.com/), install `hj` from
-[JSR](https://jsr.io/@hugojosefson/cli):
+### Bun
+
+Inspect the current repository without a global install:
+
+```bash
+bunx --bun --package @hugojosefson/cli hj repo features
+```
+
+### Deno
+
+Install `hj` from [JSR](https://jsr.io/@hugojosefson/cli):
 
 ```bash
 deno install --global --allow-all --name hj jsr:@hugojosefson/cli
 ```
 
-No checkout or separate download of this repository is needed. Add the binary
-directory printed by Deno to your `PATH` if needed. The command grants full Deno
-permissions so `hj` can manage files and run external tools. See the
-[Deno installation reference](https://docs.deno.com/runtime/reference/cli/install/)
-for installation options.
+If needed, add the binary directory printed by Deno to your `PATH`. The command
+grants full Deno permissions so `hj` can manage files and run external tools.
 
 Deno delays new dependencies for 24 hours by default. To install a release
-immediately, add `--min-dep-age=0` to the command. This disables the age delay
-for that installation.
+immediately, add `--min-dep-age=0` to the command. This skips the delay for that
+installation. See the
+[Deno installation reference](https://docs.deno.com/runtime/reference/cli/install/)
+for more options.
 
 ## Start here
 
@@ -144,17 +148,30 @@ confirmation.
 
 ## Documentation
 
-| Guide                                                                | Topic                                                         |
-| -------------------------------------------------------------------- | ------------------------------------------------------------- |
-| [Repository features](../docs/repository-features.md)                | Select, enable, disable, and repair features.                 |
-| [Changelog](../CHANGELOG.md)                                         | Read release notes and known limits.                          |
-| [Releases](../docs/releases.md)                                      | Configure release workflows and recover interrupted releases. |
-| [Development](../docs/development.md)                                | Run from source, install locally, test, and contribute.       |
-| [Local Deno selection](../docs/local-deno-runtime.md)                | Choose Deno for project tasks and reuse its cache.            |
-| [Runtime tests](../docs/development.md#local-commands)               | Run the same suite in Deno, Node.js, and Bun.                 |
-| [Live validation](../docs/live-validation.md)                        | Read release and runtime validation results.                  |
-| [Issues](https://github.com/hugojosefson/cli/issues)                 | Track proposed changes, validation, and design decisions.     |
-| [Project](https://github.com/users/hugojosefson/projects/10/views/2) | Browse work, ideas, priorities, and recorded decisions.       |
+### Using hj
+
+| Guide                                                 | Topic                                         |
+| ----------------------------------------------------- | --------------------------------------------- |
+| [Repository features](../docs/repository-features.md) | Select, enable, disable, and repair features. |
+| [Configuration](../docs/configuration.md)             | Set default features and command options.     |
+| [Changelog](../CHANGELOG.md)                          | Read release notes and known limits.          |
+
+### Project automation
+
+| Guide                                                 | Topic                                                         |
+| ----------------------------------------------------- | ------------------------------------------------------------- |
+| [Releases](../docs/releases.md)                       | Configure release workflows and recover interrupted releases. |
+| [Local Deno selection](../docs/local-deno-runtime.md) | Choose Deno for project tasks and reuse its cache.            |
+
+### Development and project status
+
+| Guide                                                                | Topic                                                     |
+| -------------------------------------------------------------------- | --------------------------------------------------------- |
+| [Development](../docs/development.md)                                | Run from source, install locally, test, and contribute.   |
+| [Runtime tests](../docs/development.md#local-commands)               | Run the same suite in Deno, Node.js, and Bun.             |
+| [Live validation](../docs/live-validation.md)                        | Read release and runtime validation results.              |
+| [Issues](https://github.com/hugojosefson/cli/issues)                 | Track proposed changes, validation, and design decisions. |
+| [Project](https://github.com/users/hugojosefson/projects/10/views/2) | Browse work, ideas, priorities, and recorded decisions.   |
 
 ## License
 
