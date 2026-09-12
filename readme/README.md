@@ -63,8 +63,6 @@ bun add --global @hugojosefson/cli@latest
 
 Run this command again to upgrade to the latest release.
 
-Use `bun run --bun hj` in place of `hj` in the examples below.
-
 ### Deno
 
 Install `hj` from [JSR](https://jsr.io/@hugojosefson/cli) globally:
