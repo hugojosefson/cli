@@ -151,18 +151,6 @@ See the API documentation on
 
 <!-- /hj:readme -->
 
-<!-- hj:readme jsr-package:installation c32082fae6d00768da50c3d05af8d794fc7766c2b6fed8d975eec1619a93347e -->
-
-## Installation
-
-Add the package as a dependency:
-
-```sh
-deno add jsr:@hugojosefson/cli
-```
-
-<!-- /hj:readme -->
-
 ## License
 
 [MIT](./LICENSE)
