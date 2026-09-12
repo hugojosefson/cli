@@ -169,13 +169,18 @@ these approaches when needed. Preserve intentional custom behavior instead of
 hiding a real mismatch. Record the commands and results in the pull request or
 the relevant validation document.
 
-For every feature, `hj repo features` must state what repair will do
-specifically. Name the affected files, configuration values, or remote resources
-and the changes that repair will make. If repair needs to replace or remove
-custom content, describe that effect. If repair is unnecessary or unsupported,
-state that and explain any required manual action. A generic instruction to run
-`--repair` does not meet this requirement. Make sure that repair descriptions
-match the actual repair plan.
+When action is needed, `hj repo features` must state the specific repair actions
+or required manual action. Name the affected files, configuration values, or
+remote resources and the changes that repair will make. If repair needs to
+replace or remove custom content, describe that effect. If repair is
+unsupported, state that and explain the required manual action. A generic
+instruction to run `--repair` does not meet this requirement. Make sure that
+repair descriptions match the actual repair plan.
+
+For matching enabled and intentionally disabled features, show detection
+evidence without generic no-repair messages or empty repair lines. Keep
+actionable details for drifted, ambiguous, and unknown states. Disabled features
+remain disabled with `--repair` alone.
 
 Use `github-default-project` as the model for drifted repair details. Describe
 only changes that the current repository needs. For each change, name the target
@@ -329,8 +334,9 @@ from the code that applies changes.
 5. Return a structured plan with expected state and explicit changed paths.
 6. Register the feature in `built-in-feature-registry.ts`.
 7. Add lifecycle tests for enable, disable, repair, conflicts, and stale plans.
-8. Describe the feature's specific repair actions in `hj repo features` output.
-   Follow the `github-default-project` detail standard in the self-check above.
+8. When action is needed, describe the feature's specific repair actions or
+   required manual action in `hj repo features` output. Follow the
+   `github-default-project` detail standard in the self-check above.
 9. Run the self-check above and resolve ambiguity or drift on this repository.
 10. Update the feature guide and run `deno task ci`.
 
