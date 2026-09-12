@@ -62,7 +62,7 @@ Deno.test("feature rows style names and wrapped details according to state", () 
         false,
       );
     } else {
-      assertStringIncludes(plain, "Repair:");
+      assertStringIncludes(plain, "Repair ");
     }
     // deno-lint-ignore no-control-regex -- Compare visible text after ANSI removal.
     assertEquals(colored.replaceAll(/\u001b\[\d+m/g, ""), plain);

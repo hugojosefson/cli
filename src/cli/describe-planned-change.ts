@@ -70,6 +70,18 @@ export async function describePlannedChange(
     case "set-git-remote":
       return `Set Git remote ${change.name} to the planned repository URL.`;
     case "upsert-github-resource": {
+      if (
+        change.resource === "repository-default-project" &&
+        change.definition.enabled === true
+      ) {
+        const project = await github?.resource(change.resource, change.name);
+        const details = project?.definition.repairDetails;
+        if (project?.definition.linked && Array.isArray(details)) {
+          return details.filter((detail) => typeof detail === "string").join(
+            "\n",
+          );
+        }
+      }
       const existing = change.expectedStateDigest !== undefined &&
           [
             "repository-setting",

@@ -37,10 +37,11 @@ When implementing Project issues, follow these rules:
     approaches when needed. Preserve intentional custom behavior.
 18. When action is needed, make sure that `hj repo features` states the specific
     repair actions or required manual action. Name affected files, configuration
-    values, or remote resources. If repair is unsupported, state that and explain
-    the required manual action. For matching enabled and intentionally disabled
-    features, show detection evidence without generic no-repair messages or empty
-    repair lines. Do not present a generic repair hint as a repair description.
+    values, or remote resources. If repair is unsupported, state that and
+    explain the required manual action. For matching enabled and intentionally
+    disabled features, show detection evidence without generic no-repair
+    messages or empty repair lines. Do not present a generic repair hint as a
+    repair description.
 19. After changes, repeat the feature inspection and record the results. Apply
     these requirements to all existing and future features.
 20. Use `github-default-project` as the model for drifted repair details. Follow
@@ -54,6 +55,11 @@ When implementing Project issues, follow these rules:
     example, extra `.gitignore` lines after the managed entries must leave
     `git-ignore` enabled without repair. If required exclusions are missing,
     name the exact lines that repair will add.
+22. Show one `--repair` hint for each repairable feature and each required
+    change once. Omit repeated headings, generic setup summaries, and operations
+    that the inspected state does not need. Keep actual effects, substantive
+    warnings, and required manual actions. Include a feature selector only when
+    the preview needs explicit selection to enable missing dependencies.
 
 Use Conventional Commit subjects, such as
 `feat(package): resolve package identity`.

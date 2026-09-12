@@ -134,19 +134,19 @@ export async function featureRepairPreviews(
       descriptions.set(
         id,
         [
-          `Repair (--repair --${id}):`,
-          ...plans.filter((plan) => plan.changes.length).map((plan) =>
-            plan.summary
-          ),
-          ...actions,
-          ...await repairCompletionDescription(context, plans),
-          ...plans.flatMap((plan) =>
-            plan.warnings.map((warning) =>
-              `${warning.message}${
-                warning.resolution ? ` ${warning.resolution}` : ""
-              }`
-            )
-          ),
+          ...new Set([
+            // Explicit selection can enable missing dependencies; bare repair cannot.
+            resolution.changes.length ? `--repair --${id}:` : "--repair:",
+            ...actions,
+            ...await repairCompletionDescription(context, plans),
+            ...plans.flatMap((plan) =>
+              plan.warnings.map((warning) =>
+                `${warning.message}${
+                  warning.resolution ? ` ${warning.resolution}` : ""
+                }`
+              )
+            ),
+          ].flatMap((detail) => detail.split("\n"))),
         ].join("\n"),
       );
     } catch {

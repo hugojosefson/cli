@@ -95,9 +95,13 @@ Matching enabled and intentionally disabled features show detection evidence
 without generic no-repair messages or empty repair lines. Disabled features stay
 disabled with `--repair` alone. A positive flag can enable a disabled feature,
 including when combined with `--repair`. Ambiguous and unknown results explain
-the required manual action. Drifted results describe `--repair --<feature>`,
-including required dependencies and shared files. The output also identifies
-project tasks and Git commits that follow local repairs.
+the required manual action. Drifted results show one `--repair` hint and list
+each required change once, including required dependencies and shared files.
+They omit repeated headings, generic setup summaries, and unnecessary
+operations. A hint includes a feature selector when explicit selection is needed
+for missing dependencies. Use `--repair --<feature>` to limit repair to selected
+features. The output also identifies project tasks and Git commits that follow
+local repairs.
 
 Extra `.gitignore` entries after the managed entries do not require repair. If
 all required entries remain correct, detection reports enabled. If required
