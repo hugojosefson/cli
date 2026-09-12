@@ -1,5 +1,6 @@
 /** @module GitHub pull-request CI and dependency-update workflow feature. */
 
+import { inspectLegacyGithubCi } from "./github-ci-legacy.ts";
 import type { DetectionIssue } from "../api/feature-detection.ts";
 import type { DetectionContext } from "../api/repository-context.ts";
 import type { Feature } from "../api/feature.ts";
@@ -19,6 +20,23 @@ import {
 } from "./github-ci-operations.ts";
 
 async function detectGithubCi(context: DetectionContext) {
+  const legacy = await inspectLegacyGithubCi(context);
+  if (
+    legacy.some((item) => item.result !== "absent" && item.result !== "matches")
+  ) {
+    return issue(
+      "ambiguous",
+      "A legacy CI workflow is custom or unavailable.",
+      "Review deno.yaml and bump-deps.yaml manually before enabling GitHub CI.",
+    );
+  }
+  if (legacy.some((item) => item.result === "matches")) {
+    return issue(
+      "drifted",
+      "Exact git-hj-init workflows need migration.",
+      "Select --github-ci to replace the legacy workflows while retaining required check names.",
+    );
+  }
   const artifacts = await inspectGithubCiArtifacts(context);
   if (artifacts.every((item) => item.result === "absent")) {
     return state("disabled", "Generated GitHub CI workflows are absent.");

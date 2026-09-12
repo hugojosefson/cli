@@ -454,6 +454,21 @@ approval. PR workflow runs created by its dependency updater need approval from
 a user with write access. `github-main-protection` requires `github-ci` and
 resolved review threads.
 
+If a repository uses CI from `git-hj-init`, select `--github-ci` to migrate its
+exact `deno.yaml` and `bump-deps.yaml` workflows. The plan lists each
+replacement. It removes recognized legacy files after writing `hj-ci.yaml` and
+`hj-deps.yaml`. Exact destination workflows can already exist. Edited legacy
+files and custom files at destination paths block migration, including with
+`--repair`.
+
+Migrated CI retains the required check names `check` and `test`. Its `check` job
+runs `deno task all`, including tests. The compatibility `test` job reports
+success only when `check` succeeds, without a second test run. It reports
+failure when `check` fails, skips, or cancels. Existing branch protection stays
+unchanged. The new `hj-release-commit-validation` check remains available to
+managed protection rules. Other workflows, including legacy `release.yaml`,
+remain outside this CI migration.
+
 ## GitHub preset
 
 `--github` uses fixed defaults. It does not inspect recent repositories.

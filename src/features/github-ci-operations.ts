@@ -1,5 +1,9 @@
 /** @module Safe operations for exact GitHub CI workflows. */
 
+import {
+  inspectLegacyGithubCi,
+  legacyCiCheckCompatibility,
+} from "./github-ci-legacy.ts";
 import type { ChangePlan } from "../api/change-plan.ts";
 import type {
   AllowedOperation,
@@ -25,6 +29,15 @@ export async function checkEnableGithubCi(
       return blocked(`Workflow parent ${path} is not a directory.`);
     }
   }
+  const legacy = await inspectLegacyGithubCi(context);
+  if (
+    legacy.some((item) => item.result !== "absent" && item.result !== "matches")
+  ) {
+    return blocked(
+      "A legacy CI workflow is custom or unavailable and will not be replaced.",
+      "Review deno.yaml and bump-deps.yaml manually before enabling GitHub CI.",
+    );
+  }
   const artifacts = await inspectGithubCiArtifacts(context);
   const custom = artifacts.find((item) =>
     item.result === "unreadable" || item.result === "differs" &&
@@ -34,8 +47,10 @@ export async function checkEnableGithubCi(
   if (custom) {
     return blocked("A GitHub workflow is custom and will not be replaced.");
   }
-  const drifted = !artifacts.every((item) => item.result === "absent") &&
-    !artifacts.every((item) => item.result === "matches");
+  const drifted = artifacts.some((item) => item.result === "differs") ||
+    !legacy.some((item) => item.result === "matches") &&
+      !artifacts.every((item) => item.result === "absent") &&
+      !artifacts.every((item) => item.result === "matches");
   if (drifted && !repair(context)) {
     return blocked(
       "Generated GitHub workflows differ. Re-run with --repair to restore them.",
@@ -50,15 +65,36 @@ export async function checkEnableGithubCi(
       actionsPermissionResolution,
     );
   }
-  return artifacts.every((item) => item.result === "matches")
+  return artifacts.every((item) => item.result === "matches") &&
+      legacy.every((item) => item.result === "absent")
     ? noOp("GitHub CI workflows are already adopted.")
-    : allowed();
+    : {
+      ...allowed(),
+      warnings: legacy.some((item) => item.result === "matches")
+        ? [{
+          code: "github-ci-legacy-migration",
+          message: migrationSummary(legacy),
+          subjects: [githubCiSubject()],
+        }]
+        : [],
+      preconditions: [...artifacts, ...legacy].map((item) => ({
+        kind: "file-digest" as const,
+        path: item.schema.path,
+        digest: "observation" in item && typeof item.observation === "object" &&
+            item.observation.kind === "file"
+          ? item.observation.digest
+          : undefined,
+      })),
+    };
 }
 
 export async function checkDisableGithubCi(
   context: OperationContext,
 ): Promise<OperationCheck> {
-  const artifacts = await inspectGithubCiArtifacts(context);
+  const artifacts = [
+    ...await inspectGithubCiArtifacts(context),
+    ...await inspectLegacyGithubCi(context),
+  ];
   const nonExact = artifacts.find((item) =>
     item.result !== "matches" && item.result !== "absent"
   );
@@ -74,6 +110,8 @@ export async function planEnableGithubCi(
   allowedOperation: AllowedOperation,
 ): Promise<ChangePlan> {
   const artifacts = await inspectGithubCiArtifacts(context);
+  const legacy = await inspectLegacyGithubCi(context);
+  const preserveTest = legacy[0].result === "matches";
   const changes: PlannedChange[] = [];
   for (const path of [".github", ".github/workflows"]) {
     if ((await context.files.observe(path)).kind === "absent") {
@@ -81,26 +119,42 @@ export async function planEnableGithubCi(
     }
   }
   for (const item of artifacts) {
-    if (item.result === "matches") continue;
+    const addTest = preserveTest && item.schema.path.endsWith("/hj-ci.yaml") &&
+      item.schema.kind === "file" &&
+      !item.schema.content.endsWith(legacyCiCheckCompatibility);
+    if (item.result === "matches" && !addTest) continue;
     if (item.schema.kind !== "file") {
       throw new Error("Expected workflow file schema.");
     }
     changes.push({
       kind: "write-file",
       path: item.schema.path,
-      content: item.schema.content,
+      content: item.schema.content +
+        (addTest ? legacyCiCheckCompatibility : ""),
       mode: 0o644,
       expectedDigest:
-        item.result === "differs" && item.observation.kind === "file"
+        (item.result === "differs" || item.result === "matches") &&
+          item.observation.kind === "file"
           ? item.observation.digest
           : undefined,
     });
+  }
+  for (const item of legacy) {
+    if (item.result === "matches" && item.observation.kind === "file") {
+      changes.push({
+        kind: "remove-file",
+        path: item.schema.path,
+        expectedDigest: item.observation.digest,
+      });
+    }
   }
   return plan(
     "enable",
     allowedOperation,
     changes,
-    "Configure GitHub CI workflows.",
+    legacy.some((item) => item.result === "matches")
+      ? migrationSummary(legacy)
+      : "Configure GitHub CI workflows.",
     "enabled",
   );
 }
@@ -109,7 +163,10 @@ export async function planDisableGithubCi(
   context: OperationContext,
   allowedOperation: AllowedOperation,
 ): Promise<ChangePlan> {
-  const artifacts = await inspectGithubCiArtifacts(context);
+  const artifacts = [
+    ...await inspectGithubCiArtifacts(context),
+    ...await inspectLegacyGithubCi(context),
+  ];
   const changes: PlannedChange[] = artifacts.flatMap((item) =>
     item.result === "matches" && item.observation.kind === "file"
       ? [{
@@ -133,7 +190,7 @@ function repair(context: OperationContext): boolean {
     context.repair?.kind === "features" &&
       context.repair.featureIds.includes(githubCiFeatureId);
 }
-function allowed(): OperationCheck {
+function allowed(): AllowedOperation {
   return { result: "allowed", warnings: [], preconditions: [] };
 }
 function noOp(reason: string): OperationCheck {
@@ -187,4 +244,18 @@ function plan(
       expected,
     }],
   };
+}
+
+function migrationSummary(
+  legacy: Awaited<ReturnType<typeof inspectLegacyGithubCi>>,
+): string {
+  const paths = legacy.filter((item) => item.result === "matches").map((item) =>
+    item.schema.path
+  );
+  return `Replace git-hj-init workflows ${
+    paths.join(" and ")
+  } with hj-ci.yaml and hj-deps.yaml. ` +
+    (legacy[0].result === "matches"
+      ? "Keep required check names check and test; add hj-release-commit-validation."
+      : "Keep existing CI check names.");
 }

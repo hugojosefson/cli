@@ -1,5 +1,6 @@
 /** @module Exact workflows owned by the GitHub CI feature. */
 
+import { legacyCiCheckCompatibility } from "./github-ci-legacy.ts";
 import { workflowDenoVersion } from "./workflow-toolchain.ts";
 import { hjPackageReference } from "./hj-package.ts";
 
@@ -131,7 +132,20 @@ export async function inspectGithubCiArtifacts(
     const observation = await context.files.observe(artifact.path);
     const schema: ArtifactSchema = {
       kind: "file",
-      ...workflowCliArtifact(artifact, context, observation),
+      ...workflowCliArtifact(
+        artifact.path === githubCiArtifacts[0].path &&
+          observation.kind === "file" &&
+          observation.content.includes(
+            "# Retains the git-hj-init required test check.",
+          )
+          ? {
+            ...artifact,
+            content: artifact.content + legacyCiCheckCompatibility,
+          }
+          : artifact,
+        context,
+        observation,
+      ),
       mode: 0o644,
     };
     // GitHub ignores workflow modes, while shared Git worktrees rewrite them.
