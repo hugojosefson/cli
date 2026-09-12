@@ -861,3 +861,14 @@ Select `--github-release-publish-npm` to add an independent npm publisher after
 release-tag success. Define and test the `npm-build` task first. The
 [npm publication guide](npm-publication.md) describes package output,
 authentication, and retries.
+
+The feature adds an npm version badge linked to the explicit package name in
+`deno.json` or `deno.jsonc`. This is the same name that publication requires in
+the built archive. It uses `README.md` for a static README and
+`readme/README.md` for a generated README.
+
+If its badge is missing or outdated, use `--repair` to restore it. Repair
+preserves the publication workflow when that workflow already matches. Disabling
+the feature removes its unchanged badge and preserves custom badges, other
+badges, and custom text. A matching custom npm badge remains custom. Conflicting
+or duplicate badges require a manual correction before enablement.

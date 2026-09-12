@@ -368,7 +368,7 @@ ignore detection fix, and local examples.
 | `github-protected-tags`         | Enabled        | Managed tag rules prevent release changes. The CLI enforces exact SemVer.                                 |
 | `github-rebase-merge`           | Enabled        | Rebase merging preserves individual commits and linear history.                                           |
 | `github-release-publish-github` | Enabled        | The generated workflow publishes GitHub Releases.                                                         |
-| `github-release-publish-npm`    | Enabled        | The generated workflow publishes the native CLI archive to npm.                                           |
+| `github-release-publish-npm`    | Enabled        | The generated workflow publishes the native CLI archive to npm and owns its README version badge.         |
 | `github-release-publish-jsr`    | Enabled        | The generated workflow publishes packages to JSR.                                                         |
 | `github-release-publish-tag`    | Enabled        | The generated workflow prepares release PRs and protected tags.                                           |
 | `github-repo`                   | Enabled        | The authenticated CLI can read the linked GitHub repository.                                              |
@@ -443,9 +443,9 @@ This also runs in release validation through `all`. It requires no network,
 credentials, or writes. Formatting covers the editable source and excludes
 generated output.
 
-The repository uses managed JSR and CI badges. Its custom installation and usage
-sections remain intact. The package configuration sets `hj.commandName` to `hj`
-because the package name ends in `cli`.
+The repository uses managed JSR, npm, and CI badges. Its custom installation and
+usage sections remain intact. The package configuration sets `hj.commandName` to
+`hj` because the package name ends in `cli`.
 
 Feature updates run `default`, which builds the README and runs `check`,
 including `deno task ci`. Successful updates record separate commits for their

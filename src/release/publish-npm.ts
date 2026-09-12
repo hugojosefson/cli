@@ -1,4 +1,5 @@
 /** Independent npm publication of a checked, reproducible build artifact. */
+import { validNpmPublishName } from "../package/npm-name.ts";
 import * as fs from "node:fs/promises";
 import { isDeepStrictEqual } from "node:util";
 import type { ReleaseEnvironment } from "./release-environment.ts";
@@ -112,8 +113,7 @@ export async function publishNpm(input: {
   }
   const config = await versionConfig(input.files, release.version);
   if (
-    typeof config.name !== "string" ||
-    !/^@[a-z0-9][a-z0-9._-]*\/[a-z0-9][a-z0-9._-]*$/.test(config.name)
+    !validNpmPublishName(config.name)
   ) {
     throw new TypeError(
       "npm publication requires a scoped package name in Deno config.",

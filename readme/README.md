@@ -20,6 +20,12 @@ repository you want to manage.
 
 <!-- /hj:readme -->
 
+<!-- hj:readme github-release-publish-npm:badge c9cf2e0e859be880fd5a386c1654e2aa24b3764dd827580bd4ad4ac07b5dc1cf -->
+
+[![npm Version](https://img.shields.io/npm/v/@hugojosefson/cli)](https://www.npmjs.com/package/@hugojosefson/cli)
+
+<!-- /hj:readme -->
+
 <!-- hj:readme github-ci:badge cef2c14f63758c9d69d92ef24b123236225fdf1984e0a9e31519646de6464d00 -->
 
 [![CI](https://github.com/hugojosefson/cli/actions/workflows/hj-ci.yaml/badge.svg)](https://github.com/hugojosefson/cli/actions/workflows/hj-ci.yaml)
