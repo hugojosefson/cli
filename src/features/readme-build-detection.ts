@@ -1,5 +1,6 @@
 /** @module Generated README feature detection. */
 
+import { fileAccess } from "../repository/file-access.ts";
 import type {
   DetectionEvidence,
   DetectionIssue,
@@ -48,7 +49,8 @@ export async function detectReadmeBuild(
   }
   if (
     state.exactTask && state.exactDefault && state.rootMatches &&
-    state.rootMode === 0o444
+    state.root.kind === "file" && !fileAccess(state.root).writable &&
+    state.source.kind === "file" && fileAccess(state.source).writable
   ) {
     return {
       state: "enabled" as const,

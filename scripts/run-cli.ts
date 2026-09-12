@@ -14,9 +14,10 @@ Deno.exit(
   await runDeno([
     "run",
     "--frozen",
+    "--allow-sys=uid,gid",
     "--allow-read",
     "--allow-write",
-    taskCapable ? "--allow-run" : "--allow-run=git,gh,deno",
+    taskCapable ? "--allow-run" : "--allow-run=git,gh,deno,sh",
     `--allow-net=raw.githubusercontent.com,api.jsr.io,jsr.io,rekor.sigstore.dev${
       projectAutoAdd ? ",127.0.0.1" : ""
     }${npmPublication ? ",registry.npmjs.org" : ""}`,

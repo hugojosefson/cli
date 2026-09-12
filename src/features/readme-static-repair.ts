@@ -1,5 +1,10 @@
 /** @module Explicit repair checks and plans for the static README. */
 
+import {
+  fileAccess,
+  matchesFileAccess,
+  repairFileMode,
+} from "../repository/file-access.ts";
 import type { ExactArtifactInspection } from "../api/artifact-inspection.ts";
 import type { ChangePlan } from "../api/change-plan.ts";
 import type {
@@ -47,13 +52,13 @@ export async function planRepairReadmeStatic(
   const contentDiffers = inspection.observation.content !==
     inspection.schema.content;
   const unlock = contentDiffers &&
-    (inspection.observation.mode & 0o200) === 0;
+    !fileAccess(inspection.observation).writable;
   const changes: PlannedChange[] = [];
   if (unlock) {
     changes.push({
       kind: "set-file-mode",
       path: readmeStaticPath,
-      mode: inspection.schema.mode,
+      mode: repairFileMode(inspection.observation, inspection.schema.mode),
       expectedMode: inspection.observation.mode,
     });
   }
@@ -65,11 +70,14 @@ export async function planRepairReadmeStatic(
       expectedDigest: inspection.observation.digest,
     });
   }
-  if (!unlock && inspection.observation.mode !== inspection.schema.mode) {
+  if (
+    !unlock &&
+    !matchesFileAccess(inspection.observation, inspection.schema.mode)
+  ) {
     changes.push({
       kind: "set-file-mode",
       path: readmeStaticPath,
-      mode: inspection.schema.mode,
+      mode: repairFileMode(inspection.observation, inspection.schema.mode),
       expectedMode: inspection.observation.mode,
     });
   }

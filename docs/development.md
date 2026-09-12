@@ -363,9 +363,18 @@ The example uses this checkout's local feature detectors and terminal formatter.
 It shows four representative rows and needs no GitHub access.
 
 Keep the generated root `README.md` tracked in Git. The build sets its file
-permissions to `0444` (read-only) and leaves it tracked. Git records the
-executable flag but does not record write permissions. After a checkout, run
-`deno task readme` to restore read-only permissions.
+permissions to `0444` (read-only) and leaves it tracked. Feature detection
+accepts any permissions that give the current user the required access. Editable
+sources must be writable, and generated README output must be read-only.
+Detection includes group membership and access control lists (ACLs), which
+assign permissions to specific users or groups. Node and Bun use `node:fs`
+access checks. Deno uses read-only `sh` tests because its compatibility
+implementation omits supplementary groups and ACLs. The local runners grant
+`--allow-sys=uid,gid` and subprocess access to `sh` for inspection.
+Metadata-only reads, including `readme build`, need only read access.
+
+Git records the executable flag but does not record write permissions. After a
+checkout, run `deno task readme` to restore read-only permissions.
 
 After changing feature detection or output, run:
 
@@ -378,8 +387,8 @@ CI runs `readme-check` through `ci`. This step regenerates the SVG, Markdown
 fragment, and complete README in memory, then compares them with the committed
 files. It fails with the refresh command when any output differs or is missing.
 This also runs in release validation through `all`. It requires no network,
-credentials, external commands, or writes. Formatting covers the editable source
-and excludes generated output.
+credentials, or writes. Formatting covers the editable source and excludes
+generated output.
 
 The repository uses managed JSR and CI badges. Its custom installation and usage
 sections remain intact. The package configuration sets `hj.commandName` to `hj`

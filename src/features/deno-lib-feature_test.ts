@@ -11,6 +11,7 @@ import {
   writeTextFile,
 } from "../testing/files-test-fixtures.ts";
 import { runRawCommand as runCommand } from "../runtime/command.ts";
+import { matchesFileAccess } from "../repository/file-access.ts";
 import { assert, assertEquals } from "@std/assert";
 import type { OperationContext } from "../api/repository-context.ts";
 import { applyLocalChangePlan } from "../operations/local-change-plan.ts";
@@ -68,10 +69,9 @@ test("deno-lib creates starter files, repairs drift, and preserves them on disab
       "set-file-mode",
     ]);
     await applyLocalChangePlan(root, modeRepair);
-    assertEquals(
-      (await fixtureStat(new URL("src/lib/mod.ts", root))).mode! & 0o777,
-      0o644,
-    );
+    const observed = await new LocalFileReader(root).observe("src/lib/mod.ts");
+    assert(observed.kind === "file");
+    assert(matchesFileAccess(observed, 0o644));
     const disable = await denoLibFeature.checkDisable(context(root));
     if (disable.result !== "allowed") {
       throw new Error("test setup requires disable");

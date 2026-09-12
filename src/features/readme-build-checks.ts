@@ -1,5 +1,6 @@
 /** @module Generated README operation safety checks. */
 
+import { fileAccess } from "../repository/file-access.ts";
 import type {
   OperationCheck,
   OperationWarning,
@@ -85,7 +86,7 @@ export async function checkEnableReadmeBuild(
   }
   if (
     state.root.kind !== "absent" &&
-    (state.root.kind !== "file" || (state.root.mode & 0o200) === 0)
+    (state.root.kind !== "file" || !fileAccess(state.root).writable)
   ) {
     return blocked("README.md must be an absent or writable regular file.");
   }
@@ -127,7 +128,8 @@ export async function checkDisableReadmeBuild(
 function exact(state: Awaited<ReturnType<typeof inspectReadmeBuild>>): boolean {
   return state.exactTask && state.exactDefault &&
     state.source.kind === "file" && state.rootMatches &&
-    state.rootMode === 0o444;
+    state.root.kind === "file" && !fileAccess(state.root).writable &&
+    fileAccess(state.source).writable;
 }
 
 function repairSelected(context: OperationContext): boolean {

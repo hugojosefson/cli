@@ -142,11 +142,11 @@
     },
     "readme-example": {
       "description": "Generate the README example from local feature detection",
-      "command": "deno run --frozen --allow-read=. --allow-write=readme/generated scripts/readme-example.ts"
+      "command": "deno run --frozen --allow-sys=uid,gid --allow-run=sh --allow-read=. --allow-write=readme/generated scripts/readme-example.ts"
     },
     "readme-check": {
       "description": "Generate and compare the README and feature example without writes",
-      "command": "deno run --frozen --allow-read=. scripts/readme-example.ts --check"
+      "command": "deno run --frozen --allow-sys=uid,gid --allow-run=sh --allow-read=. scripts/readme-example.ts --check"
     },
     "test-build": {
       "description": "Emit every shared test for native Node and Bun execution",

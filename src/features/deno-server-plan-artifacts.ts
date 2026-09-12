@@ -1,3 +1,7 @@
+import {
+  matchesFileAccess,
+  repairFileMode,
+} from "../repository/file-access.ts";
 import type { PlannedChange } from "../api/planned-change.ts";
 import {
   denoCliServerPaths,
@@ -36,11 +40,16 @@ export function addServerArtifacts(
           expectedDigest: item.observation.digest,
         });
       }
-      if (item.observation.mode !== denoServerArtifacts[index].mode) {
+      if (
+        !matchesFileAccess(item.observation, denoServerArtifacts[index].mode)
+      ) {
         changes.push({
           kind: "set-file-mode",
           path: denoServerArtifacts[index].path,
-          mode: denoServerArtifacts[index].mode,
+          mode: repairFileMode(
+            item.observation,
+            denoServerArtifacts[index].mode,
+          ),
           expectedMode: item.observation.mode,
         });
       }

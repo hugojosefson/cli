@@ -1,5 +1,6 @@
 /** @module Generated README paths and read-only state inspection. */
 
+import { fileAccess } from "../repository/file-access.ts";
 import { inspectLegacyReadme, legacyDefaultTask } from "./legacy-readme.ts";
 import type { ArtifactObservation } from "../api/artifact-inspection.ts";
 import type { DetectionContext } from "../api/repository-context.ts";
@@ -81,7 +82,7 @@ export async function inspectReadmeBuild(context: DetectionContext) {
     rootMatches: root.kind === "file" && output !== undefined &&
       root.content === output,
     rootMode: root.kind === "file" ? root.mode : undefined,
-    generatedMarker: root.kind === "file" && root.mode === 0o444,
+    generatedMarker: root.kind === "file" && !fileAccess(root).writable,
   };
 }
 

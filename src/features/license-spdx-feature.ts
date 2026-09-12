@@ -1,5 +1,10 @@
 /** @module Safe SPDX LICENSE provider implementation. */
 
+import {
+  fileAccess,
+  matchesFileAccess,
+  repairFileMode,
+} from "../repository/file-access.ts";
 import type { ChangePlan } from "../api/change-plan.ts";
 import type { PlannedChange } from "../api/planned-change.ts";
 import type { Feature } from "../api/feature.ts";
@@ -49,6 +54,7 @@ type State =
     readonly kind: "drifted";
     readonly digest: string;
     readonly mode: number;
+    readonly access?: import("../api/file-access.ts").FileAccess;
     readonly readme: LicenseReadmeState;
   }
   | { readonly kind: "ambiguous"; readonly digest?: string };
@@ -113,7 +119,7 @@ async function inspectLicense(
       ) return { kind: "ambiguous", digest: observed.digest };
       if (
         readme.section.kind === "exact" && readme.rootFresh &&
-        (observed.mode & 0o711) === 0o600
+        matchesFileAccess(observed, 0o644)
       ) {
         return { kind: "exact", digest: observed.digest, readme };
       }
@@ -121,6 +127,7 @@ async function inspectLicense(
         kind: "drifted",
         digest: observed.digest,
         mode: observed.mode,
+        access: observed.access,
         readme,
       };
     }
@@ -236,11 +243,11 @@ async function enablePlan(
         state.readme,
         provider.definition.name,
       );
-    if (state.mode !== 0o644) {
+    if (!matchesFileAccess(state, 0o644)) {
       changes.unshift({
         kind: "set-file-mode",
         path,
-        mode: 0o644,
+        mode: repairFileMode(state, 0o644),
         expectedMode: state.mode,
       });
     }
@@ -503,12 +510,12 @@ async function readmeChanges(
   }
   if (content !== readme.content) {
     if (
-      readme.targetMode !== undefined && (readme.targetMode & 0o200) === 0
+      readme.target.kind === "file" && !fileAccess(readme.target).writable
     ) {
       changes.push({
         kind: "set-file-mode",
         path: readme.path,
-        mode: 0o644,
+        mode: repairFileMode(readme.target, 0o644),
         expectedMode: readme.targetMode,
       });
     }
@@ -519,15 +526,23 @@ async function readmeChanges(
       mode: 0o644,
       expectedDigest: readme.digest,
     });
-  } else if (readme.targetMode !== 0o644) {
+  } else if (
+    readme.target.kind === "file" && !fileAccess(readme.target).writable
+  ) {
     changes.push({
       kind: "set-file-mode",
       path: readme.path,
-      mode: 0o644,
+      mode: repairFileMode(readme.target, 0o644),
       expectedMode: readme.targetMode,
     });
   }
   const root = await buildReadmeText(context.repositoryRoot, content);
+  const writableMode = readme.root.kind === "file"
+    ? repairFileMode(readme.root, 0o644)
+    : 0o644;
+  const readonlyMode = readme.root.kind === "file"
+    ? repairFileMode(readme.root, 0o444)
+    : 0o444;
   if (root !== readme.rootContent) {
     if (readme.rootMode === undefined) {
       changes.push({
@@ -539,13 +554,13 @@ async function readmeChanges(
       });
       return changes;
     }
-    const writable = readme.rootMode !== undefined &&
-      (readme.rootMode & 0o200) !== 0;
+    const writable = readme.root.kind === "file" &&
+      fileAccess(readme.root).writable;
     if (!writable) {
       changes.push({
         kind: "set-file-mode",
         path: "README.md",
-        mode: 0o644,
+        mode: writableMode,
         expectedMode: readme.rootMode,
       });
     }
@@ -557,14 +572,14 @@ async function readmeChanges(
     }, {
       kind: "set-file-mode",
       path: "README.md",
-      mode: 0o444,
-      expectedMode: writable ? readme.rootMode : 0o644,
+      mode: readonlyMode,
+      expectedMode: writable ? readme.rootMode : writableMode,
     });
-  } else if (readme.rootMode !== 0o444) {
+  } else if (readme.root.kind === "file" && fileAccess(readme.root).writable) {
     changes.push({
       kind: "set-file-mode",
       path: "README.md",
-      mode: 0o444,
+      mode: readonlyMode,
       expectedMode: readme.rootMode,
     });
   }
@@ -588,6 +603,12 @@ async function removeReadmeChanges(
     }];
   }
   const root = await buildReadmeText(context.repositoryRoot, content);
+  const writableMode = readme.root.kind === "file"
+    ? repairFileMode(readme.root, 0o644)
+    : 0o644;
+  const readonlyMode = readme.root.kind === "file"
+    ? repairFileMode(readme.root, 0o444)
+    : 0o444;
   return [{
     kind: "write-file",
     path: readme.path,
@@ -597,8 +618,8 @@ async function removeReadmeChanges(
   }, {
     kind: "set-file-mode",
     path: "README.md",
-    mode: 0o644,
-    expectedMode: 0o444,
+    mode: writableMode,
+    expectedMode: readme.rootMode,
   }, {
     kind: "write-file",
     path: "README.md",
@@ -607,8 +628,8 @@ async function removeReadmeChanges(
   }, {
     kind: "set-file-mode",
     path: "README.md",
-    mode: 0o444,
-    expectedMode: 0o644,
+    mode: readonlyMode,
+    expectedMode: writableMode,
   }];
 }
 function ambiguous(provider: SpdxLicenseProvider) {

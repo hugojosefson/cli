@@ -165,3 +165,30 @@ feature commit ownership.
 
 The combined `deno task ci` passed 665 tests and seven named steps. Coverage
 passed all limits: 90.9% of lines, 91.9% of branches, and 93.7% of functions.
+
+## Current-user file access
+
+The September 12, 2026 inspection ran `hj repo features` and
+`deno task hj repo features`. Both commands reported a writable generated README
+after checkout. The updated detection accepts the editable source and LICENSE
+with mode `0664`. It accepts generated README output whenever the current user
+can read the file but cannot write to it.
+
+`deno task readme-example` and `deno task readme` restored the generated output.
+The repeated checkout inspection reported every feature as enabled or
+intentionally disabled, with no ambiguity or drift. The README source and
+LICENSE kept their existing permissions. Inspection did not change files or
+remote resources.
+
+Regression tests cover alternate sharing permissions, current-user access,
+read-only inspection of files and directories, and permission repair that
+preserves unrelated bits. License removal uses the observed README mode in its
+change guard. Node 26.2.0 and Bun 1.4.2 passed native access tests, including a
+read-only file owned by another user. New implementation and test code use
+`node:` imports and add no `Deno.` namespace references.
+
+The final `deno task ci` passed 692 tests and 29 named steps. Coverage passed
+all limits. A separate run of `readme build` with only `--allow-read=.` produced
+the same README. The installed `hj` still uses the earlier implementation and
+reports unnecessary `644` repairs for LICENSE and the editable README source.
+Use `deno task hj repo features` to inspect this change before installation.

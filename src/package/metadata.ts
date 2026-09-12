@@ -71,7 +71,7 @@ export async function readPackageMetadata(
 export function projectMetadata(root: URL): Promise<PackageMetadata> {
   return readPackageMetadata({
     repositoryRoot: root,
-    files: new LocalFileReader(root),
+    files: new LocalFileReader(root, false),
   });
 }
 

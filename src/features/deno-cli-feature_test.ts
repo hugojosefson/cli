@@ -11,6 +11,7 @@ import {
   writeTextFile,
 } from "../testing/files-test-fixtures.ts";
 import { runRawCommand as runCommand } from "../runtime/command.ts";
+import { matchesFileAccess } from "../repository/file-access.ts";
 import { assert, assertEquals } from "@std/assert";
 import type { OperationContext } from "../api/repository-context.ts";
 import { applyLocalChangePlan } from "../operations/local-change-plan.ts";
@@ -106,10 +107,9 @@ test("deno-cli adopts, repairs content and mode, then preserves seed on disable"
         await readTextFile(new URL(artifact.path, root)),
         artifact.content,
       );
-      assertEquals(
-        (await fixtureStat(new URL(artifact.path, root))).mode! & 0o777,
-        artifact.mode,
-      );
+      const observed = await new LocalFileReader(root).observe(artifact.path);
+      assert(observed.kind === "file");
+      assert(matchesFileAccess(observed, artifact.mode));
     }
     const disable = await denoCliFeature.checkDisable(context(root));
     if (disable.result !== "allowed") {

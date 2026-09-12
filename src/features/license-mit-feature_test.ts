@@ -44,12 +44,12 @@ test("MIT detection tolerates checkout permissions but rejects executable or rea
     source(template),
     source(apacheTemplate),
   );
-  for (const mode of [0o600, 0o640, 0o644, 0o660, 0o664, 0o666]) {
+  for (const mode of [0o600, 0o640, 0o644, 0o660, 0o664, 0o666, 0o645]) {
     const current = context(file("Copyright 2026 Ada\nterms\n", mode));
     assertEquals((await feature.detect(current)).state, "enabled");
     assertEquals((await feature.checkEnable(current)).result, "no-op");
   }
-  for (const mode of [0o444, 0o755, 0o645, 0o200]) {
+  for (const mode of [0o444, 0o755, 0o200]) {
     assertEquals(
       (await feature.detect(context(file("Copyright 2026 Ada\nterms\n", mode))))
         .state,
@@ -88,7 +88,7 @@ test("MIT provider writes resolved attribution and repairs only mode drift", asy
     {
       kind: "set-file-mode",
       path: "LICENSE",
-      mode: 0o644,
+      mode: 0o655,
       expectedMode: 0o755,
     },
   );

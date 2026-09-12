@@ -1,5 +1,6 @@
 /** @module Exact starter README checks and plans. */
 
+import { fileAccess } from "../repository/file-access.ts";
 import type { ChangePlan } from "../api/change-plan.ts";
 import type {
   AllowedOperation,
@@ -31,7 +32,7 @@ export async function checkEnableReadmeStatic(
   if (
     inspection.result !== "absent" && inspection.result !== "unreadable" &&
     inspection.observation.kind === "file" &&
-    (inspection.observation.mode & 0o200) !== 0
+    fileAccess(inspection.observation).writable
   ) {
     return {
       result: "no-op",
@@ -74,7 +75,7 @@ export async function checkDisableReadmeStatic(
   const inspection = await inspectReadmeStatic(context);
   if (
     inspection.result === "differs" && inspection.observation.kind === "file" &&
-    (inspection.observation.mode & 0o200) !== 0
+    fileAccess(inspection.observation).writable
   ) {
     return {
       result: "no-op",

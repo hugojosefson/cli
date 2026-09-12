@@ -64,7 +64,7 @@ test("readme-static repairs explicitly selected non-writable content", async () 
     {
       kind: "set-file-mode",
       path: "README.md",
-      mode: 0o644,
+      mode: 0o640,
       expectedMode: 0o440,
     },
     {
