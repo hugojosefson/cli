@@ -11,6 +11,7 @@ import {
 } from "./deno-task-features.ts";
 import { denoLibFeature } from "./deno-lib-feature.ts";
 import { denoServerFeature } from "./deno-server-feature.ts";
+import { editorconfigFeature } from "./editorconfig-feature.ts";
 import { gitIgnoreFeature } from "./git-ignore-feature.ts";
 import { gitFeature } from "./git-feature.ts";
 import { readmeStaticFeature } from "./readme-static-feature.ts";
@@ -48,6 +49,7 @@ export const builtInFeatureRegistry: FeatureRegistry = {
     denoServerFeature,
     gitFeature,
     gitIgnoreFeature,
+    editorconfigFeature,
     githubRepoFeature,
     githubDefaultProjectFeature,
     jsrPackageFeature,
