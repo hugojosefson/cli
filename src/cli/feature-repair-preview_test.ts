@@ -197,7 +197,13 @@ Deno.test("status previews the real formatting repair and shared files without c
         },
       );
     const status = await run();
-    assertStringIncludes(status, "Repair (--repair --deno-fmt)");
+    assertStringIncludes(status, "--repair:");
+    assertEquals(
+      status.match(/--repair/g)?.length,
+      status.match(/^\S+\s+drifted\s/gm)?.length,
+    );
+    assert(!status.includes("Repair: Repair"));
+    assert(!status.includes("Repair (--repair"));
     assertStringIncludes(status, "tasks.fmt.command");
     assertStringIncludes(status, '"deno fmt --ignore=coverage"');
     assertStringIncludes(status, "replace existing value");
@@ -211,7 +217,7 @@ Deno.test("status previews the real formatting repair and shared files without c
     );
     assertEquals(await context.files.readText(".gitignore"), ignore);
     assertEquals(await context.files.exists(".hj"), false);
-    const repaired = await run("--repair", "--deno-fmt", "--yes");
+    const repaired = await run("--repair", "--yes");
     assertEquals(taskCalls, 1);
     assertStringIncludes(repaired.replace(/ +/g, " "), "deno-fmt enabled");
     assert(!repaired.includes("Repair:"));
@@ -255,7 +261,9 @@ Deno.test("repair preview resolves missing dependencies and reports ambiguous de
         disabled,
       ]]),
     }, registry);
+    assertStringIncludes(previews.get("consumer")!, "--repair --consumer:");
     assertStringIncludes(previews.get("consumer")!, "Create consumer.txt");
+    assert(!previews.get("consumer")!.includes("Repair consumer."));
     assertEquals(previews.has("dependency"), false);
     assertEquals(planned, 1);
     assertEquals(await context.files.exists("consumer.txt"), false);

@@ -50,14 +50,9 @@ async function detect(context: DetectionContext) {
     !value.hasWork || !value.areaReady || !value.areaVisible ||
     !value.statusOrderReady || value.missingIssues !== 0
   ) {
-    const details = Array.isArray(value.repairDetails)
-      ? value.repairDetails.filter((detail) => typeof detail === "string")
-      : [];
     return state(
       "drifted",
-      details.length
-        ? `Repair would:\n${details.join("\n")}`
-        : "The default project needs its views, Area values, status order, fields, or missing issues.",
+      "The default project needs updates.",
       "Run --github-default-project --yes to add missing configuration, issues, Area values, and labels.",
     );
   }
@@ -111,7 +106,12 @@ function check(enabled: boolean) {
       result: "allowed",
       warnings: [{
         code: "github-default-project-mutation",
-        message: enabled
+        message: enabled && detection.state === "drifted" &&
+            Array.isArray(resource.definition.repairDetails)
+          ? resource.definition.repairDetails.filter((detail) =>
+            typeof detail === "string"
+          ).join("\n")
+          : enabled
           ? "Create or reuse the default project, link it, add all repository issues, and synchronize Area values and area:* labels by adding missing values."
           : "Unlink the default project. Its fields and items remain in GitHub.",
         subjects: [subject],

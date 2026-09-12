@@ -26,7 +26,7 @@ export function formatFeatureStatus(
         detection?.state ?? "unknown",
         [
           ...new Set(details),
-          ...(repair ? [`Repair: ${repair}`] : []),
+          ...(repair ? [repair] : []),
         ].join("\n"),
       ];
     });

@@ -186,7 +186,12 @@ Use `github-default-project` as the model for drifted repair details. Describe
 only changes that the current repository needs. For each change, name the target
 and the exact addition, removal, replacement, value, or order. Include relevant
 file paths, configuration keys and values, resource names, or issue numbers.
-Omit unchanged items unless they explain preservation of custom content.
+Omit unchanged items unless they explain preservation of custom content. Show
+one `--repair` hint per repairable feature and list each required change once.
+Omit repeated repair headings, generic plan summaries, and possible setup
+operations that the inspected state does not need. Keep substantive warnings,
+actual effects, and required manual actions. Add a feature selector to the hint
+only when explicit selection is needed for missing dependencies.
 
 For example, report `Add label "area:docs" to issue #36.` Report an option-order
 change as `Place Backlog before Todo in project Status options.` For
