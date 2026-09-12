@@ -286,3 +286,48 @@ The registry reader also accepted the real metadata and Rekor record for
 `@std/assert@1.0.19`. Its manifest digest matched the signed subject. The reader
 correctly rejected that package's unrelated publishing workflow. This read-only
 check tests response formats, not publication of the CLI package.
+
+## Automatic recovery at the tag, 2026-09-12
+
+The identity fixture placed tag `0.0.3` behind `main`. The
+[launcher](https://github.com/hugojosefson/scratchpad-hj-jsr-identity/actions/runs/34659860367)
+sent the usual release event. The
+[dispatch job](https://github.com/hugojosefson/scratchpad-hj-jsr-identity/actions/runs/34659868409)
+started a new run at the tag automatically. The
+[publication probe](https://github.com/hugojosefson/scratchpad-hj-jsr-identity/actions/runs/34659873813)
+passed with the release bot as actor, `workflow_dispatch` as event, and the tag
+as workflow ref. Its checkout and workflow commit matched. No package was
+uploaded. Actions were disabled after the test.
+
+The updated bootstrap fixture also completed its
+[tag pipeline](https://github.com/hugojosefson/scratchpad-hj-bootstrap/actions/runs/34659910256)
+and
+[GitHub publisher](https://github.com/hugojosefson/scratchpad-hj-bootstrap/actions/runs/34659975150)
+for `0.0.2`. No retry was needed. Actions were disabled afterward.
+
+## CLI publication, 2026-09-12
+
+The owner authorized the first public release. All stages below used the
+generated workflows and their declared permissions on GitHub-hosted Linux.
+
+| Check              | Evidence or observed result                                                                                                                                         |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Source CI          | [Run 34659880368](https://github.com/hugojosefson/cli/actions/runs/34659880368) passed both required jobs.                                                          |
+| Tag publication    | [Run 34660013067](https://github.com/hugojosefson/cli/actions/runs/34660013067) created and merged release PR 2, then created tag `0.2.0`.                          |
+| GitHub Release     | [Run 34660145283](https://github.com/hugojosefson/cli/actions/runs/34660145283) published the matching release.                                                     |
+| JSR publication    | [Run 34660145354](https://github.com/hugojosefson/cli/actions/runs/34660145354) uploaded and confirmed `@hugojosefson/cli@0.2.0`.                                   |
+| JSR retry          | [Run 34660511479](https://github.com/hugojosefson/cli/actions/runs/34660511479) accepted the existing version from the manual retry route, without another upload.  |
+| Provenance         | The registry manifest and Rekor entry `2800096274` bind the package to release commit `df18f39bc7cb23a0984a0500182c9e40b0dd1f9b`. An independent local read passed. |
+| Installation       | A clean `denoland/deno:2.9.6` Linux container installed directly from JSR and ran help. No repository was mounted or cloned.                                        |
+| Repository command | After Git installation, the container enabled `deno-fmt`, detected it, and repeated the operation with no changes. GitHub CLI was not required.                     |
+
+The immediate installation required `--min-dep-age=0` because Deno delays new
+dependencies for 24 hours. A separate fresh-container check passed with an
+exclusion for only `jsr:@hugojosefson/cli`. The README describes the
+installation choice. The missing-Git test also exposed an unclear error, which
+now names the required tool before optional GitHub reads start.
+
+The ordinary CI run on the bot-created release PR did not start jobs. The tag
+workflow ran the project checks during preparation and created both required
+synthetic checks on the exact release commit. These checks allowed the rebase
+merge. This behavior matches the earlier disposable tests.
