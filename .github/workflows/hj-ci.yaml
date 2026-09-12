@@ -27,6 +27,7 @@ jobs:
           include-hidden-files: true
           if-no-files-found: error
           retention-days: 1
+          overwrite: true
   native:
     runs-on: ubuntu-latest
     strategy:
@@ -48,6 +49,7 @@ jobs:
           include-hidden-files: true
           if-no-files-found: error
           retention-days: 1
+          overwrite: true
   check:
     if: ${{ always() }}
     needs: [deno, native]

@@ -817,6 +817,7 @@ test("github-ci runtime matrix is explicit, gated, formatted and repairable", as
     const upload = job.steps.at(-1);
     assertEquals(upload.with["if-no-files-found"], "error");
     assertEquals(upload.with["include-hidden-files"], true);
+    assertEquals(upload.with.overwrite, true);
     assertEquals(upload.if, undefined);
   }
   assertEquals(
