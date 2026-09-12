@@ -1,12 +1,15 @@
+import { test as nativeTest } from "node:test";
+import { trackTests } from "../testing/inventory-test-fixtures.ts";
+const test = trackTests(import.meta.url, nativeTest);
 import { assertEquals, assertRejects } from "@std/assert";
 import { ExternalToolError, requireExternalTool } from "./external-tool.ts";
 import { githubCommandFailure } from "../repository/github-command.ts";
 
-Deno.test("external tool checks classify native and Deno absence without parsing stderr", async () => {
+test("external tool checks classify native and Deno absence without parsing stderr", async () => {
   for (
     const cause of [
       Object.assign(new Error(), { code: "ENOENT" }),
-      new Deno.errors.NotFound(),
+      Object.assign(new Error("missing"), { name: "NotFound" }),
     ]
   ) {
     for (const tool of ["git", "gh"] as const) {
@@ -24,7 +27,9 @@ Deno.test("external tool checks classify native and Deno absence without parsing
       );
     }
   }
-  const denied = new Deno.errors.NotCapable("permission denied");
+  const denied = Object.assign(new Error("permission denied"), {
+    name: "NotCapable",
+  });
   assertEquals(
     await assertRejects(() =>
       requireExternalTool("gh", () => {

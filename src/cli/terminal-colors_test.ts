@@ -109,7 +109,11 @@ test("executable honors color overrides in pipes without permission prompts", as
       const text = new TextDecoder().decode(
         error ? result.stderr : result.stdout,
       );
-      assertEquals(text.includes("\x1b["), colored, JSON.stringify({ env, args, text }));
+      assertEquals(
+        text.includes("\x1b["),
+        colored,
+        JSON.stringify({ env, args, text }),
+      );
       assertStringIncludes(
         text,
         error ? "Unknown command" : "--help" === args[0] ? "Command" : "Flag",

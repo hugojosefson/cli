@@ -8,7 +8,7 @@ import {
   remove,
   writeTextFile,
 } from "../testing/files-test-fixtures.ts";
-import { runCommand } from "../runtime/command.ts";
+import { runRawCommand as runCommand } from "../runtime/command.ts";
 import { assertEquals, assertRejects, assertStringIncludes } from "@std/assert";
 import { builtInFeatureRegistry } from "../features/built-in-feature-registry.ts";
 import { formatCliOutput } from "./format-output.ts";

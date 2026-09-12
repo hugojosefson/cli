@@ -73,9 +73,10 @@ controls.
 The Deno `node:test` adapter disables resource and operation sanitizers. The
 previous default suite did not enable those sanitizers either. Separate
 subprocess fixtures explicitly enable native Deno sanitizers and test a leaked
-file against a correctly closed file. Real permission fixtures also test denied
-and allowed writes. These checks retain Deno diagnostics without claiming
-per-test leak detection for the shared suite.
+file against a correctly closed file. They also compare a pending timer with a
+correctly cleared timer. Real permission fixtures also test denied and allowed
+writes. These checks retain Deno diagnostics without claiming per-test leak
+detection for the shared suite.
 
 Run one coverage collection at a time because each collection clears
 `.coverage`. Coverage limits remain in [deno.json](../deno.json). The report

@@ -590,7 +590,7 @@ test("npm workflow authenticates independently after tag success and accepts man
   assertEquals(publishTagArtifact.content.includes("npm-build"), false);
 });
 
-Deno.test("release task templates detect missing PATH and tar grants as repairable drift", async () => {
+test("release task templates detect missing PATH and tar grants as repairable drift", async () => {
   for (
     const artifact of [
       publishTagArtifact,

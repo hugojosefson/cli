@@ -10,7 +10,7 @@ import {
   remove,
   writeTextFile,
 } from "../testing/files-test-fixtures.ts";
-import { runCommand } from "../runtime/command.ts";
+import { runRawCommand as runCommand } from "../runtime/command.ts";
 import { assert, assertEquals } from "@std/assert";
 import type { OperationContext } from "../api/repository-context.ts";
 import { applyLocalChangePlan } from "../operations/local-change-plan.ts";

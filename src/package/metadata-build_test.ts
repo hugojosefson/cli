@@ -10,7 +10,7 @@ import {
   rename,
   writeTextFile,
 } from "../testing/files-test-fixtures.ts";
-import { runCommand } from "../runtime/command.ts";
+import { runRawCommand as runCommand } from "../runtime/command.ts";
 import {
   assert,
   assertEquals,

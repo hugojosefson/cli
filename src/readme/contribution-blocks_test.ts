@@ -100,7 +100,7 @@ test("custom Install instructions suppress and retire only an unchanged generate
   assertEquals(await reconcileBlocks(edited, desired), edited);
 });
 
-Deno.test("Deno installation instructions suppress redundant requirements and preserve custom requirements", async () => {
+test("Deno installation instructions suppress redundant requirements and preserve custom requirements", async () => {
   const desired = [{
     id: "readme:requirements",
     position: "section" as const,

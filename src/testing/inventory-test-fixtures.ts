@@ -38,7 +38,7 @@ export function trackTests(url: string, test: typeof nativeTest) {
   const relative = path.slice(
     Math.max(path.lastIndexOf("/src/"), path.lastIndexOf("/scripts/")),
   );
-  const filename = relative.match(
+  const filename = decodeURIComponent(relative).match(
     /\/(src|scripts)\/(.*)_test\.(ts|js)$/,
   );
   if (!filename) throw new Error(`Unrecognized test module: ${url}`);

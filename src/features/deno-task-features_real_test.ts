@@ -7,7 +7,7 @@ import {
   remove,
   writeTextFile,
 } from "../testing/files-test-fixtures.ts";
-import { runCommand } from "../runtime/command.ts";
+import { runRawCommand as runCommand } from "../runtime/command.ts";
 import { packageMetadataTask } from "./deno-cli-artifacts.ts";
 import { assert, assertEquals, assertRejects } from "@std/assert";
 import { parse } from "jsonc-parser";

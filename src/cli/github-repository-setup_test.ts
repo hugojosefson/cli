@@ -3,7 +3,7 @@ import { makeTempDir, remove } from "../testing/files-test-fixtures.ts";
 import { test as nativeTest } from "node:test";
 import { trackTests } from "../testing/inventory-test-fixtures.ts";
 const test = trackTests(import.meta.url, nativeTest);
-import { runCommand } from "../runtime/command.ts";
+import { runRawCommand as runCommand } from "../runtime/command.ts";
 import {
   assertEquals,
   assertRejects,
@@ -441,7 +441,7 @@ test("status never invokes repository creation or visibility prompts", async () 
   });
 });
 
-Deno.test("a GitHub preset signs in before resolving an unreadable existing remote and refreshes failed reads", async () => {
+test("a GitHub preset signs in before resolving an unreadable existing remote and refreshes failed reads", async () => {
   await fixture(async (root) => {
     for (
       const args of [["init"], [
@@ -452,7 +452,7 @@ Deno.test("a GitHub preset signs in before resolving an unreadable existing remo
       ]]
     ) {
       assertEquals(
-        (await new Deno.Command("git", { args, cwd: root }).output()).success,
+        (await runCommand("git", { args, cwd: root })).success,
         true,
       );
     }

@@ -1,3 +1,6 @@
+import { test as nativeTest } from "node:test";
+import { trackTests } from "../testing/inventory-test-fixtures.ts";
+const test = trackTests(import.meta.url, nativeTest);
 import { assertEquals, assertRejects, assertStringIncludes } from "@std/assert";
 import { ensureGithubAuthentication } from "./github-authentication.ts";
 import { PromptCancelled } from "./prompt-cancelled.ts";
@@ -23,7 +26,7 @@ function runner(outcomes: boolean[]) {
   };
 }
 
-Deno.test("GitHub authentication checks executable and active login without prompting an authenticated user", async () => {
+test("GitHub authentication checks executable and active login without prompting an authenticated user", async () => {
   const mock = runner([true, true]);
   await ensureGithubAuthentication(root, {
     ...mock,
@@ -39,7 +42,7 @@ Deno.test("GitHub authentication checks executable and active login without prom
   assertEquals(mock.calls[0].cwd, undefined);
 });
 
-Deno.test("GitHub authentication never prompts with any redirected standard stream", async () => {
+test("GitHub authentication never prompts with any redirected standard stream", async () => {
   for (const stream of ["input", "output", "error"] as const) {
     const mock = runner([true, false]);
     const error = await assertRejects(() =>
@@ -61,7 +64,7 @@ Deno.test("GitHub authentication never prompts with any redirected standard stre
   }
 });
 
-Deno.test("GitHub login requires explicit consent and rechecks authentication", async () => {
+test("GitHub login requires explicit consent and rechecks authentication", async () => {
   const mock = runner([true, false, true, true]);
   await ensureGithubAuthentication(root, {
     ...mock,
@@ -81,7 +84,7 @@ Deno.test("GitHub login requires explicit consent and rechecks authentication", 
   assertEquals(mock.calls[3].args, ["auth", "status", "--active"]);
 });
 
-Deno.test("GitHub login cancellation, refusal and unsuccessful login stop the operation", async () => {
+test("GitHub login cancellation, refusal and unsuccessful login stop the operation", async () => {
   for (const answer of [null, "", "no"]) {
     const mock = runner([true, false]);
     await assertRejects(() =>
@@ -107,7 +110,7 @@ Deno.test("GitHub login cancellation, refusal and unsuccessful login stop the op
   }
 });
 
-Deno.test("missing GitHub CLI stops before authentication with an installation link", async () => {
+test("missing GitHub CLI stops before authentication with an installation link", async () => {
   let calls = 0;
   await assertRejects(
     () =>

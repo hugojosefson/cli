@@ -12,7 +12,7 @@ import {
   remove,
   writeTextFile,
 } from "../testing/files-test-fixtures.ts";
-import { runCommand } from "../runtime/command.ts";
+import { runRawCommand as runCommand } from "../runtime/command.ts";
 import {
   assert,
   assertEquals,
@@ -31,7 +31,7 @@ import {
 } from "./deno-tasks.ts";
 import { hjPackageReference } from "./hj-package.ts";
 
-Deno.test("readme-build retains an exact older CLI pin across releases", async () => {
+test("readme-build retains an exact older CLI pin across releases", async () => {
   const oldTask = {
     ...readmeTaskDefinition,
     command: (readmeTaskDefinition.command as string).replace(
@@ -293,7 +293,7 @@ test("readme task preserves failures and atomically replaces successes", async (
     assertEquals(names.filter((name) => name.startsWith("README.md.")), []);
 
     // Git tracks the generated document, but checkout restores writable mode.
-    await Deno.remove(new URL("README.md", root));
+    await remove(new URL("README.md", root));
     await git(root, "checkout-index", "--force", "README.md");
     assert((await new LocalFileReader(root).mode("README.md"))! & 0o200);
     await write(root, "bin/deno", "#!/bin/sh\nprintf '# Built\\n'\n");

@@ -9,7 +9,7 @@ import {
   remove as removeFixture,
   writeTextFile,
 } from "../testing/files-test-fixtures.ts";
-import { runCommand } from "../runtime/command.ts";
+import { runRawCommand as runCommand } from "../runtime/command.ts";
 import { assert, assertEquals, assertRejects } from "@std/assert";
 import type { ChangePlan } from "../api/change-plan.ts";
 import { FeatureCommitSession } from "./git-feature-commit.ts";

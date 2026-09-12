@@ -2,7 +2,7 @@ import { spawnSync } from "node:child_process";
 /** Execute application code in the host runtime; keep Deno-only fixtures explicit. */
 import process from "node:process";
 import { fileURLToPath } from "node:url";
-import { runCommand } from "../runtime/command.ts";
+import { runRawCommand as runCommand } from "../runtime/command.ts";
 import type { CommandOptions } from "../runtime/command.ts";
 export const isDeno = Boolean(process.versions.deno);
 export const externalDeno = isDeno

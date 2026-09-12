@@ -9,7 +9,7 @@ import {
   writeTextFile,
 } from "./files-test-fixtures.ts";
 import { runHostTests } from "./runtime-test-fixtures.ts";
-import { runCommand } from "../runtime/command.ts";
+import { runRawCommand as runCommand } from "../runtime/command.ts";
 import {
   compareInventories,
   executedInventory,
@@ -58,7 +58,7 @@ test("every host propagates body, nested, awaited cleanup, and subprocess failur
   }
 });
 
-test("every host verifies real Deno resource leaks and sandbox denial with passing controls", async () => {
+test("every host verifies real Deno resource and operation leaks plus sandbox denial", async () => {
   const root = await makeTempDir({
     dir: "/tmp/opencode",
     prefix: "hj-deno-contract-",
@@ -97,6 +97,27 @@ test("every host verifies real Deno resource leaks and sandbox denial with passi
           new TextDecoder().decode(result.stdout) +
             new TextDecoder().decode(result.stderr),
           "A file was opened during the test, but not closed",
+        );
+      }
+    }
+    for (const clear of [false, true]) {
+      await writeTextFile(
+        file,
+        `Deno.test("operation control", () => { const timer = setTimeout(() => {}, 60_000); ${
+          clear ? "clearTimeout(timer);" : ""
+        } });`,
+      );
+      const result = await execute([]);
+      assertEquals(
+        result.success,
+        clear,
+        new TextDecoder().decode(result.stderr),
+      );
+      if (!clear) {
+        assertStringIncludes(
+          new TextDecoder().decode(result.stdout) +
+            new TextDecoder().decode(result.stderr),
+          "A timer was started in this test, but never completed",
         );
       }
     }

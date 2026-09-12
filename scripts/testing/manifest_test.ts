@@ -10,7 +10,7 @@ import {
 import { assertEquals, assertRejects } from "@std/assert";
 import { testFiles } from "./manifest.ts";
 import { prepareTestDirectory } from "./output.ts";
-import { runCommand } from "../../src/runtime/command.ts";
+import { runRawCommand as runCommand } from "../../src/runtime/command.ts";
 const test = trackTests(import.meta.url, nativeTest);
 
 test("discovery includes nested script tests and excludes installed dependency tests", async () => {
