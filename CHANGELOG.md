@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.8.0
+
+- feat(features): preview specific repair actions
+
 ## 0.7.5
 
 - fix(git-ignore): preserve valid entries before custom lines
