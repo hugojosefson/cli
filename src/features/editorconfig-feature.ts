@@ -84,7 +84,9 @@ async function plan(
   const { observations, content, ownership } = await inspect(context);
   const desired = updateEditorconfig(content, ownership, enabled);
   const contents = [
-    desired.content || undefined,
+    !enabled && !ownership
+      ? observations[0]!.content
+      : desired.content || undefined,
     desired.ownership
       ? `${JSON.stringify(desired.ownership, null, 2)}\n`
       : undefined,
