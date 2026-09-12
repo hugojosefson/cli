@@ -49,7 +49,7 @@ jobs:
           HJ_RELEASE_TAG: ${{ inputs.tag }}
         run: >-
           deno run --no-lock
-          --allow-env=GITHUB_OUTPUT,GITHUB_STEP_SUMMARY,HJ_RELEASE_ROUTE,HJ_RELEASE_TAG,ESBUILD_BINARY_PATH,ESBUILD_WORKER_THREADS
+          --allow-env=PATH,GITHUB_OUTPUT,GITHUB_STEP_SUMMARY,HJ_RELEASE_ROUTE,HJ_RELEASE_TAG,ESBUILD_BINARY_PATH,ESBUILD_WORKER_THREADS
           --allow-read=.,/tmp/opencode
           --allow-write=deno.json,deno.jsonc,CHANGELOG.md,/tmp/opencode,"${GITHUB_OUTPUT}","${GITHUB_STEP_SUMMARY}"
           --allow-run=deno,git
@@ -84,7 +84,7 @@ jobs:
           HJ_RELEASE_BUNDLE_DIGEST: ${{ needs.publish-tag-prepare.outputs.bundle-digest }}
         run: >-
           deno run --no-lock
-          --allow-env=GITHUB_REPOSITORY,GITHUB_RUN_ATTEMPT,GITHUB_RUN_ID,GITHUB_SERVER_URL,GITHUB_STEP_SUMMARY,HJ_RELEASE_BUNDLE,HJ_RELEASE_BUNDLE_DIGEST,HJ_RELEASE_ROUTE
+          --allow-env=PATH,GITHUB_REPOSITORY,GITHUB_RUN_ATTEMPT,GITHUB_RUN_ID,GITHUB_SERVER_URL,GITHUB_STEP_SUMMARY,HJ_RELEASE_BUNDLE,HJ_RELEASE_BUNDLE_DIGEST,HJ_RELEASE_ROUTE
           --allow-read=.,/tmp/opencode
           --allow-write=deno.json,deno.jsonc,CHANGELOG.md,/tmp/opencode,"${GITHUB_STEP_SUMMARY}"
           --allow-run=deno,gh,git
