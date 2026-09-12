@@ -10,6 +10,8 @@ import {
   denoLibFeatureId,
   denoLibSubject,
   inspectDenoLibArtifacts,
+  isPreservedDenoLibTest,
+  needsDenoLibAssert,
 } from "./deno-lib-artifacts.ts";
 import {
   checkDisableDenoLib,
@@ -50,8 +52,20 @@ async function detectDenoLib(context: DetectionContext) {
       "The default export differs from the generated library entry point.",
     );
   }
+  if (
+    await needsDenoLibAssert(context) &&
+    (!isObject(config.value.imports) ||
+      typeof config.value.imports["@std/assert"] !== "string")
+  ) {
+    return issue(
+      "drifted",
+      "The assertion starter needs an @std/assert import.",
+    );
+  }
   const artifacts = await inspectDenoLibArtifacts(context);
-  const invalid = artifacts.find((item) => item.result !== "matches");
+  const invalid = artifacts.find((item) =>
+    item.result !== "matches" && !isPreservedDenoLibTest(item)
+  );
   if (!invalid) {
     return simple("enabled", "Library export and starter files are adopted.");
   }
@@ -97,7 +111,7 @@ function issue(state: "drifted" | "ambiguous", observation: string) {
   };
 }
 
-/** Adds a Deno library export and exact, dependency-free starter files. */
+/** Adds a Deno library export and starter files with named assertion steps. */
 export const denoLibFeature: Feature = {
   metadata: {
     id: denoLibFeatureId,

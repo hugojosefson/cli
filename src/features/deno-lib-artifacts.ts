@@ -9,10 +9,14 @@ import { inspectArtifact } from "../artifacts/inspect-artifact.ts";
 
 export const denoLibFeatureId = "deno-lib";
 export const denoLibExport = "./src/lib/mod.ts";
+export const denoLibAssertImport = "jsr:@std/assert@^1.0.19";
 /** Declarative config included when Deno config is first created with this feature. */
 export const denoLibInitialConfigContribution = {
   featureId: denoLibFeatureId,
-  value: { exports: { ".": denoLibExport } },
+  value: {
+    exports: { ".": denoLibExport },
+    imports: { "@std/assert": denoLibAssertImport },
+  },
 };
 export const denoLibArtifacts = [
   {
@@ -22,7 +26,7 @@ export const denoLibArtifacts = [
   {
     path: "test/lib_test.ts",
     content:
-      'import { placeholder } from "../src/lib/mod.ts";\n\nDeno.test("placeholder", () => {\n  placeholder();\n});\n',
+      'import { assertEquals } from "@std/assert";\nimport { placeholder } from "../src/lib/mod.ts";\n\nDeno.test("placeholder", async (t) => {\n  await t.step("should not throw", placeholder);\n\n  await t.step("should return undefined", () => {\n    assertEquals(placeholder(), undefined);\n  });\n});\n',
   },
 ] as const;
 
@@ -40,4 +44,20 @@ export async function inspectDenoLibArtifacts(
 
 export function denoLibSubject() {
   return { kind: "repository-path", identifier: "deno.json|deno.jsonc" };
+}
+
+/** Existing tests belong to the project, including their content and mode. */
+export function isPreservedDenoLibTest(item: ExactArtifactInspection): boolean {
+  return item.schema.path === "test/lib_test.ts" &&
+    (item.result === "matches" || item.result === "differs") &&
+    item.observation.kind === "file";
+}
+
+/** New and unchanged assertion starters require a resolvable assertion import. */
+export async function needsDenoLibAssert(
+  context: DetectionContext,
+): Promise<boolean> {
+  const test = await context.files.observe("test/lib_test.ts");
+  return test.kind === "absent" ||
+    test.kind === "file" && test.content === denoLibArtifacts[1].content;
 }
