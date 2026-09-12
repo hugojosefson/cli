@@ -44,6 +44,12 @@ export const commandDefinitions = {
       ],
     ],
   },
+  "package build": {
+    usage: "hj package build",
+    description: "Build bundled CLI package metadata.",
+    details:
+      "Write package metadata JSON to stdout from deno.json or deno.jsonc.",
+  },
   "readme build": {
     usage: "hj readme build [input]",
     description: "Build a README from Markdown includes.",

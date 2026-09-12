@@ -170,6 +170,42 @@ Generated tests live under `test/`. When the CLI and server coexist, the server
 contributes a `serve` command to the CLI registry. Neither feature patches the
 other's custom source.
 
+## Package names in generated files
+
+Generated CLI help uses the configured package name. The command uses its
+package component. For example, `@acme/fancy-tool` uses the command
+`fancy-tool`. Set `"hj": { "commandName": "other-command" }` in the Deno
+configuration to override only the command name.
+
+The generated `package-metadata` task builds `src/cli/package-metadata.json`
+from the Deno configuration. Generated CLI code imports this file relative to
+its own module. An installed command therefore uses its own package name without
+runtime file permissions, even inside another project.
+
+After changing the configured name, run `deno task default`. This command builds
+package metadata before formatting, README generation, and checks. To rebuild
+only metadata, run `deno task package-metadata`. Include the generated metadata
+file when publishing the CLI. Older starters need explicit `--repair` for the
+`deno-cli` and `deno-fmt` features to install these build steps.
+
+Keep package references in `readme/README.md` so each build resolves the current
+name. New generated README headings use `# {{package.name}}`. Custom text stays
+unchanged. The supported references are:
+
+| Source reference      | Built content                                              |
+| --------------------- | ---------------------------------------------------------- |
+| `{{package.name}}`    | Configured package name, or the normalized directory name. |
+| `{{package.command}}` | Command name, including an explicit override.              |
+| `{{package.url}}`     | JSR package page.                                          |
+| `{{package.api}}`     | JSR API documentation URL.                                 |
+| `{{package.badge}}`   | JSR badge image URL.                                       |
+| `{{package.install}}` | Global Deno installation command for the CLI export.       |
+| `{{package.run}}`     | Published CLI example command.                             |
+
+Registry references require a configured scoped name. Included TypeScript
+examples use package imports only for exact exports of that configured package.
+Source files and references remain available for the next build.
+
 ## Start a Deno server
 
 In an empty directory, create the server project:
@@ -440,12 +476,28 @@ configured `publish-check` task. The task can use a local runner. A direct
 | `readme`      | Provide package documentation. |
 | `license`     | Provide a complete license.    |
 
-For new managed configuration, `hj` derives `@owner/repository` from a linked
-GitHub repository and starts at version `0.0.0`. That operation still requires
-GitHub access. It creates the exact `deno publish --dry-run --check=all` task
-and adds it to the generated check aggregate. Custom aggregates do not change
-the local package status. Removing managed configuration still requires an exact
-match.
+The package `name` in `deno.json` or `deno.jsonc` is authoritative. Adoption,
+repair, and removal preserve a valid configured name, even when the GitHub
+repository has another name. Change this configuration value first to rename a
+package.
+
+Without a configured name, `hj` derives the package component from the starting
+directory. It lowercases the name, removes a leading `deno`, replaces
+unsupported character runs with `-`, and trims edge hyphens. For example,
+`deno Fancy_Tool` becomes `fancy-tool`. The GitHub owner supplies the scope, the
+part before `/`. The plan shows the resolved package name. If either component
+is invalid, set an explicit scoped name in the Deno configuration.
+
+The [public JSR naming rules](https://jsr.io/docs/packages) permit 2–58
+characters in package components and 2–20 in scopes. Both permit lowercase
+letters, digits, and single hyphens between other characters. Local validation
+does not establish registry availability or permission to publish. JSR also
+applies registry policy when a package is created. Resolve a registry rejection
+with an explicit name in the Deno configuration.
+
+New package configuration starts at version `0.0.0`. It adds the publishing
+check to the generated check aggregate. Custom aggregates do not change the
+local package status. Removing managed tasks requires an exact match.
 
 Connecting and publishing the package are separate operations. Interactive
 license selection defaults to MIT and offers no unlicensed choice.

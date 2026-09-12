@@ -42,12 +42,16 @@ export async function inspectReadmeBuild(context: DetectionContext) {
     defaultValue,
     denoTaskDefinitions(taskIds, true).default,
   );
-  const schema = readmeStaticSchema(context);
+  const schema = await readmeStaticSchema(context);
   const initialSource = root.kind === "file"
     ? root.content
     : schema.kind === "file"
     ? schema.content
     : "";
+  const managedSource =
+    schema.kind === "file" && initialSource === schema.content
+      ? "# {{package.name}}\n"
+      : initialSource;
   const output = await generatedOutput(context, source, initialSource);
   return {
     root,
@@ -66,7 +70,7 @@ export async function inspectReadmeBuild(context: DetectionContext) {
     defaultUsable: config.kind === "config" && tasks !== undefined &&
       (defaultValue === undefined || isObject(defaultValue)),
     output,
-    initialSource,
+    initialSource: managedSource,
     rootMatches: root.kind === "file" && output !== undefined &&
       root.content === output,
     rootMode: root.kind === "file" ? root.mode : undefined,

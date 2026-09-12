@@ -1,5 +1,7 @@
 /** @module Safety checks for the Deno CLI feature. */
 
+import { sameJson } from "../operations/local-plan-state.ts";
+import { readPackageMetadata } from "../package/metadata.ts";
 import { configuredDenoCli } from "./configured-deno-export.ts";
 import type { OperationCheck } from "../api/feature-operation.ts";
 import type { OperationContext } from "../api/repository-context.ts";
@@ -8,6 +10,7 @@ import {
   denoCliFeatureId,
   denoCliSubject,
   inspectDenoCliArtifacts,
+  packageMetadataTask,
 } from "./deno-cli-artifacts.ts";
 import { inspectDenoConfig } from "./deno-config.ts";
 import { denoServerExport } from "./deno-server-artifacts.ts";
@@ -24,6 +27,11 @@ export async function checkEnableDenoCli(
     !isObject(config.value.exports)
   ) {
     return blocked("The Deno exports entry is not an object.");
+  }
+  try {
+    await readPackageMetadata(context);
+  } catch (error) {
+    return blocked(error instanceof Error ? error.message : String(error));
   }
   const actual = config.kind === "config" && isObject(config.value.exports)
     ? config.value.exports["./cli"]
@@ -45,6 +53,17 @@ export async function checkEnableDenoCli(
     return blocked(
       "The CLI export differs. Re-run with --repair to replace it.",
     );
+  }
+  if (config.kind === "config" && config.value.tasks !== undefined) {
+    if (!isObject(config.value.tasks)) {
+      return blocked("The Deno tasks entry is not an object.");
+    }
+    const task = config.value.tasks["package-metadata"];
+    if (task !== undefined && !sameJson(task, packageMetadataTask)) {
+      return blocked(
+        "The package-metadata task is custom. Preserve or rename it before generating CLI metadata.",
+      );
+    }
   }
   for (const path of ["src", "src/cli", "test"]) {
     const entry = await context.files.observe(path);

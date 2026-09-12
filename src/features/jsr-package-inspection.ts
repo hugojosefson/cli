@@ -1,5 +1,6 @@
 /** @module Read-only inspection of JSR package configuration. */
 
+import { validJsrName } from "../package/metadata.ts";
 import { localModulePath } from "./configured-deno-export.ts";
 import { configuredDenoTask } from "./configured-deno-task.ts";
 import type { DetectionContext } from "../api/repository-context.ts";
@@ -60,28 +61,16 @@ export async function inspectJsrPackage(
   if (
     config.value.name !== undefined &&
     (typeof config.value.name !== "string" ||
-      !/^@[a-z0-9]+(?:-[a-z0-9]+)*\/[a-z0-9]+(?:-[a-z0-9]+)*$/.test(
-        config.value.name,
-      ))
+      !validJsrName(config.value.name))
   ) {
     return simple(
       "ambiguous",
       "The package name is not a valid scoped JSR name.",
     );
   }
-  const identity = !ownedOnly && typeof config.value.name === "string"
-    ? { kind: "available" as const, name: config.value.name }
-    : await jsrPackageIdentity(context);
+  const identity = await jsrPackageIdentity(context);
   if (identity.kind === "unavailable") {
     return simple("ambiguous", identity.observation);
-  }
-  if (
-    typeof config.value.name === "string" && config.value.name !== identity.name
-  ) {
-    return simple(
-      "ambiguous",
-      "The package name conflicts with the linked GitHub repository.",
-    );
   }
   if (
     config.value.version !== undefined &&

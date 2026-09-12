@@ -10,6 +10,7 @@ import type { OperationContext } from "../api/repository-context.ts";
 import {
   denoCliExport,
   inspectDenoCliArtifacts,
+  packageMetadataTask,
 } from "./deno-cli-artifacts.ts";
 import { inspectDenoConfig } from "./deno-config.ts";
 import {
@@ -107,10 +108,22 @@ export async function planEnableDenoServer(
       config.value.exports["./cli"] === denoCliExport,
   );
   if (cliEnabled && !ownsCliChange(context)) {
+    if (
+      config.kind === "config" &&
+      (config.value.tasks === undefined || isObject(config.value.tasks) &&
+          config.value.tasks["package-metadata"] === undefined)
+    ) {
+      changes.push({
+        kind: "set-json",
+        path: config.path,
+        jsonPath: ["tasks", "package-metadata"],
+        value: packageMetadataTask,
+        expected: undefined,
+      });
+    }
     addServerCliArtifacts(
       changes,
       await inspectDenoCliArtifacts(context, true),
-      true,
     );
   }
   changes.push(...await removeLegacyServerAdapter(context));
@@ -147,10 +160,22 @@ export async function planDisableDenoServer(
       config.value.exports["./cli"] === denoCliExport,
   );
   if (cliEnabled && !ownsCliChange(context)) {
+    if (
+      config.kind === "config" &&
+      (config.value.tasks === undefined || isObject(config.value.tasks) &&
+          config.value.tasks["package-metadata"] === undefined)
+    ) {
+      changes.push({
+        kind: "set-json",
+        path: config.path,
+        jsonPath: ["tasks", "package-metadata"],
+        value: packageMetadataTask,
+        expected: undefined,
+      });
+    }
     addServerCliArtifacts(
       changes,
       await inspectDenoCliArtifacts(context, false),
-      false,
     );
   }
   // Keep the feature visible until task and registry cleanup succeeds.

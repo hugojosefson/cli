@@ -60,6 +60,16 @@ export async function runCli(
     };
   }
   const usage = commandDefinitions[command].usage;
+  if (command === "package build") {
+    if (args.length !== 2) throw new Error(`expected \`${usage}\``);
+    const { bundledMetadata, projectMetadata } = await import(
+      "../package/metadata.ts"
+    );
+    return {
+      output: bundledMetadata(await projectMetadata(root)),
+      terminalNewline: false,
+    };
+  }
   if (command === "readme build") {
     if (args.length > 3) throw new Error(`expected \`${usage}\``);
     const { buildReadme } = await import("../readme/build-readme.ts");

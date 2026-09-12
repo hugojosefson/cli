@@ -60,3 +60,33 @@ Deno.test("jsr-package rejects malformed metadata and disables valid metadata wi
     );
   });
 });
+
+Deno.test("JSR adoption and removal preserve a configured name that differs from GitHub", async () => {
+  await withRepository(async (root) => {
+    const { applyLocalChangePlan } = await import(
+      "../operations/local-change-plan.ts"
+    );
+    await writeConfig(root, {
+      name: "@different/deno-unchanged",
+      version: "1.0.0",
+      exports: "./mod.ts",
+    });
+    const current = { ...context(root), github: undefined };
+    const enable = await jsrPackageFeature.checkEnable(current);
+    if (enable.result !== "allowed") throw new Error(JSON.stringify(enable));
+    await applyLocalChangePlan(
+      root,
+      await jsrPackageFeature.planEnable(current, enable),
+    );
+    const disable = await jsrPackageFeature.checkDisable(current);
+    if (disable.result !== "allowed") throw new Error(JSON.stringify(disable));
+    await applyLocalChangePlan(
+      root,
+      await jsrPackageFeature.planDisable(current, disable),
+    );
+    assertEquals(
+      JSON.parse(await Deno.readTextFile(new URL("deno.json", root))).name,
+      "@different/deno-unchanged",
+    );
+  });
+});

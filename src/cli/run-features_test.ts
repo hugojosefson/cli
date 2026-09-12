@@ -172,7 +172,7 @@ Deno.test("commits planned deno-cli files through the generic Git path", async (
     assert(result.includes("Created one commit"));
     assertEquals(
       await gitText(["show", "--format=", "--name-only", "HEAD"], root),
-      "deno.jsonc\nsrc/cli/cli.ts\nsrc/cli/command.ts\nsrc/cli/commands.ts\ntest/cli_test.ts",
+      "deno.jsonc\nsrc/cli/cli.ts\nsrc/cli/command.ts\nsrc/cli/commands.ts\nsrc/cli/package-metadata.json\ntest/cli_test.ts",
     );
   });
 });
@@ -183,14 +183,18 @@ Deno.test("composes Deno CLI and server transitions from one plan snapshot", asy
     await smoke(root, "test/cli_test.ts", "test/server_test.ts");
     await deniedServe(root);
     assert(
-      (await Deno.readTextFile(new URL("src/cli/commands.ts", root))).includes(
+      (await Deno.readTextFile(
+        new URL("src/cli/commands.ts", root),
+      )).includes(
         "serveCommand",
       ),
     );
     await run(root, "--no-deno-server");
     await smoke(root, "test/cli_test.ts");
     assert(
-      !(await Deno.readTextFile(new URL("src/cli/commands.ts", root))).includes(
+      !(await Deno.readTextFile(
+        new URL("src/cli/commands.ts", root),
+      )).includes(
         "serveCommand",
       ),
     );

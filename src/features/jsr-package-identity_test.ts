@@ -1,52 +1,66 @@
-import { assertEquals } from "@std/assert";
+import { assertEquals, assertStringIncludes } from "@std/assert";
 import { jsrPackageIdentity } from "./jsr-package-identity.ts";
+import {
+  context,
+  withRepository,
+  writeConfig,
+} from "./jsr-package-feature-support.ts";
 
-for (
-  const [name, repository, expected] of [
-    [
-      "normalizes repository case",
-      { owner: "Owner", name: "Repository" },
-      "@owner/repository",
-    ],
-    [
-      "keeps valid hyphens",
-      { owner: "my-org", name: "my-package" },
-      "@my-org/my-package",
-    ],
-  ] as const
-) {
-  Deno.test(`JSR identity ${name}`, async () => {
-    const identity = await jsrPackageIdentity(context(repository));
-    if (identity.kind !== "available") throw new Error("expected identity");
-    assertEquals(identity.name, expected);
-  });
-}
-
-for (
-  const [name, repository] of [
-    ["rejects punctuation", { owner: "owner_name", name: "package" }],
-    ["rejects leading hyphens", { owner: "-owner", name: "package" }],
-    ["rejects trailing hyphens", { owner: "owner", name: "package-" }],
-  ] as const
-) {
-  Deno.test(`JSR identity ${name}`, async () => {
+Deno.test("JSR identity keeps configured package names independently of GitHub", async () => {
+  await withRepository(async (root) => {
+    await writeConfig(root, { name: "@another/deno-original" });
     assertEquals(
-      (await jsrPackageIdentity(context(repository))).kind,
+      await jsrPackageIdentity({ ...context(root), github: undefined }),
+      {
+        kind: "available",
+        name: "@another/deno-original",
+      },
+    );
+  });
+});
+
+Deno.test("JSR identity normalizes only a missing package component from the starting directory", async () => {
+  await withRepository(async (parent) => {
+    const root = new URL("deno%20Fancy_Tool/", parent);
+    await Deno.mkdir(root);
+    assertEquals(await jsrPackageIdentity(context(root)), {
+      kind: "available",
+      name: "@owner/fancy-tool",
+    });
+    assertEquals(
+      (await jsrPackageIdentity({ ...context(root), github: undefined })).kind,
       "unavailable",
     );
   });
-}
-
-Deno.test("JSR identity requires GitHub access", async () => {
-  assertEquals((await jsrPackageIdentity(context())).kind, "unavailable");
 });
 
-function context(
-  repository?: { readonly owner: string; readonly name: string },
-) {
-  return {
-    github: repository
-      ? { repository: () => Promise.resolve(repository) }
-      : undefined,
-  } as never;
-}
+Deno.test("JSR identity requires explicit input for invalid fallback and scope", async () => {
+  await withRepository(async (parent) => {
+    for (const name of ["deno", "deno___", "x", "a".repeat(59)]) {
+      const root = new URL(name + "/", parent);
+      await Deno.mkdir(root);
+      const identity = await jsrPackageIdentity(context(root));
+      assertEquals(identity.kind, "unavailable");
+      if (identity.kind === "unavailable") {
+        assertStringIncludes(identity.observation, "explicit");
+      }
+    }
+    const current = context(parent);
+    assertEquals(
+      (await jsrPackageIdentity({
+        ...current,
+        github: {
+          ...current.github!,
+          repository: () =>
+            Promise.resolve({ owner: "bad_owner", name: "ignored" }),
+        },
+      })).kind,
+      "unavailable",
+    );
+    await writeConfig(parent, { name: "unscoped" });
+    assertEquals(
+      (await jsrPackageIdentity(context(parent))).kind,
+      "unavailable",
+    );
+  });
+});

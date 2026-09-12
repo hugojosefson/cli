@@ -1,6 +1,5 @@
 import type { PlannedChange } from "../api/planned-change.ts";
 import {
-  denoCliArtifactsForServer,
   denoCliServerPaths,
   type inspectDenoCliArtifacts,
 } from "./deno-cli-artifacts.ts";
@@ -54,15 +53,16 @@ export function addServerCliArtifacts(
   inspections: readonly Awaited<
     ReturnType<typeof inspectDenoCliArtifacts>
   >[number][],
-  serverEnabled: boolean,
 ) {
-  const wanted = denoCliArtifactsForServer(serverEnabled);
   for (
     const item of inspections.filter((entry) =>
       denoCliServerPaths.includes(entry.schema.path)
     )
   ) {
-    const artifact = wanted.find((entry) => entry.path === item.schema.path)!;
+    const artifact = item.schema;
+    if (artifact.kind !== "file") {
+      throw new Error("Expected CLI file artifact.");
+    }
     if (item.result === "absent") {
       changes.push({
         kind: "write-file",
