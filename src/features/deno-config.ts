@@ -1,9 +1,10 @@
 /** @module Deno configuration selection and JSONC inspection. */
 
-import { parse, type ParseError } from "jsonc-parser";
+import { applyEdits, modify, parse, type ParseError } from "jsonc-parser";
 import type { JsonObject, JsonValue } from "../api/json.ts";
 import type { DetectionContext } from "../api/repository-context.ts";
 import { denoFmtConfigText, isObject } from "./deno-tasks.ts";
+import { readDenoLockOwnership } from "./deno-lock-ownership.ts";
 
 export const denoConfigPaths = ["deno.json", "deno.jsonc"] as const;
 export type DenoConfigPath = typeof denoConfigPaths[number];
@@ -58,6 +59,17 @@ export async function inspectDenoConfig(
       observation: `${item.path} is not a valid JSON or JSONC object.`,
     };
   }
+  const ownership = typeof value.lock === "boolean"
+    ? await readDenoLockOwnership(context.files)
+    : undefined;
+  const withoutOwnedLock =
+    ownership?.configPath === item.path && ownership.lock === value.lock &&
+      !ownership.explicit
+      ? applyEdits(
+        item.observation.content,
+        modify(item.observation.content, ["lock"], undefined, {}),
+      )
+      : undefined;
   return {
     kind: "config",
     path: item.path,
@@ -65,6 +77,7 @@ export async function inspectDenoConfig(
     digest: item.observation.digest,
     value,
     exactStandalone: item.path === "deno.jsonc" &&
-      item.observation.content === denoFmtConfigText(),
+      (item.observation.content === denoFmtConfigText() ||
+        withoutOwnedLock === denoFmtConfigText()),
   };
 }
