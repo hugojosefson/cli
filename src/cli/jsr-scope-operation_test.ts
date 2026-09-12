@@ -40,6 +40,7 @@ function run(
     registry,
     undefined,
     {
+      runFinalTask: () => Promise.resolve(undefined),
       jsrScopes: { scopes: () => Promise.resolve(result) },
       promptJsrScope: prompt,
       githubIdentity: {
