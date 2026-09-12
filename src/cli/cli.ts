@@ -1,4 +1,5 @@
 /** Local executable entry point. Run with `deno task hj`. */
+import process from "node:process";
 import { toFileUrl } from "@std/path";
 import { formatCliOutput } from "./format-output.ts";
 import { formatCliError, terminalColor } from "./terminal-colors.ts";
@@ -6,14 +7,14 @@ import { runCli } from "./run-cli.ts";
 import { CommandFailure } from "./command-failure.ts";
 
 try {
-  const result = await runCli(toFileUrl(Deno.cwd()), Deno.args, {
+  const result = await runCli(toFileUrl(process.cwd()), process.argv.slice(2), {
     colors: {
-      stdout: terminalColor(Deno.stdout),
-      stderr: terminalColor(Deno.stderr),
+      stdout: terminalColor(process.stdout),
+      stderr: terminalColor(process.stderr),
     },
   });
-  await Deno.stdout.write(new TextEncoder().encode(formatCliOutput(result)));
+  process.stdout.write(formatCliOutput(result));
 } catch (error) {
-  console.error(formatCliError(error, terminalColor(Deno.stderr)));
-  Deno.exit(error instanceof CommandFailure ? error.exitCode : 1);
+  console.error(formatCliError(error, terminalColor(process.stderr)));
+  process.exitCode = error instanceof CommandFailure ? error.exitCode : 1;
 }

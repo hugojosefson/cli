@@ -1,4 +1,6 @@
 /** @module Local read-only implementation of the Git reader contract. */
+import { type CommandResult, runCommand } from "../runtime/command.ts";
+import { isNotFound } from "../runtime/errors.ts";
 
 import type { RepositoryPath } from "../api/json.ts";
 import type {
@@ -128,14 +130,14 @@ export class LocalGitReader implements GitReader {
     return name || undefined;
   }
 
-  async #git(args: readonly string[]): Promise<Deno.CommandOutput> {
+  async #git(args: readonly string[]): Promise<CommandResult> {
     try {
-      return await new Deno.Command("git", {
+      return await runCommand("git", {
         args: [...args],
         cwd: this.#root.path,
-      }).output();
+      });
     } catch (error) {
-      if (error instanceof Deno.errors.NotFound) {
+      if (isNotFound(error)) {
         throw new Error(
           "Git is required to inspect repositories. Install Git and retry.",
           { cause: error },

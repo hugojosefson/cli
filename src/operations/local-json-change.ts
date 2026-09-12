@@ -1,4 +1,5 @@
 /** @module Guarded JSON and JSONC edits that preserve document comments. */
+import * as fs from "node:fs/promises";
 
 import {
   applyEdits,
@@ -46,7 +47,7 @@ export async function editJson(
     : modify(text, [...jsonPath], value, {
       formattingOptions: { insertSpaces: true, tabSize: 2 },
     });
-  await Deno.writeTextFile(url, applyEdits(text, edits));
+  await fs.writeFile(url, applyEdits(text, edits));
 }
 
 function removalEdits(

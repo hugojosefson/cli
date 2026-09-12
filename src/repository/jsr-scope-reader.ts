@@ -1,4 +1,5 @@
 /** @module Authenticated JSR memberships, isolated from plans and generated files. */
+import process from "node:process";
 import metadata from "../../deno.json" with { type: "json" };
 import { validScope } from "../package/metadata.ts";
 
@@ -15,7 +16,7 @@ export interface JsrScopeReader {
 export class AuthenticatedJsrScopeReader implements JsrScopeReader {
   constructor(
     private readonly token: () => string | undefined = () =>
-      Deno.env.get("JSR_TOKEN"),
+      process.env["JSR_TOKEN"],
     private readonly request: typeof fetch = fetch,
   ) {}
 

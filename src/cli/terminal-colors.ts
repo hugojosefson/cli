@@ -1,4 +1,5 @@
 /** Color policy and a small palette for human-facing CLI output. */
+import process from "node:process";
 export interface OutputColors {
   readonly stdout?: boolean;
   readonly stderr?: boolean;
@@ -20,16 +21,25 @@ export function useColor(
 }
 
 /** Read optional terminal settings without prompting for permissions. */
-export function terminalColor(stream: { isTerminal(): boolean }): boolean {
-  const term = Deno.permissions.querySync({ name: "env", variable: "TERM" })
-      .state === "granted"
-    ? Deno.env.get("TERM")
-    : "dumb";
-  // Deno allows FORCE_COLOR reads without --allow-env, like NO_COLOR.
-  return useColor(stream.isTerminal(), {
-    noColor: Deno.noColor,
-    forceColor: Deno.env.get("FORCE_COLOR"),
-    term,
+export function terminalColor(
+  stream: { isTerminal?(): boolean; readonly isTTY?: boolean },
+): boolean {
+  const deno = (globalThis as {
+    Deno?: {
+      permissions: {
+        querySync(
+          descriptor: { name: "env"; variable: string },
+        ): { state: string };
+      };
+    };
+  }).Deno;
+  const allowed = !deno ||
+    deno.permissions.querySync({ name: "env", variable: "TERM" }).state ===
+      "granted";
+  return useColor(stream.isTerminal?.() ?? stream.isTTY === true, {
+    noColor: Boolean(process.env.NO_COLOR),
+    forceColor: process.env.FORCE_COLOR,
+    term: allowed ? process.env.TERM : "dumb",
   });
 }
 

@@ -1,4 +1,6 @@
 /** Recreate and validate a prepared release against real Git trees and files. */
+import { isNotFound } from "../runtime/errors.ts";
+import * as fs from "node:fs/promises";
 import { digestBytes } from "../repository/digest-bytes.ts";
 import { LocalFileReader } from "../repository/local-file-reader.ts";
 import { inspectDenoConfig } from "../features/deno-config.ts";
@@ -126,11 +128,11 @@ export async function verifySelectedTree(
 ): Promise<void> {
   const versionUrl = new URL(bundle.versionFile.path, root);
   const changelogUrl = new URL(bundle.changelog.path, root);
-  const oldVersion = await Deno.readTextFile(versionUrl);
+  const oldVersion = await fs.readFile(versionUrl, "utf8");
   const oldChangelog = await readOptional(changelogUrl);
   await validateReleaseBundleFiles(bundle, oldVersion, oldChangelog);
-  await Deno.writeTextFile(versionUrl, bundle.versionFile.text);
-  await Deno.writeTextFile(
+  await fs.writeFile(versionUrl, bundle.versionFile.text);
+  await fs.writeFile(
     changelogUrl,
     applyBundleChangelog(oldChangelog ?? "", bundle),
   );
@@ -240,15 +242,15 @@ async function commitTreeDigest(
     if (!result.success) throw new Error("Could not read release tree.");
     return await digestBytes(result.stdout);
   } finally {
-    await Deno.remove(directory, { recursive: true });
+    await fs.rm(directory, { recursive: true });
   }
 }
 
 async function readOptional(path: URL): Promise<string | undefined> {
   try {
-    return await Deno.readTextFile(path);
+    return await fs.readFile(path, "utf8");
   } catch (error) {
-    if (error instanceof Deno.errors.NotFound) return undefined;
+    if (isNotFound(error)) return undefined;
     throw error;
   }
 }

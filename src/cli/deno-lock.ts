@@ -1,4 +1,6 @@
 /** @module Refresh explicitly managed dependency locks before frozen checks. */
+import { runCommand } from "../runtime/command.ts";
+import * as fs from "node:fs/promises";
 import { LocalFileReader } from "../repository/local-file-reader.ts";
 import { repositoryRoot } from "../repository/repository-path.ts";
 import { inspectDenoConfig } from "../features/deno-config.ts";
@@ -25,7 +27,7 @@ export async function prepareDenoLock(root: URL): Promise<readonly string[]> {
   ) return [];
   const roots = await sourceFiles(root);
   if (roots.length) {
-    const result = await new Deno.Command("deno", {
+    const result = await runCommand("deno", {
       args: [
         "cache",
         "--allow-import",
@@ -37,7 +39,7 @@ export async function prepareDenoLock(root: URL): Promise<readonly string[]> {
       stdin: "null",
       stdout: "piped",
       stderr: "piped",
-    }).output();
+    });
     if (!result.success) {
       throw new Error(
         `Deno lockfile generation failed (exit ${result.code}): ${
@@ -48,7 +50,7 @@ export async function prepareDenoLock(root: URL): Promise<readonly string[]> {
   }
   // Deno omits an empty lockfile when the graph has no dependencies.
   if ((await files.observe(denoLockPath)).kind === "absent") {
-    await Deno.writeTextFile(
+    await fs.writeFile(
       new URL(denoLockPath, root),
       '{\n  "version": "5"\n}\n',
     );
@@ -66,7 +68,7 @@ export async function refreshDenoLock(root: URL): Promise<void> {
   if (lock.kind !== "file") {
     throw new Error("The managed deno.lock is no longer a regular file.");
   }
-  await Deno.writeTextFile(
+  await fs.writeFile(
     new URL(denoLockOwnershipPath, root),
     denoLockOwnershipText({ ...state, digest: lock.digest }),
   );
@@ -75,18 +77,20 @@ export async function refreshDenoLock(root: URL): Promise<void> {
 async function sourceFiles(root: URL): Promise<string[]> {
   const paths: string[] = [];
   async function visit(directory: URL, prefix: string) {
-    for await (const entry of Deno.readDir(directory)) {
+    for await (
+      const entry of await fs.readdir(directory, { withFileTypes: true })
+    ) {
       if (
         entry.name.startsWith(".") ||
         ["node_modules", "vendor", "coverage"].includes(entry.name)
       ) continue;
       const path = `${prefix}${entry.name}`;
-      if (entry.isDirectory) {
+      if (entry.isDirectory()) {
         await visit(
           new URL(`${encodeURIComponent(entry.name)}/`, directory),
           `${path}/`,
         );
-      } else if (entry.isFile && /\.(?:[cm]?[jt]sx?)$/.test(entry.name)) {
+      } else if (entry.isFile() && /\.(?:[cm]?[jt]sx?)$/.test(entry.name)) {
         paths.push(`./${path}`);
       }
     }

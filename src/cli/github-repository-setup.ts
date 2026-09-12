@@ -1,4 +1,7 @@
 /** Resolve and display repository creation before making any external changes. */
+import { runCommand } from "../runtime/command.ts";
+import { makeTempFile } from "../runtime/temp.ts";
+import * as fs from "node:fs/promises";
 import { basename, fromFileUrl } from "@std/path";
 import type { FeatureChangeRequest } from "../api/feature-change.ts";
 import { LocalGitReader } from "../repository/local-git-reader.ts";
@@ -95,11 +98,11 @@ export async function setupGithubRepository(
     : undefined;
   await setup.assertAbsent(target);
   // Check local write access before creating the external repository.
-  const probe = await Deno.makeTempFile({
+  const probe = await makeTempFile({
     dir: fromFileUrl(root),
     prefix: ".hj-setup-",
   });
-  await Deno.remove(probe);
+  await fs.rm(probe);
   if ((await git.remotes()).length) {
     throw new Error("Git remotes changed after planning. Retry setup.");
   }
@@ -122,12 +125,12 @@ export async function setupGithubRepository(
       throw new Error("Git remotes changed after creation.");
     }
     await runGit(root, ["remote", "add", "origin", remote]);
-    const configured = await new Deno.Command("git", {
+    const configured = await runCommand("git", {
       cwd: root,
       args: ["config", "--local", "--get", "remote.origin.url"],
       stdout: "piped",
       stderr: "piped",
-    }).output();
+    });
     if (
       !configured.success ||
       new TextDecoder().decode(configured.stdout).trim() !== remote
@@ -142,12 +145,12 @@ export async function setupGithubRepository(
 }
 
 async function runGit(root: URL, args: string[]): Promise<void> {
-  const result = await new Deno.Command("git", {
+  const result = await runCommand("git", {
     cwd: root,
     args,
     stdout: "piped",
     stderr: "piped",
-  }).output();
+  });
   if (!result.success) {
     throw new Error(`Git ${args[0]} failed (exit ${result.code}).`);
   }

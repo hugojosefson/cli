@@ -1,4 +1,5 @@
 /** Idempotent JSR publication with registry and provenance verification. */
+import * as fs from "node:fs/promises";
 import type { ReleaseEnvironment } from "./release-environment.ts";
 import type { ReleaseProcess } from "./release-process.ts";
 import { runOrThrow } from "./release-process.ts";
@@ -213,11 +214,11 @@ export function localPackageFiles(root: URL): PackageFileReader {
         throw new TypeError("Local JSR module path is invalid.");
       }
       const url = new URL(path, root);
-      const info = await Deno.lstat(url);
-      if (!info.isFile) {
+      const info = await fs.lstat(url);
+      if (!info.isFile()) {
         throw new TypeError("Local JSR module is not a regular file.");
       }
-      return await Deno.readFile(url);
+      return await fs.readFile(url);
     },
   };
 }

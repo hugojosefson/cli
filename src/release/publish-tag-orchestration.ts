@@ -1,4 +1,5 @@
 /** @module Validated local orchestration for publish-tag-apply. */
+import * as fs from "node:fs/promises";
 
 import {
   checkoutRecoverySelected,
@@ -330,10 +331,10 @@ async function summary(
 ): Promise<void> {
   const path = environment.get("GITHUB_STEP_SUMMARY");
   if (path) {
-    await Deno.writeTextFile(
+    await fs.writeFile(
       path,
       `## Release ${version}\n\nRelease \`${releaseSha}\`.\n`,
-      { append: true },
+      { flag: "a" },
     );
   }
 }

@@ -1,4 +1,5 @@
 /** @module Root-bound subprocess access for release commands. */
+import { runCommand } from "../runtime/command.ts";
 
 export type ReleaseProcessResult = {
   readonly success: boolean;
@@ -24,20 +25,16 @@ export type ReleaseProcess = {
 export function localReleaseProcess(root: URL): ReleaseProcess {
   return {
     async run(command, args, options = {}) {
-      const child = new Deno.Command(command, {
+      const result = await runCommand(command, {
         args: [...args],
         cwd: options.cwd ?? root,
         env: options.env ? { ...options.env } : undefined,
-        stdin: options.stdin === undefined ? "null" : "piped",
+        input: options.stdin,
         stdout: "piped",
         stderr: "piped",
-      }).spawn();
-      if (options.stdin !== undefined) {
-        const writer = child.stdin.getWriter();
-        await writer.write(new TextEncoder().encode(options.stdin));
-        await writer.close();
-      }
-      return await child.output();
+      });
+
+      return result;
     },
   };
 }

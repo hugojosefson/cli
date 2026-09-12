@@ -1,5 +1,7 @@
-import { requiredEnvironment } from "./release-environment.ts";
 /** Fail-closed common input and checkout validation for release publishers. */
+import { isNotFound } from "../runtime/errors.ts";
+import * as fs from "node:fs/promises";
+import { requiredEnvironment } from "./release-environment.ts";
 import { parse, type ParseError } from "jsonc-parser";
 import type { ReleaseEnvironment } from "./release-environment.ts";
 import type { ReleaseProcess } from "./release-process.ts";
@@ -100,12 +102,12 @@ export function localPublisherFiles(root: URL): PublisherFiles {
     async observe(path) {
       try {
         const url = new URL(path, root);
-        const info = await Deno.lstat(url);
-        return info.isFile
-          ? { kind: "file", bytes: await Deno.readFile(url) }
+        const info = await fs.lstat(url);
+        return info.isFile()
+          ? { kind: "file", bytes: await fs.readFile(url) }
           : { kind: "other" };
       } catch (error) {
-        if (error instanceof Deno.errors.NotFound) return { kind: "absent" };
+        if (isNotFound(error)) return { kind: "absent" };
         throw error;
       }
     },

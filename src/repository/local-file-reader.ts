@@ -1,4 +1,7 @@
 /** @module Local read-only implementation of the file reader contract. */
+import type { Stats } from "node:fs";
+import { isNotFound } from "../runtime/errors.ts";
+import * as fs from "node:fs/promises";
 
 import type { ArtifactObservation } from "../api/artifact-inspection.ts";
 import type {
@@ -30,11 +33,11 @@ export class LocalFileReader implements FileReader {
     const url = repositoryUrl(this.#root, path);
     try {
       await this.#assertContainedParent(url);
-      const info = await Deno.lstat(url);
-      if (info.isSymlink) {
-        return { kind: "symlink", target: await Deno.readLink(url) };
+      const info = await fs.lstat(url);
+      if (info.isSymbolicLink()) {
+        return { kind: "symlink", target: await fs.readlink(url) };
       }
-      if (info.isDirectory) {
+      if (info.isDirectory()) {
         return {
           kind: "directory",
           stateDigest: await this.directoryStateDigest(
@@ -42,8 +45,8 @@ export class LocalFileReader implements FileReader {
           ) as DirectoryStateDigest,
         };
       }
-      if (info.isFile) {
-        const bytes = await Deno.readFile(url);
+      if (info.isFile()) {
+        const bytes = await fs.readFile(url);
         return {
           kind: "file",
           content: new TextDecoder().decode(bytes),
@@ -59,7 +62,7 @@ export class LocalFileReader implements FileReader {
       if (error instanceof TypeError) {
         throw error;
       }
-      if (error instanceof Deno.errors.NotFound) {
+      if (isNotFound(error)) {
         return { kind: "absent" };
       }
       return { kind: "unreadable", observation: errorMessage(error) };
@@ -96,16 +99,16 @@ export class LocalFileReader implements FileReader {
   ): Promise<DirectoryStateDigest | undefined> {
     const url = repositoryUrl(this.#root, path);
     await this.#assertContainedParent(url);
-    let info: Deno.FileInfo;
+    let info: Stats;
     try {
-      info = await Deno.lstat(url);
+      info = await fs.lstat(url);
     } catch (error) {
-      if (error instanceof Deno.errors.NotFound) {
+      if (isNotFound(error)) {
         return undefined;
       }
       throw error;
     }
-    if (!info.isDirectory) {
+    if (!info.isDirectory()) {
       return undefined;
     }
     return await digestDirectoryState(url);
@@ -126,11 +129,11 @@ export class LocalFileReader implements FileReader {
         parent,
       );
       try {
-        if ((await Deno.lstat(parent)).isSymlink) {
+        if ((await fs.lstat(parent)).isSymbolicLink()) {
           throw new TypeError("Repository path traverses a symlink.");
         }
       } catch (error) {
-        if (error instanceof Deno.errors.NotFound) {
+        if (isNotFound(error)) {
           return;
         }
         throw error;

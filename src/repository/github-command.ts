@@ -1,4 +1,5 @@
 /** GitHub subprocess transport and credential-free failure diagnostics. */
+import { runCommand } from "../runtime/command.ts";
 export type GithubCommandResult = {
   readonly success: boolean;
   readonly stdout: Uint8Array;
@@ -13,19 +14,15 @@ export interface GithubCommandRunner {
 export function localGithubCommand(root: URL): GithubCommandRunner {
   return {
     async run(args, stdin) {
-      const child = new Deno.Command("gh", {
+      const result = await runCommand("gh", {
         args: [...args],
         cwd: root,
-        stdin: stdin === undefined ? "null" : "piped",
+        input: stdin,
         stdout: "piped",
         stderr: "piped",
-      }).spawn();
-      if (stdin !== undefined) {
-        const writer = child.stdin.getWriter();
-        await writer.write(new TextEncoder().encode(stdin));
-        await writer.close();
-      }
-      return await child.output();
+      });
+
+      return result;
     },
   };
 }

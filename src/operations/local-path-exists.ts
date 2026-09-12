@@ -1,9 +1,11 @@
+import { isNotFound } from "../runtime/errors.ts";
+import * as fs from "node:fs/promises";
 export async function pathExists(url: URL): Promise<boolean> {
   try {
-    await Deno.lstat(url);
+    await fs.lstat(url);
     return true;
   } catch (error) {
-    if (error instanceof Deno.errors.NotFound) return false;
+    if (isNotFound(error)) return false;
     throw error;
   }
 }

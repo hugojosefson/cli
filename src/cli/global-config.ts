@@ -1,4 +1,8 @@
 /** Non-secret user defaults stored outside the current repository. */
+import process from "node:process";
+import { makeTempFile } from "../runtime/temp.ts";
+import { isNotFound } from "../runtime/errors.ts";
+import * as fs from "node:fs/promises";
 import { fromFileUrl, isAbsolute, join, toFileUrl } from "@std/path";
 import type { FeatureRegistry } from "../features/feature-registry.ts";
 import { validateDenoVersion } from "../features/workflow-deno.ts";
@@ -10,7 +14,9 @@ export interface GlobalConfig {
 }
 
 export function globalConfigFile(
-  env: Pick<typeof Deno.env, "get"> = Deno.env,
+  env: { get(name: string): string | undefined } = {
+    get: (name) => process.env[name],
+  },
 ): URL {
   const xdg = env.get("XDG_CONFIG_HOME");
   if (xdg && isAbsolute(xdg)) return toFileUrl(join(xdg, "hj/config.json"));
@@ -75,9 +81,9 @@ export async function readGlobalConfig(
 ): Promise<GlobalConfig> {
   let text: string;
   try {
-    text = await Deno.readTextFile(file);
+    text = await fs.readFile(file, "utf8");
   } catch (error) {
-    if (error instanceof Deno.errors.NotFound) return {};
+    if (isNotFound(error)) return {};
     throw error;
   }
   let value: unknown;
@@ -133,16 +139,16 @@ export async function runConfig(
     return "Configuration unchanged.";
   }
   const directory = new URL(".", file);
-  await Deno.mkdir(directory, { recursive: true });
-  const temp = await Deno.makeTempFile({
+  await fs.mkdir(directory, { recursive: true });
+  const temp = await makeTempFile({
     dir: fromFileUrl(directory),
     prefix: ".hj-config-",
   });
   try {
-    await Deno.writeTextFile(temp, JSON.stringify(next, null, 2) + "\n");
-    await Deno.rename(temp, file);
+    await fs.writeFile(temp, JSON.stringify(next, null, 2) + "\n");
+    await fs.rename(temp, file);
   } catch (error) {
-    await Deno.remove(temp).catch(() => undefined);
+    await fs.rm(temp).catch(() => undefined);
     throw error;
   }
   return action === "unset" ? `Unset ${key}.` : `Set ${key}.`;

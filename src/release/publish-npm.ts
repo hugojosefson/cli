@@ -1,4 +1,5 @@
 /** Independent npm publication of a checked, reproducible build artifact. */
+import * as fs from "node:fs/promises";
 import type { ReleaseEnvironment } from "./release-environment.ts";
 import {
   confirmPublication,
@@ -65,26 +66,26 @@ export function localNpmBuildFiles(root: URL): NpmBuildFiles {
       // Never read through a symlink, including any parent of the build output.
       for (const part of [".hj", "npm"]) {
         const parent = new URL(part === ".hj" ? ".hj" : ".hj/npm", root);
-        if (!(await Deno.lstat(parent)).isDirectory) {
+        if (!(await fs.lstat(parent)).isDirectory()) {
           throw new TypeError("npm build parent is not a directory.");
         }
       }
       const parts = path.split("/");
       for (const [index, part] of parts.entries()) {
         url = new URL(part, url);
-        const info = await Deno.lstat(url);
+        const info = await fs.lstat(url);
         if (index === parts.length - 1) {
-          if (!info.isFile) {
+          if (!info.isFile()) {
             throw new TypeError("npm build entry is not a regular file.");
           }
         } else {
-          if (!info.isDirectory) {
+          if (!info.isDirectory()) {
             throw new TypeError("npm build parent is not a directory.");
           }
           url = new URL(`${url.href}/`);
         }
       }
-      return await Deno.readTextFile(url);
+      return await fs.readFile(url, "utf8");
     },
   };
 }
