@@ -64,7 +64,7 @@ Use built-in presets to select a group of features with one flag:
 | `--github-protection` | Default-branch protection and protected tags.                    |
 | `--github-public`     | Public visibility, including when combined with `--github`.      |
 
-Set up Git and README:
+Apply the default feature selection:
 
 ```bash
 hj repo features --defaults
