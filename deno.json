@@ -56,7 +56,7 @@
   "tasks": {
     "default": {
       "description": "Fix formatting, then run checks.",
-      "command": "deno task --if-present package-metadata && deno fmt --ignore=coverage && deno task readme && deno task check"
+      "command": "deno task --if-present package-metadata && deno task fmt && deno task readme && deno task check"
     },
     "fmt": {
       "description": "Format project source",

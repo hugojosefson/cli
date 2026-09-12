@@ -35,6 +35,7 @@ interface DenoCommandConstructor {
     spawn(): {
       stdin: WritableStream<Uint8Array>;
       output(): Promise<CommandResult>;
+      kill(): void;
     };
   };
 }
@@ -77,6 +78,13 @@ export async function runRawCommand(
             : options.input,
         );
         await writer.close();
+      } catch (error) {
+        try {
+          child.kill();
+        } catch {
+          // The child may already have exited after closing its input.
+        }
+        throw error;
       } finally {
         writer.releaseLock();
       }
