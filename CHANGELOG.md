@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.14.3
+
+### Fixes
+
+#### features
+
+- report detection differences and keep README permissions
+  ([e1785b8](https://github.com/hugojosefson/cli/commit/e1785b8c058c45547c05207de672fcc2fb6afbcb))
+
 ## 0.14.2
 
 ### Other
