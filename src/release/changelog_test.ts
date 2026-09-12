@@ -172,3 +172,24 @@ test("release insertion ignores headings and fences inside HTML comments", async
     old.replace("## 0.1.0", section + "## 0.1.0"),
   );
 });
+
+test("legacy recovery retains the original insertion offset inside comment examples", async () => {
+  const {
+    createChangelogInsertion,
+    createLegacyChangelogInsertion,
+    applyChangelogInsertion,
+  } = await import("./changelog.ts");
+  const old =
+    "# Changelog\n\n<!--\n## Example\n-->\n\n## 0.0.1\n\n- docs: prior\n";
+  const section = "## 0.0.2\n\n- fix: old release\n\n";
+  const legacy = createLegacyChangelogInsertion(old, section);
+  assertEquals(legacy.offset, old.indexOf("## Example"));
+  assertEquals(
+    createChangelogInsertion(old, section).offset,
+    old.indexOf("## 0.0.1"),
+  );
+  assertEquals(
+    applyChangelogInsertion(old, legacy),
+    old.replace("## Example", section + "## Example"),
+  );
+});

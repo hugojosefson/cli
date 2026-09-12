@@ -285,10 +285,16 @@ async function assertPublished(
     await runOrThrow(process, "git", ["show", `${tag}:deno.json`]),
     fixture.bundle.versionFile.text,
   );
+  const changelog = await runOrThrow(process, "git", [
+    "show",
+    `${tag}:CHANGELOG.md`,
+  ]);
+  assertStringIncludes(changelog, "### Features\n\n- initial release");
   assertStringIncludes(
-    await runOrThrow(process, "git", ["show", `${tag}:CHANGELOG.md`]),
-    "feat: initial release",
+    changelog,
+    `https://github.com/owner/repo/commit/${fixture.bundle.selectedSha}`,
   );
+  assertEquals(changelog.includes("- feat: initial release"), false);
   assertEquals(
     (await runOrThrow(process, "git", ["show", "-s", "--format=%P", tag]))
       .trim(),
