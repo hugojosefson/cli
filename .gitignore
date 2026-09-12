@@ -1,1 +1,6 @@
 .coverage/
+# hj:git-ignore
+# hj:git-ignore .*.swp
+.*.swp
+# hj:git-ignore /coverage/
+/coverage/
