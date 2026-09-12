@@ -1,4 +1,4 @@
-import { assertEquals } from "@std/assert";
+import { assertEquals, assertStringIncludes } from "@std/assert";
 import { builtInFeatureRegistry } from "./built-in-feature-registry.ts";
 import { parseFeatures } from "../cli/parse-features.ts";
 import { runFeatures } from "../cli/run-features.ts";
@@ -14,10 +14,10 @@ Deno.test("task features use exact commands and canonical aggregates", () => {
     description: "Type-check the project.",
     command: "deno check",
   });
-  assertEquals(leafTaskDefinitions["deno-test"], {
-    description: "Run tests.",
-    command: "deno test --parallel --trace-leaks",
-  });
+  assertStringIncludes(
+    leafTaskDefinitions["deno-test"].command as string,
+    "deno test --parallel --trace-leaks --coverage=coverage",
+  );
   assertEquals(
     denoTaskDefinitions(["deno-lint", "deno-typecheck", "deno-test"]).check,
     {

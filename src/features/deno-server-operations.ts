@@ -1,5 +1,11 @@
 /** @module Safety checks for the Deno server feature. */
 
+import {
+  planTestTasks,
+  testTaskTransition,
+  testWatchTaskDefinition,
+} from "./deno-test-tasks.ts";
+import { sameJson } from "../operations/local-plan-state.ts";
 import { legacyServerRegistry } from "./deno-server-legacy.ts";
 import { inspectDenoServerTasks } from "./deno-server-tasks.ts";
 import type { OperationCheck } from "../api/feature-operation.ts";
@@ -29,6 +35,25 @@ export async function checkEnableDenoServer(
   );
   if (tasks.kind === "ambiguous") {
     return blocked("The Deno tasks entry is not an object.");
+  }
+  if (
+    config.kind === "config" && isObject(config.value.tasks) &&
+    sameJson(config.value.tasks.dev, testWatchTaskDefinition)
+  ) {
+    const index = tasks.different.indexOf("dev");
+    if (index >= 0) tasks.different.splice(index, 1);
+    tasks.missing.push("dev");
+  }
+  if (config.kind === "config") {
+    const { conflicts } = testTaskTransition(
+      context,
+      config.value,
+      "deno-server",
+      true,
+    );
+    if (conflicts.length) {
+      return blocked(`Deno task ${conflicts[0]} conflicts with test watching.`);
+    }
   }
   if (tasks.different.length && !repair(context)) {
     return blocked(
@@ -125,7 +150,10 @@ export async function checkEnableDenoServer(
       );
     }
   }
-  return cliReady && actual === denoServerExport &&
+  return (config.kind !== "config" ||
+      planTestTasks(context, config.value, config.path, "deno-server", true)
+          .length === 0) &&
+      cliReady && actual === denoServerExport &&
       tasks.missing.length === 0 &&
       tasks.different.length === 0 &&
       artifacts.every((item) => item.result === "matches")
@@ -155,6 +183,15 @@ export async function checkDisableDenoServer(
   const tasks = inspectDenoServerTasks(config.value);
   if (tasks.kind === "ambiguous" || tasks.different.length) {
     return blocked("Custom server tasks cannot be removed.");
+  }
+  const { conflicts } = testTaskTransition(
+    context,
+    config.value,
+    "deno-server",
+    false,
+  );
+  if (conflicts.length) {
+    return blocked(`Deno task ${conflicts[0]} conflicts with test watching.`);
   }
   const cliEnabled = resolvedCliEnabled(
     context,

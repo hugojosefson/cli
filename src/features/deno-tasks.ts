@@ -29,8 +29,9 @@ export const leafTaskDefinitions: Readonly<Record<TaskFeatureId, JsonObject>> =
       command: "deno check",
     },
     "deno-test": {
-      description: "Run tests.",
-      command: "deno test --parallel --trace-leaks",
+      description: "Run tests and report fresh coverage.",
+      command:
+        `sh -c 'rm -rf coverage || exit $?; deno test --parallel --trace-leaks --coverage=coverage "$@"; test_status=$?; deno coverage coverage; report_status=$?; if test "$test_status" -ne 0; then exit "$test_status"; fi; exit "$report_status"' --`,
     },
   };
 

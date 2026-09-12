@@ -12,6 +12,7 @@ import {
 } from "./deno-tasks.ts";
 import { denoLibInitialConfigContribution } from "./deno-lib-artifacts.ts";
 import { denoServerInitialConfigContribution } from "./deno-server-artifacts.ts";
+import { denoTestTasks, hasServer } from "./deno-test-tasks.ts";
 import { jsrPackageIdentity } from "./jsr-package-identity.ts";
 import {
   publishCheckDefinition,
@@ -58,6 +59,12 @@ export async function initialDenoConfig(
             change.featureId === "readme-build" && change.enabled
           ),
         ),
+        ...(enabled.includes("deno-test")
+          ? denoTestTasks(
+            isObject(result.tasks) ? result.tasks : {},
+            hasServer(result),
+          )
+          : {}),
         ...Object.fromEntries(enabled.map((id) => [
           leafTaskNames[id],
           leafTaskDefinitions[id],
