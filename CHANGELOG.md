@@ -1,5 +1,50 @@
 # Changelog
 
+## 0.13.0
+
+### Features
+
+#### cli
+
+- launch native global installs with Node or Bun
+  ([3ab33f0](https://github.com/hugojosefson/cli/commit/3ab33f0b02c9e2dae45f34c773317272cdf3e311))
+
+#### npm
+
+- own the publication README badge
+  ([292efa7](https://github.com/hugojosefson/cli/commit/292efa77cfe9d378713f774a544f9867bf710a97))
+
+### Fixes
+
+#### docs
+
+- document native Node and Bun releases
+  ([7afdd5d](https://github.com/hugojosefson/cli/commit/7afdd5dbfc6f139ca868aae86ae6bcb14ad6b352))
+
+### Other
+
+#### readme
+
+- organize installation and guides for newcomers
+  ([105a9f7](https://github.com/hugojosefson/cli/commit/105a9f7814eb3a875c60a2ca896d778198251200))
+- reuse installation commands for upgrades
+  ([6a0fea9](https://github.com/hugojosefson/cli/commit/6a0fea9a09d24a36db4b0faf6d8bb0ac44ffa681))
+- list supported runtimes separately
+  ([5259370](https://github.com/hugojosefson/cli/commit/52593701256f3fe3c50ab099d2efad9f908f8cea))
+- describe inspection of the current directory
+  ([ea015ac](https://github.com/hugojosefson/cli/commit/ea015ac8e9b42cf792caf0bf1ccb36be6bcfb2df))
+- complete Bun and Deno installation options
+  ([3dd6fea](https://github.com/hugojosefson/cli/commit/3dd6feaf892f8ff648cd306b83db99e51a0da05e))
+- collapse commands that need no global install
+  ([f872cb1](https://github.com/hugojosefson/cli/commit/f872cb11b1663567b41b46f82d26178cd4d96f2f))
+- remove repeated dependency-age reference
+  ([24f4fb1](https://github.com/hugojosefson/cli/commit/24f4fb10c38060b0a8b4a42147ea0ef22bedbf26))
+
+#### runtime
+
+- integrate native launcher and npm badge evidence
+  ([c03f06a](https://github.com/hugojosefson/cli/commit/c03f06ac7b0ba995885400783c9eb8d430bedd7b))
+
 ## 0.12.0
 
 ### Features
