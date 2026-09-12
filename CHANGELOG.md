@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.5.0
+
+- feat(cli): run final project tasks before feature commits
+- feat(git): defer separate feature commits until validation succeeds
+- feat(deno): manage application lock defaults and explicit ownership
+- fix(git): attribute precomposed config and retain managed ignored files
+- fix(git): attribute initial README license sections to their feature
+- fix(git): keep private indexes in the repository Git directory
+- fix(features): integrate final tasks with shared config and lock commits
+- feat(jsr): discover authenticated scope memberships
+- test(features): isolate final tasks during fixture setup
+- test(features): verify final checks and separate config commits together
+
 ## 0.4.0
 
 - feat(package): resolve identity across generated content
