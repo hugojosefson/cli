@@ -16,7 +16,9 @@ export async function runFinalProjectTask(
   if (!plans.some((plan) => plan.changes.some((change) => "path" in change))) {
     return undefined;
   }
-  const config = await inspectDenoConfig({ files: new LocalFileReader(root) });
+  const config = await inspectDenoConfig({
+    files: new LocalFileReader(root, false),
+  });
   if (config.kind === "ambiguous") {
     throw new Error(
       `Cannot determine the final project task: ${config.observation}\n` +

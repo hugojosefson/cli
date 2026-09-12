@@ -85,7 +85,7 @@ async function prepareUsual(
   await runOrThrow(process, "git", ["switch", "--detach", selectedSha]);
   await requireClean(process);
 
-  const files = new LocalFileReader(root);
+  const files = new LocalFileReader(root, false);
   const config = await inspectDenoConfig({ files });
   if (
     config.kind !== "config" || typeof config.value.version !== "string"
@@ -393,7 +393,7 @@ async function rebuildRelease(
   release: string,
 ): Promise<ReleaseBundle> {
   await runOrThrow(process, "git", ["switch", "--detach", parent]);
-  const files = new LocalFileReader(root);
+  const files = new LocalFileReader(root, false);
   const config = await inspectDenoConfig({ files });
   if (config.kind !== "config" || typeof config.value.version !== "string") {
     throw new Error("One Deno config with a string version is required.");

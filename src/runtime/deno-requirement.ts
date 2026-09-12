@@ -103,7 +103,7 @@ export async function projectDenoRequirement(
   if (options.requirement !== undefined) {
     return denoRequirement(options.requirement, options.preferred);
   }
-  const files = new LocalFileReader(root);
+  const files = new LocalFileReader(root, false);
   const read = async (path: string) => {
     const value = await files.observe(path);
     if (value.kind === "absent") return undefined;

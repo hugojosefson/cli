@@ -13,7 +13,7 @@ import {
 
 /** Returns only paths whose contents this invocation is authorized to own. */
 export async function prepareDenoLock(root: URL): Promise<readonly string[]> {
-  const files = new LocalFileReader(root);
+  const files = new LocalFileReader(root, false);
   const state = await readDenoLockOwnership(files);
   const config = await inspectDenoConfig({ files });
   if (
@@ -61,7 +61,7 @@ export async function prepareDenoLock(root: URL): Promise<readonly string[]> {
 
 /** Call only after prepareDenoLock granted ownership for this operation. */
 export async function refreshDenoLock(root: URL): Promise<void> {
-  const files = new LocalFileReader(root);
+  const files = new LocalFileReader(root, false);
   const state = await readDenoLockOwnership(files);
   if (!state?.lock) return;
   const lock = await files.observe(denoLockPath);
