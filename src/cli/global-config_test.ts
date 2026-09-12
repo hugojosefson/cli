@@ -1,3 +1,16 @@
+import { assertMissingFile } from "../testing/files-test-fixtures.ts";
+import { test as nativeTest } from "node:test";
+import { trackTests } from "../testing/inventory-test-fixtures.ts";
+const test = trackTests(import.meta.url, nativeTest);
+import {
+  fixtureReadDirSync,
+  fixtureStat,
+  makeTempDir,
+  mkdir,
+  readTextFile,
+  remove,
+  writeTextFile,
+} from "../testing/files-test-fixtures.ts";
 import { parse } from "jsonc-parser";
 import {
   assertEquals,
@@ -15,7 +28,7 @@ import {
 import { parseFeatures } from "./parse-features.ts";
 import { runCli } from "./run-cli.ts";
 
-Deno.test("global configuration resolves XDG or HOME without depending on the repository", () => {
+test("global configuration resolves XDG or HOME without depending on the repository", () => {
   const path = (values: Record<string, string>) =>
     globalConfigFile({ get: (name) => values[name] }).pathname;
   assertEquals(
@@ -34,8 +47,8 @@ Deno.test("global configuration resolves XDG or HOME without depending on the re
   assertThrows(() => path({}), Error, "absolute");
 });
 
-Deno.test("configuration commands persist non-secret defaults and read without creating files", async () => {
-  const dir = await Deno.makeTempDir({
+test("configuration commands persist non-secret defaults and read without creating files", async () => {
+  const dir = await makeTempDir({
     dir: "/tmp/opencode",
     prefix: "hj-global-",
   });
@@ -45,19 +58,13 @@ Deno.test("configuration commands persist non-secret defaults and read without c
     runCli(root, ["config", ...args], { globalConfigFile: file });
   try {
     assertEquals((await call(["list"])).output, "{}");
-    await assertRejects(
-      () => Deno.stat(new URL("settings", root)),
-      Deno.errors.NotFound,
-    );
+    await assertMissingFile(() => fixtureStat(new URL("settings", root)));
     await assertRejects(() => call(["get", "features"]), Error, "not set");
     assertEquals(
       (await call(["unset", "features"])).output,
       "Configuration unchanged.",
     );
-    await assertRejects(
-      () => Deno.stat(new URL("settings", root)),
-      Deno.errors.NotFound,
-    );
+    await assertMissingFile(() => fixtureStat(new URL("settings", root)));
     assertEquals(
       (await call(["set", "features", '["deno-lib","readme"]'])).output,
       "Set features.",
@@ -81,24 +88,24 @@ Deno.test("configuration commands persist non-secret defaults and read without c
       "deno-version": "2.8.1",
     });
     await call(["unset", "deno-version"]);
-    assertEquals(await Deno.readTextFile(file), "{}\n");
+    assertEquals(await readTextFile(file), "{}\n");
     assertEquals(
-      [...Deno.readDirSync(new URL(".", file))].map((entry) => entry.name),
+      [...fixtureReadDirSync(new URL(".", file))].map((entry) => entry.name),
       ["config.json"],
     );
   } finally {
-    await Deno.remove(dir, { recursive: true });
+    await remove(dir, { recursive: true });
   }
 });
 
-Deno.test("configuration rejects invalid values and keeps previous bytes", async () => {
-  const dir = await Deno.makeTempDir({
+test("configuration rejects invalid values and keeps previous bytes", async () => {
+  const dir = await makeTempDir({
     dir: "/tmp/opencode",
     prefix: "hj-global-invalid-",
   });
   const file = new URL(`file://${dir}/config.json`);
   try {
-    await Deno.writeTextFile(file, '{"features":[]}\n');
+    await writeTextFile(file, '{"features":[]}\n');
     for (
       const args of [
         ["set", "token", "secret"],
@@ -118,7 +125,7 @@ Deno.test("configuration rejects invalid values and keeps previous bytes", async
       ]
     ) {
       await assertRejects(() => runConfig(args, file, registry));
-      assertEquals(await Deno.readTextFile(file), '{"features":[]}\n');
+      assertEquals(await readTextFile(file), '{"features":[]}\n');
     }
     for (
       const text of [
@@ -131,7 +138,7 @@ Deno.test("configuration rejects invalid values and keeps previous bytes", async
         '{"deno-version":true}',
       ]
     ) {
-      await Deno.writeTextFile(file, text);
+      await writeTextFile(file, text);
       const error = await assertRejects(
         () => readGlobalConfig(file, registry),
         Error,
@@ -140,17 +147,17 @@ Deno.test("configuration rejects invalid values and keeps previous bytes", async
       await assertRejects(() =>
         runConfig(["set", "features", "[]"], file, registry)
       );
-      assertEquals(await Deno.readTextFile(file), text);
+      assertEquals(await readTextFile(file), text);
     }
     await assertRejects(() =>
       readGlobalConfig(new URL(`file://${dir}/`), registry)
     );
   } finally {
-    await Deno.remove(dir, { recursive: true });
+    await remove(dir, { recursive: true });
   }
 });
 
-Deno.test("flags override configured feature and Deno defaults; status stays read-only", async () => {
+test("flags override configured feature and Deno defaults; status stays read-only", async () => {
   const defaults = {
     features: ["deno-lib", "readme"],
     "deno-version": "2.8.1",
@@ -214,14 +221,14 @@ Deno.test("flags override configured feature and Deno defaults; status stays rea
   ) {
     assertThrows(() => parseFeatures(["repo", "features", ...flags], registry));
   }
-  const dir = await Deno.makeTempDir({
+  const dir = await makeTempDir({
     dir: "/tmp/opencode",
     prefix: "hj-global-status-",
   });
   const root = new URL(`file://${dir}/`);
   const file = new URL("invalid.json", root);
   try {
-    await Deno.writeTextFile(file, "invalid");
+    await writeTextFile(file, "invalid");
     assertStringIncludes(
       (await runCli(root, ["repo", "features"], { globalConfigFile: file }))
         .output,
@@ -241,15 +248,15 @@ Deno.test("flags override configured feature and Deno defaults; status stays rea
       Error,
       "invalid JSON",
     );
-    assertEquals([...Deno.readDirSync(root)].map((entry) => entry.name), [
+    assertEquals([...fixtureReadDirSync(root)].map((entry) => entry.name), [
       "invalid.json",
     ]);
   } finally {
-    await Deno.remove(dir, { recursive: true });
+    await remove(dir, { recursive: true });
   }
 });
 
-Deno.test("configured interactive selections take priority over remaining prompt choices", async () => {
+test("configured interactive selections take priority over remaining prompt choices", async () => {
   const { interactiveFeatureRequest } = await import(
     "./interactive-feature-defaults.ts"
   );
@@ -310,8 +317,8 @@ Deno.test("configured interactive selections take priority over remaining prompt
   );
 });
 
-Deno.test("repository feature dispatch applies configured defaults and honors explicit opt-outs", async () => {
-  const dir = await Deno.makeTempDir({
+test("repository feature dispatch applies configured defaults and honors explicit opt-outs", async () => {
+  const dir = await makeTempDir({
     dir: "/tmp/opencode",
     prefix: "hj-global-apply-",
   });
@@ -319,29 +326,23 @@ Deno.test("repository feature dispatch applies configured defaults and honors ex
   const root = new URL("project/", base);
   const file = new URL("config.json", base);
   try {
-    await Deno.mkdir(root);
+    await mkdir(root);
     await runConfig(["set", "features", '["deno-fmt"]'], file, registry);
     await runCli(root, ["repo", "features", "--defaults", "--no-deno-fmt"], {
       globalConfigFile: file,
     });
-    assertEquals([...Deno.readDirSync(root)], []);
+    assertEquals([...fixtureReadDirSync(root)], []);
     const result = await runCli(root, ["repo", "features", "--defaults"], {
       globalConfigFile: file,
     });
     assertStringIncludes(result.output, "deno-fmt");
     const config = parse(
-      await Deno.readTextFile(new URL("deno.jsonc", root)),
+      await readTextFile(new URL("deno.jsonc", root)),
     );
     assertStringIncludes(JSON.stringify(config.tasks), "deno fmt");
-    await assertRejects(
-      () => Deno.stat(new URL(".git", root)),
-      Deno.errors.NotFound,
-    );
-    await assertRejects(
-      () => Deno.stat(new URL("README.md", root)),
-      Deno.errors.NotFound,
-    );
+    await assertMissingFile(() => fixtureStat(new URL(".git", root)));
+    await assertMissingFile(() => fixtureStat(new URL("README.md", root)));
   } finally {
-    await Deno.remove(dir, { recursive: true });
+    await remove(dir, { recursive: true });
   }
 });

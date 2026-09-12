@@ -1,12 +1,24 @@
+import { isNotFound } from "../runtime/errors.ts";
+import { test as nativeTest } from "node:test";
+import { trackTests } from "../testing/inventory-test-fixtures.ts";
+const test = trackTests(import.meta.url, nativeTest);
+import {
+  fixtureLstat,
+  makeTempDir,
+  readTextFile,
+  remove,
+  writeTextFile,
+} from "../testing/files-test-fixtures.ts";
+import { runCommand } from "../runtime/command.ts";
 import { assertEquals, assertRejects } from "@std/assert";
 import type { ChangePlan } from "../api/change-plan.ts";
 import type { PlannedChange } from "../api/planned-change.ts";
 import { ChangePlanError } from "./change-plan-error.ts";
 import { applyLocalChangePlan } from "./local-change-plan.ts";
 
-Deno.test("applicator rejects stale plans before mutations", async () => {
+test("applicator rejects stale plans before mutations", async () => {
   await withRepository(async (root) => {
-    await Deno.writeTextFile(new URL("state.txt", root), "changed");
+    await writeTextFile(new URL("state.txt", root), "changed");
     await assertRejects(
       () =>
         applyLocalChangePlan(
@@ -24,9 +36,9 @@ Deno.test("applicator rejects stale plans before mutations", async () => {
   });
 });
 
-Deno.test("applicator preserves JSONC comments and checks existing values", async () => {
+test("applicator preserves JSONC comments and checks existing values", async () => {
   await withRepository(async (root) => {
-    await Deno.writeTextFile(
+    await writeTextFile(
       new URL("deno.jsonc", root),
       '{\n  // keep\n  "old": true\n}\n',
     );
@@ -60,9 +72,9 @@ Deno.test("applicator preserves JSONC comments and checks existing values", asyn
   });
 });
 
-Deno.test("applicator removes JSON array elements without corrupting JSON", async () => {
+test("applicator removes JSON array elements without corrupting JSON", async () => {
   await withRepository(async (root) => {
-    await Deno.writeTextFile(new URL("data.json", root), '{"items":[1,2]}\n');
+    await writeTextFile(new URL("data.json", root), '{"items":[1,2]}\n');
     await applyLocalChangePlan(
       root,
       plan([{
@@ -76,9 +88,9 @@ Deno.test("applicator removes JSON array elements without corrupting JSON", asyn
   });
 });
 
-Deno.test("applicator guards and changes file modes", async () => {
+test("applicator guards and changes file modes", async () => {
   await withRepository(async (root) => {
-    await Deno.writeTextFile(new URL("run", root), "run\n", { mode: 0o644 });
+    await writeTextFile(new URL("run", root), "run\n", { mode: 0o644 });
     await applyLocalChangePlan(
       root,
       plan([{
@@ -88,11 +100,14 @@ Deno.test("applicator guards and changes file modes", async () => {
         mode: 0o755,
       }]),
     );
-    assertEquals((await Deno.lstat(new URL("run", root))).mode! & 0o777, 0o755);
+    assertEquals(
+      (await fixtureLstat(new URL("run", root))).mode! & 0o777,
+      0o755,
+    );
   });
 });
 
-Deno.test("directory creation composes but rejects other existing kinds", async () => {
+test("directory creation composes but rejects other existing kinds", async () => {
   await withRepository(async (root) => {
     await applyLocalChangePlan(
       root,
@@ -102,7 +117,7 @@ Deno.test("directory creation composes but rejects other existing kinds", async 
       root,
       plan([{ kind: "create-directory", path: "src" }]),
     );
-    await Deno.writeTextFile(new URL("file", root), "x");
+    await writeTextFile(new URL("file", root), "x");
     await assertRejects(
       () =>
         applyLocalChangePlan(
@@ -112,7 +127,7 @@ Deno.test("directory creation composes but rejects other existing kinds", async 
       ChangePlanError,
     );
     await git(root, ["init"]);
-    await Deno.writeTextFile(new URL("target", root), "src\n");
+    await writeTextFile(new URL("target", root), "src\n");
     const target = await git(root, ["hash-object", "-w", "target"]);
     await git(root, [
       "update-index",
@@ -132,7 +147,7 @@ Deno.test("directory creation composes but rejects other existing kinds", async 
   });
 });
 
-Deno.test("applicator initializes and commits a local Git repository", async () => {
+test("applicator initializes and commits a local Git repository", async () => {
   await withRepository(async (root) => {
     await applyLocalChangePlan(
       root,
@@ -140,7 +155,7 @@ Deno.test("applicator initializes and commits a local Git repository", async () 
     );
     await git(root, ["config", "user.email", "test@example.test"]);
     await git(root, ["config", "user.name", "Test"]);
-    await Deno.writeTextFile(new URL("created.txt", root), "created\n");
+    await writeTextFile(new URL("created.txt", root), "created\n");
     await applyLocalChangePlan(
       root,
       plan([{
@@ -164,7 +179,7 @@ Deno.test("applicator initializes and commits a local Git repository", async () 
         { kind: "clean-worktree" },
       ]),
     );
-    await Deno.writeTextFile(new URL("created.txt", root), "dirty\n");
+    await writeTextFile(new URL("created.txt", root), "dirty\n");
     await assertRejects(
       () => applyLocalChangePlan(root, plan([], [{ kind: "clean-worktree" }])),
       ChangePlanError,
@@ -172,7 +187,7 @@ Deno.test("applicator initializes and commits a local Git repository", async () 
   });
 });
 
-Deno.test("applicator contains paths and rejects remote changes", async () => {
+test("applicator contains paths and rejects remote changes", async () => {
   await withRepository(async (root) => {
     await assertRejects(
       () =>
@@ -243,36 +258,36 @@ function plan(
 async function withRepository(
   action: (root: URL) => Promise<void>,
 ): Promise<void> {
-  const path = await Deno.makeTempDir({
+  const path = await makeTempDir({
     dir: "/tmp/opencode",
     prefix: "hj-plan-",
   });
   try {
     await action(new URL(`file://${path}/`));
   } finally {
-    await Deno.remove(path, { recursive: true });
+    await remove(path, { recursive: true });
   }
 }
 
 async function text(root: URL, path: string): Promise<string | undefined> {
   try {
-    return await Deno.readTextFile(new URL(path, root));
+    return await readTextFile(new URL(path, root));
   } catch (error) {
-    if (error instanceof Deno.errors.NotFound) return undefined;
+    if (isNotFound(error)) return undefined;
     throw error;
   }
 }
 
 async function git(root: URL, args: readonly string[]): Promise<string> {
-  const output = await new Deno.Command("git", {
+  const output = await runCommand("git", {
     args: [...args],
     cwd: root.pathname,
-  }).output();
+  });
   if (!output.success) throw new Error("git failed");
   return new TextDecoder().decode(output.stdout);
 }
 
-Deno.test("JSON value preconditions guard the whole plan and allow unrelated edits", async () => {
+test("JSON value preconditions guard the whole plan and allow unrelated edits", async () => {
   await withRepository(async (root) => {
     const path = "deno.jsonc";
     const change = {
@@ -296,7 +311,7 @@ Deno.test("JSON value preconditions guard the whole plan and allow unrelated edi
       ]
     ) {
       if (content !== undefined) {
-        await Deno.writeTextFile(new URL(path, root), content);
+        await writeTextFile(new URL(path, root), content);
       }
       await assertRejects(
         () => applyLocalChangePlan(root, plan([change], [guard])),
@@ -304,7 +319,7 @@ Deno.test("JSON value preconditions guard the whole plan and allow unrelated edi
       );
       assertEquals(await text(root, "new.txt"), undefined);
     }
-    await Deno.writeTextFile(
+    await writeTextFile(
       new URL(path, root),
       '// Preserve unrelated fields.\n{"tasks": {"release": "exact"}, "custom": true,}\n',
     );
@@ -317,5 +332,47 @@ Deno.test("JSON value preconditions guard the whole plan and allow unrelated edi
       }]),
     );
     assertEquals(await text(root, "new.txt"), "new");
+  });
+});
+
+test("write and remove plans reject encoded parent symlinks without changing outside files", async () => {
+  await withRepository(async (root) => {
+    await withRepository(async (outside) => {
+      const file = new URL("external.txt", outside);
+      await writeTextFile(file, "preserve outside");
+      const { LocalFileReader } = await import(
+        "../repository/local-file-reader.ts"
+      );
+      const digest = await new LocalFileReader(outside).digest("external.txt");
+      if (!digest) throw new Error("Fixture file has no digest");
+      const link = await runCommand("deno", {
+        args: [
+          "eval",
+          "await Deno.symlink(new URL(Deno.args[0]), new URL(Deno.args[1]));",
+          outside.href,
+          new URL("link%20%25", root).href,
+        ],
+      });
+      assertEquals(link.success, true, new TextDecoder().decode(link.stderr));
+      const path = "link %/external.txt";
+      for (
+        const change of [
+          {
+            kind: "write-file",
+            path,
+            content: "unexpected",
+            expectedDigest: digest,
+          },
+          { kind: "remove-file", path, expectedDigest: digest },
+        ] as const
+      ) {
+        await assertRejects(
+          () => applyLocalChangePlan(root, plan([change])),
+          TypeError,
+          "traverses a symlink",
+        );
+        assertEquals(await readTextFile(file), "preserve outside");
+      }
+    });
   });
 });

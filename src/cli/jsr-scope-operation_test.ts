@@ -1,3 +1,10 @@
+import { test as nativeTest } from "node:test";
+import { trackTests } from "../testing/inventory-test-fixtures.ts";
+const test = trackTests(import.meta.url, nativeTest);
+import {
+  fixtureReadDirSync,
+  readTextFile,
+} from "../testing/files-test-fixtures.ts";
 import { assertEquals, assertRejects, assertStringIncludes } from "@std/assert";
 import { licenseCatalog } from "../features/license-catalog.ts";
 import { createSpdxLicenseFeature } from "../features/license-spdx-feature.ts";
@@ -5,7 +12,7 @@ import { builtInFeatureRegistry } from "../features/built-in-feature-registry.ts
 import {
   withRepository,
   writeConfig,
-} from "../features/jsr-package-feature-support.ts";
+} from "../features/jsr-package-test-fixtures.ts";
 import type { JsrScopes } from "../repository/jsr-scope-reader.ts";
 import { parseFeatures } from "./parse-features.ts";
 import { runFeatureOperation } from "./run-features.ts";
@@ -50,7 +57,7 @@ function run(
   );
 }
 
-Deno.test("JSR setup persists and reports the sole member scope, and repeat checks membership", async () => {
+test("JSR setup persists and reports the sole member scope, and repeat checks membership", async () => {
   await withRepository(async (root) => {
     const memberships: JsrScopes = {
       kind: "available",
@@ -58,7 +65,7 @@ Deno.test("JSR setup persists and reports the sole member scope, and repeat chec
     };
     const output = await run(root, memberships, ["--yes"]);
     const config = JSON.parse(
-      await Deno.readTextFile(new URL("deno.jsonc", root)),
+      await readTextFile(new URL("deno.jsonc", root)),
     );
     assertStringIncludes(config.name, "@ordinary-member/");
     // Tables wrap long names; verify the selected scope remains visible.
@@ -81,7 +88,7 @@ Deno.test("JSR setup persists and reports the sole member scope, and repeat chec
   });
 });
 
-Deno.test("JSR --yes never chooses among scopes or writes files after discovery failure", async () => {
+test("JSR --yes never chooses among scopes or writes files after discovery failure", async () => {
   for (
     const result of [
       { kind: "available", scopes: ["first", "second"] },
@@ -92,17 +99,17 @@ Deno.test("JSR --yes never chooses among scopes or writes files after discovery 
   ) {
     await withRepository(async (root) => {
       await assertRejects(() => run(root, result, ["--yes"]));
-      assertEquals([...Deno.readDirSync(root)], []);
+      assertEquals([...fixtureReadDirSync(root)], []);
     });
   }
 });
 
-Deno.test("JSR explicit local setup preserves configured names without authentication", async () => {
+test("JSR explicit local setup preserves configured names without authentication", async () => {
   await withRepository(async (root) => {
     await writeConfig(root, { name: "@configured/my-library" });
     await run(root, { kind: "missing-authentication" }, ["--yes"]);
     const config = JSON.parse(
-      await Deno.readTextFile(new URL("deno.json", root)),
+      await readTextFile(new URL("deno.json", root)),
     );
     assertEquals(config.name, "@configured/my-library");
   });
@@ -112,18 +119,18 @@ Deno.test("JSR explicit local setup preserves configured names without authentic
       "--jsr-scope=explicit",
     ]);
     const config = JSON.parse(
-      await Deno.readTextFile(new URL("deno.jsonc", root)),
+      await readTextFile(new URL("deno.jsonc", root)),
     );
     assertStringIncludes(config.name, "@explicit/");
   });
 });
 
-Deno.test("JSR discovery completes partial metadata without requiring credentials for status", async () => {
+test("JSR discovery completes partial metadata without requiring credentials for status", async () => {
   await withRepository(async (root) => {
     await writeConfig(root, { version: "1.2.3" });
     await run(root, { kind: "available", scopes: ["team"] }, ["--yes"]);
     const config = JSON.parse(
-      await Deno.readTextFile(new URL("deno.json", root)),
+      await readTextFile(new URL("deno.json", root)),
     );
     assertStringIncludes(config.name, "@team/");
     assertEquals(config.version, "1.2.3");
@@ -144,7 +151,7 @@ Deno.test("JSR discovery completes partial metadata without requiring credential
   });
 });
 
-Deno.test("JSR setup requires a terminal selection when several memberships are available", async () => {
+test("JSR setup requires a terminal selection when several memberships are available", async () => {
   await withRepository(async (root) => {
     await run(
       root,
@@ -153,7 +160,7 @@ Deno.test("JSR setup requires a terminal selection when several memberships are 
       () => "second",
     );
     const config = JSON.parse(
-      await Deno.readTextFile(new URL("deno.jsonc", root)),
+      await readTextFile(new URL("deno.jsonc", root)),
     );
     assertStringIncludes(config.name, "@second/");
   });

@@ -1,3 +1,16 @@
+import { test as nativeTest } from "node:test";
+import { trackTests } from "../testing/inventory-test-fixtures.ts";
+const test = trackTests(import.meta.url, nativeTest);
+import {
+  chmod,
+  fixtureStat,
+  makeTempDir,
+  mkdir,
+  readTextFile,
+  remove,
+  writeTextFile,
+} from "../testing/files-test-fixtures.ts";
+import { runCommand } from "../runtime/command.ts";
 import { assert, assertEquals } from "@std/assert";
 import type { OperationContext } from "../api/repository-context.ts";
 import { applyLocalChangePlan } from "../operations/local-change-plan.ts";
@@ -8,7 +21,7 @@ import { denoLibArtifacts, denoLibAssertImport } from "./deno-lib-artifacts.ts";
 import { parse } from "jsonc-parser";
 import { resolveFeatureChanges } from "./resolve-feature-changes.ts";
 
-Deno.test("deno-lib resolution enables deno-fmt first", () => {
+test("deno-lib resolution enables deno-fmt first", () => {
   const detections = Object.fromEntries(
     builtInFeatureRegistry.features.map((feature) => [
       feature.metadata.id,
@@ -26,12 +39,12 @@ Deno.test("deno-lib resolution enables deno-fmt first", () => {
   );
 });
 
-Deno.test("deno-lib creates starter files, repairs drift, and preserves them on disable", async () => {
+test("deno-lib creates starter files, repairs drift, and preserves them on disable", async () => {
   await withRepository(async (root) => {
     await apply(root);
     assertEquals((await denoLibFeature.detect(context(root))).state, "enabled");
-    await Deno.writeTextFile(new URL("src/lib/mod.ts", root), "edited\n");
-    await Deno.chmod(new URL("src/lib/mod.ts", root), 0o755);
+    await writeTextFile(new URL("src/lib/mod.ts", root), "edited\n");
+    await chmod(new URL("src/lib/mod.ts", root), 0o755);
     assertEquals((await denoLibFeature.detect(context(root))).state, "drifted");
     assertEquals(
       (await denoLibFeature.checkEnable(context(root))).result,
@@ -46,17 +59,17 @@ Deno.test("deno-lib creates starter files, repairs drift, and preserves them on 
     );
     await applyLocalChangePlan(root, repair);
     assertEquals(
-      await Deno.readTextFile(new URL("src/lib/mod.ts", root)),
+      await readTextFile(new URL("src/lib/mod.ts", root)),
       "export function placeholder(): void {}\n",
     );
-    await Deno.chmod(new URL("src/lib/mod.ts", root), 0o755);
+    await chmod(new URL("src/lib/mod.ts", root), 0o755);
     const modeRepair = await repairPlan(root);
     assertEquals(modeRepair.changes.map((change) => change.kind), [
       "set-file-mode",
     ]);
     await applyLocalChangePlan(root, modeRepair);
     assertEquals(
-      (await Deno.stat(new URL("src/lib/mod.ts", root))).mode! & 0o777,
+      (await fixtureStat(new URL("src/lib/mod.ts", root))).mode! & 0o777,
       0o644,
     );
     const disable = await denoLibFeature.checkDisable(context(root));
@@ -71,24 +84,24 @@ Deno.test("deno-lib creates starter files, repairs drift, and preserves them on 
       (await denoLibFeature.detect(context(root))).state,
       "disabled",
     );
-    assert((await Deno.stat(new URL("src/lib/mod.ts", root))).isFile);
-    assert((await Deno.stat(new URL("test/lib_test.ts", root))).isFile);
+    assert((await fixtureStat(new URL("src/lib/mod.ts", root))).isFile);
+    assert((await fixtureStat(new URL("test/lib_test.ts", root))).isFile);
   });
 });
 
-Deno.test("deno-lib preserves unrelated existing JSONC content and blocks ambiguous paths", async () => {
+test("deno-lib preserves unrelated existing JSONC content and blocks ambiguous paths", async () => {
   await withRepository(async (root) => {
-    await Deno.writeTextFile(
+    await writeTextFile(
       new URL("deno.jsonc", root),
       '{\n  // keep\n  "name": "example"\n}\n',
     );
     await apply(root);
-    const config = await Deno.readTextFile(new URL("deno.jsonc", root));
+    const config = await readTextFile(new URL("deno.jsonc", root));
     assert(config.includes("// keep"));
     assert(config.includes('"name": "example"'));
   });
   await withRepository(async (root) => {
-    await Deno.writeTextFile(new URL("src", root), "not a directory\n");
+    await writeTextFile(new URL("src", root), "not a directory\n");
     assertEquals(
       (await denoLibFeature.detect(context(root))).state,
       "disabled",
@@ -100,9 +113,9 @@ Deno.test("deno-lib preserves unrelated existing JSONC content and blocks ambigu
   });
 });
 
-Deno.test("deno-lib blocks disabling a differing root export", async () => {
+test("deno-lib blocks disabling a differing root export", async () => {
   await withRepository(async (root) => {
-    await Deno.writeTextFile(
+    await writeTextFile(
       new URL("deno.jsonc", root),
       '{ "exports": { ".": "./other.ts" } }\n',
     );
@@ -113,22 +126,22 @@ Deno.test("deno-lib blocks disabling a differing root export", async () => {
   });
 });
 
-Deno.test("deno-lib creates a runnable assertion starter and its dependency", async () => {
+test("deno-lib creates a runnable assertion starter and its dependency", async () => {
   await withRepository(async (root) => {
     await apply(root);
     assertEquals(
-      await Deno.readTextFile(new URL("test/lib_test.ts", root)),
+      await readTextFile(new URL("test/lib_test.ts", root)),
       'import { assertEquals } from "@std/assert";\nimport { placeholder } from "../src/lib/mod.ts";\n\nDeno.test("placeholder", async (t) => {\n  await t.step("should not throw", placeholder);\n\n  await t.step("should return undefined", () => {\n    assertEquals(placeholder(), undefined);\n  });\n});\n',
     );
     assertEquals(
-      parse(await Deno.readTextFile(new URL("deno.jsonc", root)))
+      parse(await readTextFile(new URL("deno.jsonc", root)))
         .imports["@std/assert"],
       denoLibAssertImport,
     );
-    const result = await new Deno.Command("deno", {
+    const result = await runCommand("deno", {
       args: ["test", "test/lib_test.ts"],
       cwd: root,
-    }).output();
+    });
     assert(result.success, new TextDecoder().decode(result.stderr));
     const output = new TextDecoder().decode(result.stdout);
     assert(output.includes("should not throw"));
@@ -136,14 +149,14 @@ Deno.test("deno-lib creates a runnable assertion starter and its dependency", as
   });
 });
 
-Deno.test("deno-lib preserves existing assertion mappings and unrelated JSONC imports", async () => {
+test("deno-lib preserves existing assertion mappings and unrelated JSONC imports", async () => {
   await withRepository(async (root) => {
-    await Deno.writeTextFile(
+    await writeTextFile(
       new URL("deno.jsonc", root),
       '{\n // custom imports\n "imports": {"@std/assert":"jsr:@std/assert@1.0.19","other":"./other.ts"}\n}\n',
     );
     await apply(root);
-    const text = await Deno.readTextFile(new URL("deno.jsonc", root));
+    const text = await readTextFile(new URL("deno.jsonc", root));
     assert(text.includes("// custom imports"));
     assertEquals(parse(text).imports, {
       "@std/assert": "jsr:@std/assert@1.0.19",
@@ -151,30 +164,30 @@ Deno.test("deno-lib preserves existing assertion mappings and unrelated JSONC im
     });
   });
   await withRepository(async (root) => {
-    await Deno.writeTextFile(
+    await writeTextFile(
       new URL("deno.jsonc", root),
       '{"imports":{"other":"./other.ts"}}',
     );
     await apply(root);
     assertEquals(
-      parse(await Deno.readTextFile(new URL("deno.jsonc", root))).imports,
+      parse(await readTextFile(new URL("deno.jsonc", root))).imports,
       { other: "./other.ts", "@std/assert": denoLibAssertImport },
     );
   });
 });
 
-Deno.test("deno-lib preserves customized tests through repair, disable, and re-enable", async () => {
+test("deno-lib preserves customized tests through repair, disable, and re-enable", async () => {
   await withRepository(async (root) => {
     await apply(root);
     const custom = 'Deno.test("my implementation", () => {});\n';
-    await Deno.writeTextFile(new URL("test/lib_test.ts", root), custom);
-    await Deno.chmod(new URL("test/lib_test.ts", root), 0o755);
+    await writeTextFile(new URL("test/lib_test.ts", root), custom);
+    await chmod(new URL("test/lib_test.ts", root), 0o755);
     assertEquals((await denoLibFeature.detect(context(root))).state, "enabled");
     assertEquals(
       (await denoLibFeature.checkEnable(context(root))).result,
       "no-op",
     );
-    await Deno.writeTextFile(
+    await writeTextFile(
       new URL("src/lib/mod.ts", root),
       "custom source\n",
     );
@@ -193,51 +206,51 @@ Deno.test("deno-lib preserves customized tests through repair, disable, and re-e
     );
     await apply(root);
     assertEquals(
-      await Deno.readTextFile(new URL("test/lib_test.ts", root)),
+      await readTextFile(new URL("test/lib_test.ts", root)),
       custom,
     );
     assertEquals(
-      (await Deno.stat(new URL("test/lib_test.ts", root))).mode! & 0o777,
+      (await fixtureStat(new URL("test/lib_test.ts", root))).mode! & 0o777,
       0o755,
     );
   });
 });
 
-Deno.test("deno-lib keeps pre-existing tests without contributing an unused assertion import", async () => {
+test("deno-lib keeps pre-existing tests without contributing an unused assertion import", async () => {
   await withRepository(async (root) => {
-    await Deno.mkdir(new URL("test", root));
-    await Deno.writeTextFile(
+    await mkdir(new URL("test", root));
+    await writeTextFile(
       new URL("test/lib_test.ts", root),
       "// project tests\n",
     );
     await apply(root);
     assertEquals(
-      parse(await Deno.readTextFile(new URL("deno.jsonc", root))).imports,
+      parse(await readTextFile(new URL("deno.jsonc", root))).imports,
       undefined,
     );
     assertEquals(
-      await Deno.readTextFile(new URL("test/lib_test.ts", root)),
+      await readTextFile(new URL("test/lib_test.ts", root)),
       "// project tests\n",
     );
   });
 });
 
-Deno.test("deno-lib repairs missing assertion mappings and blocks ambiguous imports before writes", async () => {
+test("deno-lib repairs missing assertion mappings and blocks ambiguous imports before writes", async () => {
   for (const imports of [undefined, [], { "@std/assert": 7 }]) {
     await withRepository(async (root) => {
-      await Deno.writeTextFile(
+      await writeTextFile(
         new URL("deno.json", root),
         JSON.stringify({ exports: { ".": "./src/lib/mod.ts" }, imports }),
       );
       for (const directory of ["src/lib", "test"]) {
-        await Deno.mkdir(new URL(directory, root), { recursive: true });
+        await mkdir(new URL(directory, root), { recursive: true });
       }
       for (const artifact of denoLibArtifacts) {
-        await Deno.writeTextFile(
+        await writeTextFile(
           new URL(artifact.path, root),
           artifact.content,
         );
-        await Deno.chmod(new URL(artifact.path, root), 0o644);
+        await chmod(new URL(artifact.path, root), 0o644);
       }
       assertEquals(
         (await denoLibFeature.detect(context(root))).state,
@@ -305,13 +318,13 @@ function context(
 async function withRepository(
   action: (root: URL) => Promise<void>,
 ): Promise<void> {
-  const path = await Deno.makeTempDir({
+  const path = await makeTempDir({
     dir: "/tmp/opencode",
     prefix: "hj-deno-lib-",
   });
   try {
     await action(new URL(`file://${path}/`));
   } finally {
-    await Deno.remove(path, { recursive: true });
+    await remove(path, { recursive: true });
   }
 }

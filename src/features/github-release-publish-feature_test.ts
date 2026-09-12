@@ -1,3 +1,6 @@
+import { test as nativeTest } from "node:test";
+import { trackTests } from "../testing/inventory-test-fixtures.ts";
+const test = trackTests(import.meta.url, nativeTest);
 import { hjPackageReference } from "./hj-package.ts";
 import { assertEquals, assertRejects, assertStringIncludes } from "@std/assert";
 import type { ArtifactObservation } from "../api/artifact-inspection.ts";
@@ -58,7 +61,7 @@ function exact(content: string): ArtifactObservation {
   return { kind: "file", content, digest: "digest", mode: 0o644 };
 }
 
-Deno.test("workflow detection preserves exact registry pins and rejects other drift", async () => {
+test("workflow detection preserves exact registry pins and rejects other drift", async () => {
   const prefix = hjPackageReference.slice(
     0,
     hjPackageReference.lastIndexOf("@") + 1,
@@ -143,7 +146,7 @@ const quiescentGithub: GithubReader = {
   workflowRuns: () => Promise.resolve([]),
 };
 
-Deno.test("release workflows have pinned actions, routes, permissions, and concurrency", () => {
+test("release workflows have pinned actions, routes, permissions, and concurrency", () => {
   for (
     const artifact of [
       publishTagArtifact,
@@ -224,7 +227,7 @@ Deno.test("release workflows have pinned actions, routes, permissions, and concu
   assertStringIncludes(publishGithubArtifact.content, "--allow-run=gh,git");
 });
 
-Deno.test("JSR publisher migrates exact legacy workflow states without adopting custom data", async () => {
+test("JSR publisher migrates exact legacy workflow states without adopting custom data", async () => {
   assertEquals(
     (await githubReleasePublishJsrFeature.detect(context({}))).state,
     "disabled",
@@ -258,7 +261,7 @@ Deno.test("JSR publisher migrates exact legacy workflow states without adopting 
   );
 });
 
-Deno.test("JSR publisher plans exact legacy migration and leaves custom or unreadable files untouched", async () => {
+test("JSR publisher plans exact legacy migration and leaves custom or unreadable files untouched", async () => {
   const allowed = {
     result: "allowed" as const,
     warnings: [],
@@ -344,7 +347,7 @@ Deno.test("JSR publisher plans exact legacy migration and leaves custom or unrea
   ]);
 });
 
-Deno.test("tag publication has exact dependencies and fails closed when protection is unavailable", async () => {
+test("tag publication has exact dependencies and fails closed when protection is unavailable", async () => {
   assertEquals(
     githubReleasePublishTagFeature.dependencies.requires.map((item) =>
       item.featureId
@@ -364,7 +367,7 @@ Deno.test("tag publication has exact dependencies and fails closed when protecti
   );
 });
 
-Deno.test("only the JSR publisher contributes the usual-route pre-tag command", () => {
+test("only the JSR publisher contributes the usual-route pre-tag command", () => {
   assertEquals(
     githubReleasePublisherFeatures.map((feature) => ({
       id: feature.metadata.id,
@@ -386,7 +389,7 @@ Deno.test("only the JSR publisher contributes the usual-route pre-tag command", 
   );
 });
 
-Deno.test("JSR publication starts automatically after tag success and supports manual retries", () => {
+test("JSR publication starts automatically after tag success and supports manual retries", () => {
   const workflow = parse(publishJsrArtifact.content);
   assertEquals(Object.keys(workflow.on).sort(), [
     "repository_dispatch",
@@ -408,7 +411,7 @@ Deno.test("JSR publication starts automatically after tag success and supports m
   );
 });
 
-Deno.test("repair restores automatic publication to a generated manual-only JSR workflow", async () => {
+test("repair restores automatic publication to a generated manual-only JSR workflow", async () => {
   const manual = publishJsrArtifact.content.replace(
     "  repository_dispatch:\n    types: [hj-release-publish-tag-success]\n",
     "",
@@ -439,7 +442,7 @@ Deno.test("repair restores automatic publication to a generated manual-only JSR 
   assertEquals(write?.expectedDigest, "digest");
 });
 
-Deno.test("JSR publisher creates a pinned bootstrap workflow and restores registry loading", async () => {
+test("JSR publisher creates a pinned bootstrap workflow and restores registry loading", async () => {
   const source = `github:owner/hj@${"b".repeat(40)}`;
   const bootstrap = { ...context({}), options: { workflowCli: source } };
   const allowed = await githubReleasePublishJsrFeature.checkEnable(bootstrap);
@@ -487,7 +490,7 @@ Deno.test("JSR publisher creates a pinned bootstrap workflow and restores regist
   );
 });
 
-Deno.test("release workflows use configured Deno versions without changing CLI source selection", async () => {
+test("release workflows use configured Deno versions without changing CLI source selection", async () => {
   const source = "github:owner/project@" + "a".repeat(40);
   for (
     const artifact of [
@@ -532,7 +535,7 @@ Deno.test("release workflows use configured Deno versions without changing CLI s
   }
 });
 
-Deno.test("npm workflow lifecycle preserves custom files and requires quiescence for removal", async () => {
+test("npm workflow lifecycle preserves custom files and requires quiescence for removal", async () => {
   const feature = githubReleasePublishNpmFeature;
   const empty = context({});
   assertEquals((await feature.detect(empty)).state, "disabled");
@@ -565,7 +568,7 @@ Deno.test("npm workflow lifecycle preserves custom files and requires quiescence
   );
 });
 
-Deno.test("npm workflow authenticates independently after tag success and accepts manual retries", () => {
+test("npm workflow authenticates independently after tag success and accepts manual retries", () => {
   const workflow = parse(publishNpmArtifact.content);
   assertEquals(workflow.on.repository_dispatch.types, [
     "hj-release-publish-tag-success",

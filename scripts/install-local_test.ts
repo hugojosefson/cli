@@ -1,38 +1,48 @@
+import { sourceFile } from "../src/testing/runtime-test-fixtures.ts";
+import { test as nativeTest } from "node:test";
+import { trackTests } from "../src/testing/inventory-test-fixtures.ts";
+const test = trackTests(import.meta.url, nativeTest);
+import {
+  makeTempDir,
+  readTextFile,
+  remove,
+} from "../src/testing/files-test-fixtures.ts";
+import { runCommand } from "../src/runtime/command.ts";
 import { assertEquals, assertStringIncludes } from "@std/assert";
 
-Deno.test("installed hj keeps the caller directory and works outside the checkout", async () => {
-  const root = await Deno.makeTempDir({
+test("installed hj keeps the caller directory and works outside the checkout", async () => {
+  const root = await makeTempDir({
     dir: "/tmp/opencode",
     prefix: "hj install ",
   });
   try {
-    const install = await new Deno.Command("deno", {
+    const install = await runCommand("deno", {
       args: [
         "run",
         "--allow-env",
         "--allow-run=deno",
         "--allow-read",
-        new URL("./install-local.ts", import.meta.url).href,
+        sourceFile("scripts/install-local.ts").href,
         "--root",
         `${root}/tools`,
       ],
       cwd: root,
       stdout: "piped",
       stderr: "piped",
-    }).output();
+    });
     assertEquals(
       install.success,
       true,
       new TextDecoder().decode(install.stderr),
     );
     const run = async (args: string[]) => {
-      const result = await new Deno.Command("sh", {
+      const result = await runCommand("sh", {
         args: [`${root}/tools/bin/hj`, ...args],
         cwd: root,
         stdin: "null",
         stdout: "piped",
         stderr: "piped",
-      }).output();
+      });
       assertEquals(
         result.success,
         true,
@@ -42,9 +52,9 @@ Deno.test("installed hj keeps the caller directory and works outside the checkou
     };
     assertStringIncludes(await run(["--help"]), "hj repo features");
     await run(["repo", "features", "--deno-fmt", "--yes"]);
-    const config = JSON.parse(await Deno.readTextFile(`${root}/deno.jsonc`));
+    const config = JSON.parse(await readTextFile(`${root}/deno.jsonc`));
     assertEquals(config.tasks.fmt.command, "deno fmt --ignore=coverage");
   } finally {
-    await Deno.remove(root, { recursive: true });
+    await remove(root, { recursive: true });
   }
 });

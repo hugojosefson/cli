@@ -1,3 +1,15 @@
+import { serveFixture } from "../testing/network-test-fixtures.ts";
+import {
+  makeTempDir,
+  mkdir,
+  readTextFile,
+  remove,
+  writeTextFile,
+} from "../testing/files-test-fixtures.ts";
+import { test as nativeTest } from "node:test";
+import { trackTests } from "../testing/inventory-test-fixtures.ts";
+const test = trackTests(import.meta.url, nativeTest);
+import { runCommand } from "../runtime/command.ts";
 import {
   assert,
   assertEquals,
@@ -44,27 +56,26 @@ async function runCli(root: URL, args: readonly string[]) {
 }
 
 async function fixture(run: (root: URL) => Promise<void>) {
-  const path = await Deno.makeTempDir({
+  const path = await makeTempDir({
     dir: "/tmp/opencode",
     prefix: "readme-guides-",
   });
   const root = new URL(`file://${path}/`);
   try {
-    await Deno.writeTextFile(
+    await writeTextFile(
       new URL("deno.json", root),
       JSON.stringify({ name: "@sample/tool" }),
     );
-    await Deno.writeTextFile(
+    await writeTextFile(
       new URL("README.md", root),
       "# Existing heading\n\nKeep this introduction.\n\n## License\n\n[MIT](./LICENSE)\n",
     );
     await run(root);
   } finally {
-    await Deno.remove(root, { recursive: true });
+    await remove(root, { recursive: true });
   }
 }
-const read = (root: URL, path: string) =>
-  Deno.readTextFile(new URL(path, root));
+const read = (root: URL, path: string) => readTextFile(new URL(path, root));
 async function enable(root: URL, provider = "readme-build") {
   await runCli(root, [
     "repo",
@@ -78,7 +89,7 @@ async function enable(root: URL, provider = "readme-build") {
 }
 
 for (const provider of ["readme-static", "readme-build"]) {
-  Deno.test(`${provider} contributes guides and a runnable published example without duplicate changes`, async () => {
+  test(`${provider} contributes guides and a runnable published example without duplicate changes`, async () => {
     await fixture(async (root) => {
       await enable(root, provider);
       const source = await read(
@@ -135,12 +146,12 @@ for (const provider of ["readme-static", "readme-build"]) {
       } else assert(!source.includes("@@include("));
       await enable(root, provider);
       assertEquals(await read(root, "README.md"), output);
-      const result = await new Deno.Command("deno", {
+      const result = await runCommand("deno", {
         args: ["run", "readme/example-usage.ts"],
         cwd: root,
         stdout: "piped",
         stderr: "piped",
-      }).output();
+      });
       assertEquals(result.code, 0, new TextDecoder().decode(result.stderr));
       assertStringIncludes(
         new TextDecoder().decode(result.stdout),
@@ -150,18 +161,18 @@ for (const provider of ["readme-static", "readme-build"]) {
   });
 }
 
-Deno.test("rename refreshes owned guides and install files while preserving custom sections", async () => {
+test("rename refreshes owned guides and install files while preserving custom sections", async () => {
   await fixture(async (root) => {
     await enable(root);
     const config = JSON.parse(await read(root, "deno.json"));
     config.name = "@different/renamed";
     config.hj = { commandName: "special" };
-    await Deno.writeTextFile(
+    await writeTextFile(
       new URL("deno.json", root),
       JSON.stringify(config),
     );
     const source = await read(root, "readme/README.md");
-    await Deno.writeTextFile(
+    await writeTextFile(
       new URL("readme/README.md", root),
       source.replace(
         "Requires [Deno](https://deno.com/).",
@@ -181,7 +192,7 @@ Deno.test("rename refreshes owned guides and install files while preserving cust
   });
 });
 
-Deno.test("README provider switches retain public examples and remove include directives from static output", async () => {
+test("README provider switches retain public examples and remove include directives from static output", async () => {
   await fixture(async (root) => {
     await enable(root);
     const example = await read(root, "readme/example-usage.ts");
@@ -194,7 +205,7 @@ Deno.test("README provider switches retain public examples and remove include di
   });
 });
 
-Deno.test("disabled owners remove unchanged blocks and examples but preserve custom public examples", async () => {
+test("disabled owners remove unchanged blocks and examples but preserve custom public examples", async () => {
   await fixture(async (root) => {
     await enable(root, "readme-static");
     await runCli(root, ["repo", "features", "--no-deno-lib", "--yes"]);
@@ -212,7 +223,7 @@ Deno.test("disabled owners remove unchanged blocks and examples but preserve cus
       undefined,
     );
     await runCli(root, ["repo", "features", "--deno-lib", "--yes"]);
-    await Deno.writeTextFile(
+    await writeTextFile(
       new URL("readme/example-usage.ts", root),
       'console.log("custom public example");\n',
     );
@@ -235,14 +246,14 @@ Deno.test("disabled owners remove unchanged blocks and examples but preserve cus
   });
 });
 
-Deno.test("command-only packages omit library guides and custom sections and scripts stay intact", async () => {
+test("command-only packages omit library guides and custom sections and scripts stay intact", async () => {
   await fixture(async (root) => {
-    await Deno.mkdir(new URL("readme", root));
-    await Deno.writeTextFile(
+    await mkdir(new URL("readme", root));
+    await writeTextFile(
       new URL("readme/install.sh", root),
       "#!/bin/sh\necho custom\n",
     );
-    await Deno.writeTextFile(
+    await writeTextFile(
       new URL("README.md", root),
       "# Custom\n\n## API\n\nCustom API link.\n",
     );
@@ -267,7 +278,7 @@ Deno.test("command-only packages omit library guides and custom sections and scr
   });
 });
 
-Deno.test("contribution plans reject stale files before mutation", async () => {
+test("contribution plans reject stale files before mutation", async () => {
   await fixture(async (root) => {
     await enable(root, "readme-static");
     const files = new LocalFileReader(root);
@@ -282,7 +293,7 @@ Deno.test("contribution plans reject stale files before mutation", async () => {
     );
     const config = JSON.parse(await read(root, "deno.json"));
     config.name = "@sample/renamed";
-    await Deno.writeTextFile(
+    await writeTextFile(
       new URL("deno.json", root),
       JSON.stringify(config),
     );
@@ -296,7 +307,7 @@ Deno.test("contribution plans reject stale files before mutation", async () => {
     }, []);
     assert(plans.length > 0);
     const output = await read(root, "README.md");
-    await Deno.writeTextFile(
+    await writeTextFile(
       new URL("readme/install.sh", root),
       "custom edit\n",
     );
@@ -309,7 +320,7 @@ Deno.test("contribution plans reject stale files before mutation", async () => {
   });
 });
 
-Deno.test("the public example runs from a caller directory against a local publication fixture", async () => {
+test("the public example runs from a caller directory against a local publication fixture", async () => {
   await fixture(async (root) => {
     await enable(root, "readme-static");
     const config = JSON.parse(await read(root, "deno.json"));
@@ -319,8 +330,7 @@ Deno.test("the public example runs from a caller directory against a local publi
       ["/readme/example-usage.ts", await read(root, exported.slice(2))],
       ["/src/lib/mod.ts", await read(root, config.exports["."].slice(2))],
     ]);
-    const server = Deno.serve(
-      { hostname: "127.0.0.1", port: 0, onListen() {} },
+    const server = await serveFixture(
       (request) => {
         const path = new URL(request.url).pathname;
         requests.push(path);
@@ -331,7 +341,7 @@ Deno.test("the public example runs from a caller directory against a local publi
         });
       },
     );
-    const outside = await Deno.makeTempDir({
+    const outside = await makeTempDir({
       dir: "/tmp/opencode",
       prefix: "public-example-caller-",
     });
@@ -339,7 +349,7 @@ Deno.test("the public example runs from a caller directory against a local publi
       // The import map substitutes the local publication for an unpublished JSR
       // package. Relative imports must fetch the same published module graph.
       const map = outside + "/import-map.json";
-      await Deno.writeTextFile(
+      await writeTextFile(
         map,
         JSON.stringify({
           imports: {
@@ -348,7 +358,7 @@ Deno.test("the public example runs from a caller directory against a local publi
           },
         }),
       );
-      const output = await new Deno.Command("deno", {
+      const output = await runCommand("deno", {
         args: [
           "run",
           "--reload",
@@ -360,7 +370,7 @@ Deno.test("the public example runs from a caller directory against a local publi
         cwd: outside,
         stdout: "piped",
         stderr: "piped",
-      }).output();
+      });
       assertEquals(output.code, 0, new TextDecoder().decode(output.stderr));
       assertStringIncludes(
         new TextDecoder().decode(output.stdout),
@@ -372,17 +382,17 @@ Deno.test("the public example runs from a caller directory against a local publi
       ]);
     } finally {
       await server.shutdown();
-      await Deno.remove(outside, { recursive: true });
+      await remove(outside, { recursive: true });
     }
   });
 });
 
-Deno.test("custom examples use the actual library export, retain publication settings and GitHub identity stays separate", async () => {
+test("custom examples use the actual library export, retain publication settings and GitHub identity stays separate", async () => {
   await fixture(async (root) => {
     await enable(root, "readme-static");
     const config = JSON.parse(await read(root, "deno.json"));
     config.publish = { include: ["src"], exclude: ["test"] };
-    await Deno.writeTextFile(
+    await writeTextFile(
       new URL("deno.json", root),
       JSON.stringify(config),
     );
@@ -426,7 +436,7 @@ Deno.test("custom examples use the actual library export, retain publication set
       "https://jsr.io/@sample/tool",
     );
     config.exports["./example-usage"] = "./custom-example.ts";
-    await Deno.writeTextFile(
+    await writeTextFile(
       new URL("deno.json", root),
       JSON.stringify(config),
     );
@@ -439,19 +449,19 @@ Deno.test("custom examples use the actual library export, retain publication set
   });
 });
 
-Deno.test("build resolves a renamed owned install include without rewriting customized scripts", async () => {
+test("build resolves a renamed owned install include without rewriting customized scripts", async () => {
   await fixture(async (root) => {
     await enable(root);
     const config = JSON.parse(await read(root, "deno.json"));
     config.name = "@sample/changed";
-    await Deno.writeTextFile(
+    await writeTextFile(
       new URL("deno.json", root),
       JSON.stringify(config),
     );
     const output = await buildReadme(root);
     assertStringIncludes(output, "deno add jsr:@sample/changed");
     assert(!output.includes("@sample/tool"));
-    await Deno.writeTextFile(
+    await writeTextFile(
       new URL("readme/install.sh", root),
       "#!/bin/sh\necho custom installation\n",
     );
@@ -459,10 +469,10 @@ Deno.test("build resolves a renamed owned install include without rewriting cust
   });
 });
 
-Deno.test("unsafe contribution paths fail before other feature changes apply", async () => {
+test("unsafe contribution paths fail before other feature changes apply", async () => {
   await fixture(async (root) => {
-    await Deno.mkdir(new URL("readme", root));
-    await Deno.mkdir(new URL("readme/install.sh", root));
+    await mkdir(new URL("readme", root));
+    await mkdir(new URL("readme/install.sh", root));
     const original = await read(root, "deno.json");
     await assertRejects(
       () => enable(root, "readme-static"),
@@ -477,7 +487,7 @@ Deno.test("unsafe contribution paths fail before other feature changes apply", a
   });
 });
 
-Deno.test("built README removes disabled guides and preserves files included by customized blocks", async () => {
+test("built README removes disabled guides and preserves files included by customized blocks", async () => {
   await fixture(async (root) => {
     await enable(root);
     await runCli(root, ["repo", "features", "--no-deno-lib", "--yes"]);
@@ -485,7 +495,7 @@ Deno.test("built README removes disabled guides and preserves files included by 
     assert(!(await read(root, "README.md")).includes("## Example usage"));
     assertEquals(await buildReadme(root), await read(root, "README.md"));
     const source = await read(root, "readme/README.md");
-    await Deno.writeTextFile(
+    await writeTextFile(
       new URL("readme/README.md", root),
       source.replace(
         "Add the package as a dependency:",
@@ -519,15 +529,15 @@ Deno.test("built README removes disabled guides and preserves files included by 
   });
 });
 
-Deno.test("formatted README contributions remain owned after package rename", async () => {
+test("formatted README contributions remain owned after package rename", async () => {
   await fixture(async (root) => {
     await enable(root, "readme-static");
-    const formatted = await new Deno.Command("deno", {
+    const formatted = await runCommand("deno", {
       args: ["fmt"],
       cwd: root,
       stdout: "piped",
       stderr: "piped",
-    }).output();
+    });
     assertEquals(formatted.code, 0, new TextDecoder().decode(formatted.stderr));
     assertStringIncludes(
       await runCli(root, ["repo", "features", "--jsr-package", "--yes"]),
@@ -535,7 +545,7 @@ Deno.test("formatted README contributions remain owned after package rename", as
     );
     const config = JSON.parse(await read(root, "deno.json"));
     config.name = "@sample/renamed";
-    await Deno.writeTextFile(
+    await writeTextFile(
       new URL("deno.json", root),
       JSON.stringify(config),
     );
@@ -550,7 +560,7 @@ Deno.test("formatted README contributions remain owned after package rename", as
   });
 });
 
-Deno.test("unavailable GitHub observations preserve an owned CI badge until explicit disable", async () => {
+test("unavailable GitHub observations preserve an owned CI badge until explicit disable", async () => {
   await fixture(async (root) => {
     const source = await reconcileBlocks("# Project\n", [{
       id: "github-ci:badge",
@@ -558,7 +568,7 @@ Deno.test("unavailable GitHub observations preserve an owned CI badge until expl
         "[![CI](https://example.invalid/badge.svg)](https://example.invalid/workflow)",
       position: "badges",
     }]);
-    await Deno.writeTextFile(new URL("README.md", root), source);
+    await writeTextFile(new URL("README.md", root), source);
     const files = new LocalFileReader(root);
     for (const state of ["enabled", "ambiguous"] as const) {
       const context = {

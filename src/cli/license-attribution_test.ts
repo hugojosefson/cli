@@ -1,7 +1,10 @@
+import { test as nativeTest } from "node:test";
+import { trackTests } from "../testing/inventory-test-fixtures.ts";
+const test = trackTests(import.meta.url, nativeTest);
 import { assertEquals, assertRejects } from "@std/assert";
 import { resolveLicenseAttribution } from "./license-attribution.ts";
 
-Deno.test("license attribution prefers Github, then Git, then prompt", async () => {
+test("license attribution prefers Github, then Git, then prompt", async () => {
   const names: string[] = [];
   const context = (github?: string, git?: string) => ({
     githubIdentity: github

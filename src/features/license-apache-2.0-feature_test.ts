@@ -1,3 +1,6 @@
+import { test as nativeTest } from "node:test";
+import { trackTests } from "../testing/inventory-test-fixtures.ts";
+const test = trackTests(import.meta.url, nativeTest);
 import { assertEquals } from "@std/assert";
 import type { ArtifactObservation } from "../api/artifact-inspection.ts";
 import type { ResolvedFeatureChange } from "../api/feature-change.ts";
@@ -8,7 +11,7 @@ import { createLicenseMitFeature } from "./license-mit-feature.ts";
 const apache = "Apache [yyyy] [name of copyright owner]\nterms\n";
 const mit = "MIT <year> <copyright holders>\nterms\n";
 
-Deno.test("Apache provider recognizes exact templates and guarded alternates", async () => {
+test("Apache provider recognizes exact templates and guarded alternates", async () => {
   const feature = createLicenseApache20Feature(source(apache), source(mit));
   assertEquals(
     (await feature.detect(context(file("Apache 2026 Ada\nterms\n")))).state,
@@ -30,7 +33,7 @@ Deno.test("Apache provider recognizes exact templates and guarded alternates", a
   );
 });
 
-Deno.test("Apache provider writes attribution, repairs mode, and removes only exact content", async () => {
+test("Apache provider writes attribution, repairs mode, and removes only exact content", async () => {
   const feature = createLicenseApache20Feature(source(apache), source(mit));
   const initial = context({ kind: "absent" }, {
     licenseHolder: "Ada",
@@ -70,7 +73,7 @@ Deno.test("Apache provider writes attribution, repairs mode, and removes only ex
   );
 });
 
-Deno.test("license replacement only lets the newly selected provider write LICENSE", async () => {
+test("license replacement only lets the newly selected provider write LICENSE", async () => {
   const apacheFeature = createLicenseApache20Feature(
     source(apache),
     source(mit),

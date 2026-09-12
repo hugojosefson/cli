@@ -1,3 +1,12 @@
+import { test as nativeTest } from "node:test";
+import { trackTests } from "../testing/inventory-test-fixtures.ts";
+const test = trackTests(import.meta.url, nativeTest);
+import {
+  makeTempDir,
+  mkdir,
+  remove,
+  writeTextFile,
+} from "../testing/files-test-fixtures.ts";
 import { assertEquals, assertRejects, assertStringIncludes } from "@std/assert";
 import {
   environment,
@@ -83,7 +92,7 @@ function fixture() {
     omitEntry: () => packFiles = ["package.json"],
   };
 }
-Deno.test("npm publishes one packed archive after release and build checks", async () => {
+test("npm publishes one packed archive after release and build checks", async () => {
   const f = fixture();
   await publishNpm(f.input);
   assertEquals(
@@ -100,7 +109,7 @@ Deno.test("npm publishes one packed archive after release and build checks", asy
     true,
   );
 });
-Deno.test("npm accepts only the identical existing version without uploading", async () => {
+test("npm accepts only the identical existing version without uploading", async () => {
   const f = fixture();
   f.existing(expected);
   await publishNpm(f.input);
@@ -122,7 +131,7 @@ Deno.test("npm accepts only the identical existing version without uploading", a
     );
   }
 });
-Deno.test("npm confirms uncertain writes and bounds failed publication without re-uploading", async () => {
+test("npm confirms uncertain writes and bounds failed publication without re-uploading", async () => {
   const uncertain = fixture();
   uncertain.fail();
   await publishNpm(uncertain.input);
@@ -135,7 +144,7 @@ Deno.test("npm confirms uncertain writes and bounds failed publication without r
     1,
   );
 });
-Deno.test("npm rejects mismatched builds and missing packed entry points", async () => {
+test("npm rejects mismatched builds and missing packed entry points", async () => {
   for (
     const mutation of [{ name: "@other/package" }, { version: "2.0.0" }, {
       gitHead: "b".repeat(40),
@@ -150,7 +159,7 @@ Deno.test("npm rejects mismatched builds and missing packed entry points", async
   omitted.omitEntry();
   await assertRejects(() => publishNpm(omitted.input), TypeError, "omits");
 });
-Deno.test("npm requires package identity, build task, and clean checkout", async () => {
+test("npm requires package identity, build task, and clean checkout", async () => {
   for (
     const config of [{ version: "1.2.3" }, {
       name: "@owner/repo",
@@ -168,7 +177,7 @@ Deno.test("npm requires package identity, build task, and clean checkout", async
   });
   await assertRejects(() => publishNpm(dirty.input), TypeError, "clean");
 });
-Deno.test("npm registry adapter separates absent, unavailable, invalid and matching versions", async () => {
+test("npm registry adapter separates absent, unavailable, invalid and matching versions", async () => {
   const request = (status: number, body: unknown): typeof fetch => () =>
     Promise.resolve(new Response(JSON.stringify(body), { status }));
   assertEquals(
@@ -188,14 +197,14 @@ Deno.test("npm registry adapter separates absent, unavailable, invalid and match
   const api = npmHttpApi(request(200, { ...manifest, dist: { integrity } }));
   assertEquals(await api.version("@owner/repo", "1.2.3"), expected);
 });
-Deno.test("npm local build reader requires regular confined files", async () => {
-  const path = await Deno.makeTempDir({
+test("npm local build reader requires regular confined files", async () => {
+  const path = await makeTempDir({
     dir: "/tmp/opencode",
     prefix: "npm-files-",
   });
   try {
-    await Deno.mkdir(`${path}/.hj/npm/bin`, { recursive: true });
-    await Deno.writeTextFile(`${path}/.hj/npm/bin/cli.js`, "example");
+    await mkdir(`${path}/.hj/npm/bin`, { recursive: true });
+    await writeTextFile(`${path}/.hj/npm/bin/cli.js`, "example");
     const reader = localNpmBuildFiles(new URL(`file://${path}/`));
     assertEquals(await reader.read("bin/cli.js"), "example");
     await assertRejects(() => reader.read("../escape"), TypeError, "invalid");
@@ -220,11 +229,11 @@ Deno.test("npm local build reader requires regular confined files", async () => 
       "directory",
     );
   } finally {
-    await Deno.remove(path, { recursive: true });
+    await remove(path, { recursive: true });
   }
 });
 
-Deno.test("npm CLI command routes through the publisher and preserves dependency injection", async () => {
+test("npm CLI command routes through the publisher and preserves dependency injection", async () => {
   const { runCli } = await import("../cli/run-cli.ts");
   const f = fixture();
   const result = await runCli(f.input.root, ["release", "publish-npm"], {
@@ -242,7 +251,7 @@ Deno.test("npm CLI command routes through the publisher and preserves dependency
   );
 });
 
-Deno.test("npm accepts current keyed pack output and rejects unsafe publish configuration", async () => {
+test("npm accepts current keyed pack output and rejects unsafe publish configuration", async () => {
   const f = fixture();
   const base = f.input.process;
   f.input.process = {

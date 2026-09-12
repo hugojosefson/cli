@@ -1,7 +1,10 @@
+import { test as nativeTest } from "node:test";
+import { trackTests } from "../testing/inventory-test-fixtures.ts";
+const test = trackTests(import.meta.url, nativeTest);
 import { assertEquals } from "@std/assert";
 import { LocalGithubIdentityReader } from "./local-github-identity-reader.ts";
 
-Deno.test("GitHub identity ignores missing or malformed display names", async () => {
+test("GitHub identity ignores missing or malformed display names", async () => {
   for (
     const [value, expected] of [
       [{ name: "  Ada Lovelace  " }, { name: "Ada Lovelace" }],
@@ -27,7 +30,7 @@ Deno.test("GitHub identity ignores missing or malformed display names", async ()
   }
 });
 
-Deno.test("GitHub identity allows attribution fallback after command failures", async () => {
+test("GitHub identity allows attribution fallback after command failures", async () => {
   const reader = new LocalGithubIdentityReader(
     new URL("file:///tmp/opencode/"),
     {

@@ -1,3 +1,13 @@
+import {
+  makeTempDir,
+  mkdir,
+  readTextFile,
+  remove,
+  writeTextFile,
+} from "../testing/files-test-fixtures.ts";
+import { test as nativeTest } from "node:test";
+import { trackTests } from "../testing/inventory-test-fixtures.ts";
+const test = trackTests(import.meta.url, nativeTest);
 import { assertEquals, assertRejects, assertStringIncludes } from "@std/assert";
 import type { OperationContext } from "../api/repository-context.ts";
 import { LocalFileReader } from "../repository/local-file-reader.ts";
@@ -67,29 +77,29 @@ function context(
   };
 }
 async function fixture(run: (root: URL) => Promise<void>) {
-  const dir = await Deno.makeTempDir({
+  const dir = await makeTempDir({
     dir: "/tmp/opencode",
     prefix: "hj-release-migration-",
   });
   const root = new URL(`file://${dir}/`);
   try {
-    await Deno.mkdir(new URL(".github/workflows/", root), { recursive: true });
-    await Deno.writeTextFile(
+    await mkdir(new URL(".github/workflows/", root), { recursive: true });
+    await writeTextFile(
       new URL(legacyReleaseArtifact.path, root),
       legacyReleaseArtifact.content,
     );
-    await Deno.writeTextFile(
+    await writeTextFile(
       new URL(publishTagArtifact.path, root),
       publishTagArtifact.content,
     );
     await writeConfig(root);
     await run(root);
   } finally {
-    await Deno.remove(dir, { recursive: true });
+    await remove(dir, { recursive: true });
   }
 }
 async function writeConfig(root: URL, extra = {}, version = "5.2.0") {
-  await Deno.writeTextFile(
+  await writeTextFile(
     new URL("deno.jsonc", root),
     "// Keep this project comment.\n" +
       JSON.stringify(
@@ -108,11 +118,11 @@ async function writeConfig(root: URL, extra = {}, version = "5.2.0") {
   );
 }
 
-Deno.test("git-hj-init release recognition accepts recorded versions and preserves custom bundles", async () => {
+test("git-hj-init release recognition accepts recorded versions and preserves custom bundles", async () => {
   await fixture(async (root) => {
     for (const version of ["1.0.0", "5.2.0", "9.0.1-rc.2"]) {
       await writeConfig(root, {}, version);
-      await Deno.writeTextFile(
+      await writeTextFile(
         new URL(legacyReleaseArtifact.path, root),
         legacyReleaseArtifact.content.replaceAll("checkout@v4", "checkout@v8")
           .replaceAll("setup-deno@v2", "setup-deno@v3"),
@@ -145,29 +155,29 @@ Deno.test("git-hj-init release recognition accepts recorded versions and preserv
   });
 });
 
-Deno.test("legacy release rejects edited workflows, missing tasks, and unsafe paths", async () => {
+test("legacy release rejects edited workflows, missing tasks, and unsafe paths", async () => {
   await fixture(async (root) => {
     const file = new URL(legacyReleaseArtifact.path, root);
-    await Deno.writeTextFile(
+    await writeTextFile(
       file,
       legacyReleaseArtifact.content + "# edited\n",
     );
     assertEquals((await jsr.checkEnable(context(root))).result, "blocked");
-    await Deno.writeTextFile(file, legacyReleaseArtifact.content);
-    await Deno.writeTextFile(
+    await writeTextFile(file, legacyReleaseArtifact.content);
+    await writeTextFile(
       new URL("deno.jsonc", root),
       '{"tasks": {"release:run": "custom"}}',
     );
     assertEquals((await jsr.checkEnable(context(root))).result, "blocked");
     await writeConfig(root);
-    await Deno.remove(file);
+    await remove(file);
     assertEquals((await jsr.checkEnable(context(root))).result, "blocked");
-    await Deno.mkdir(file);
+    await mkdir(file);
     assertEquals((await jsr.checkEnable(context(root))).result, "blocked");
   });
 });
 
-Deno.test("legacy release requires a coordinated selection and idle publishers", async () => {
+test("legacy release requires a coordinated selection and idle publishers", async () => {
   await fixture(async (root) => {
     assertEquals((await jsr.detect(context(root))).state, "drifted");
     assertEquals((await jsr.checkDisable(context(root))).result, "blocked");
@@ -192,9 +202,9 @@ Deno.test("legacy release requires a coordinated selection and idle publishers",
       })).result,
       "blocked",
     );
-    await Deno.remove(new URL(publishTagArtifact.path, root));
+    await remove(new URL(publishTagArtifact.path, root));
     assertEquals((await jsr.checkEnable(context(root))).result, "blocked");
-    await Deno.writeTextFile(
+    await writeTextFile(
       new URL(publishTagArtifact.path, root),
       publishTagArtifact.content,
     );
@@ -221,7 +231,7 @@ Deno.test("legacy release requires a coordinated selection and idle publishers",
   });
 });
 
-Deno.test("legacy release rejects edited destination collisions even during repair", async () => {
+test("legacy release rejects edited destination collisions even during repair", async () => {
   await fixture(async (root) => {
     for (
       const artifact of [
@@ -231,7 +241,7 @@ Deno.test("legacy release rejects edited destination collisions even during repa
         ...githubCiArtifacts,
       ]
     ) {
-      await Deno.writeTextFile(
+      await writeTextFile(
         new URL(artifact.path, root),
         artifact.content + "# preserve this\n",
       );
@@ -249,9 +259,9 @@ Deno.test("legacy release rejects edited destination collisions even during repa
           preconditions: [],
         })
       );
-      await Deno.remove(new URL(artifact.path, root));
+      await remove(new URL(artifact.path, root));
       if (artifact === publishTagArtifact) {
-        await Deno.writeTextFile(
+        await writeTextFile(
           new URL(artifact.path, root),
           artifact.content,
         );
@@ -260,7 +270,7 @@ Deno.test("legacy release rejects edited destination collisions even during repa
   });
 });
 
-Deno.test("legacy release migration replaces exact collisions and retains checks and unrelated JSONC", async () => {
+test("legacy release migration replaces exact collisions and retains checks and unrelated JSONC", async () => {
   for (const collision of [false, true]) {
     await fixture(async (root) => {
       if (collision) {
@@ -271,7 +281,7 @@ Deno.test("legacy release migration replaces exact collisions and retains checks
             ...githubCiArtifacts,
           ]
         ) {
-          await Deno.writeTextFile(
+          await writeTextFile(
             new URL(artifact.path, root),
             artifact.content,
           );
@@ -294,9 +304,9 @@ Deno.test("legacy release migration replaces exact collisions and retains checks
       await applyLocalChangePlan(root, ciPlan);
       // A prerequisite may update unrelated config fields before release migration.
       const configPath = new URL("deno.jsonc", root);
-      await Deno.writeTextFile(
+      await writeTextFile(
         configPath,
-        (await Deno.readTextFile(configPath)).replace('"1.2.3"', '"1.2.4"'),
+        (await readTextFile(configPath)).replace('"1.2.3"', '"1.2.4"'),
       );
       await applyLocalChangePlan(root, releasePlan);
       assertEquals(await ctx.files.exists(legacyReleaseArtifact.path), false);
@@ -307,12 +317,12 @@ Deno.test("legacy release migration replaces exact collisions and retains checks
         (await githubCiFeature.detect(context(root))).state,
         "enabled",
       );
-      const config = await Deno.readTextFile(configPath);
+      const config = await readTextFile(configPath);
       assertStringIncludes(config, "// Keep this project comment.");
       assertStringIncludes(config, '"custom": "echo preserved"');
       assertStringIncludes(config, '"version": "1.2.4"');
       assertEquals(config.includes("release:"), false);
-      const ci = await Deno.readTextFile(
+      const ci = await readTextFile(
         new URL(githubCiArtifacts[0].path, root),
       );
       assertStringIncludes(ci, legacyCiCheckCompatibility);
@@ -322,7 +332,7 @@ Deno.test("legacy release migration replaces exact collisions and retains checks
   }
 });
 
-Deno.test("legacy release plans reject changed tasks and workflows before any write", async () => {
+test("legacy release plans reject changed tasks and workflows before any write", async () => {
   for (
     const path of [
       "deno.jsonc",
@@ -336,9 +346,9 @@ Deno.test("legacy release plans reject changed tasks and workflows before any wr
       if (check.result !== "allowed") throw new Error("Expected migration");
       const plan = await jsr.planEnable(ctx, check);
       const url = new URL(path, root);
-      await Deno.writeTextFile(
+      await writeTextFile(
         url,
-        (await Deno.readTextFile(url)).replace(
+        (await readTextFile(url)).replace(
           path === "deno.jsonc"
             ? "git push origin main"
             : path === publishTagArtifact.path
@@ -354,12 +364,12 @@ Deno.test("legacy release plans reject changed tasks and workflows before any wr
   }
 });
 
-Deno.test("legacy release selection migrates through feature resolution without repair", async () => {
+test("legacy release selection migrates through feature resolution without repair", async () => {
   const { runFeatureOperation } = await import("../cli/run-features.ts");
   const { parseFeatures } = await import("../cli/parse-features.ts");
   await fixture(async (root) => {
     for (const artifact of githubCiArtifacts) {
-      await Deno.writeTextFile(new URL(artifact.path, root), artifact.content);
+      await writeTextFile(new URL(artifact.path, root), artifact.content);
     }
     const registry = {
       features: [githubCiFeature, jsr].map((feature) => ({

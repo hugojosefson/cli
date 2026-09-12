@@ -1,3 +1,6 @@
+import { test as nativeTest } from "node:test";
+import { trackTests } from "../testing/inventory-test-fixtures.ts";
+const test = trackTests(import.meta.url, nativeTest);
 import { assertEquals, assertRejects } from "@std/assert";
 import {
   changelogSection,
@@ -20,7 +23,7 @@ const expected: GithubRelease = {
   draft: false,
   prerelease: false,
 };
-Deno.test("GitHub publisher handles exact, conflict, and absent uncertain rereads", async () => {
+test("GitHub publisher handles exact, conflict, and absent uncertain rereads", async () => {
   const base = () =>
     process([], { "git show HEAD:CHANGELOG.md": expected.body });
   for (const reread of [expected, { ...expected, body: "x" }, undefined]) {
@@ -51,7 +54,7 @@ Deno.test("GitHub publisher handles exact, conflict, and absent uncertain reread
       }));
   }
 });
-Deno.test("GitHub publisher reuses exact releases and rejects existing drift", async () => {
+test("GitHub publisher reuses exact releases and rejects existing drift", async () => {
   let creates = 0;
   await publishGithub({
     environment: environment(),
@@ -77,7 +80,7 @@ Deno.test("GitHub publisher reuses exact releases and rejects existing drift", a
       },
     }), TypeError);
 });
-Deno.test("GitHub publisher marks only SemVer prereleases", async () => {
+test("GitHub publisher marks only SemVer prereleases", async () => {
   for (
     const [version, prerelease] of [
       ["1.2.3", false],
@@ -115,7 +118,7 @@ Deno.test("GitHub publisher marks only SemVer prereleases", async () => {
     assertEquals(created, release);
   }
 });
-Deno.test("GitHub API reads all release pages, including drafts and duplicate tags", async () => {
+test("GitHub API reads all release pages, including drafts and duplicate tags", async () => {
   const draft = { ...expected, draft: true };
   for (const release of [expected, draft]) {
     const calls: string[][] = [];
@@ -169,7 +172,7 @@ Deno.test("GitHub API reads all release pages, including drafts and duplicate ta
   );
 });
 
-Deno.test("GitHub publisher preserves an existing draft without creating a duplicate", async () => {
+test("GitHub publisher preserves an existing draft without creating a duplicate", async () => {
   const base = process([], { "git show HEAD:CHANGELOG.md": expected.body });
   let creates = 0;
   await assertRejects(
@@ -193,7 +196,7 @@ Deno.test("GitHub publisher preserves an existing draft without creating a dupli
   assertEquals(creates, 0);
 });
 
-Deno.test("GitHub API validates creation status, JSON, and process success", async () => {
+test("GitHub API validates creation status, JSON, and process success", async () => {
   let body: string | undefined;
   await githubReleaseApi({
     run: (_command, _args, options) => {
@@ -229,7 +232,7 @@ Deno.test("GitHub API validates creation status, JSON, and process success", asy
         }),
     }, "owner/repo").create(expected), Error);
 });
-Deno.test("GitHub changelog sections reject missing and duplicate data", () => {
+test("GitHub changelog sections reject missing and duplicate data", () => {
   for (const text of ["", "## 1.2.3\na\n## 1.2.3\nb\n"]) {
     let threw = false;
     try {
@@ -248,7 +251,7 @@ Deno.test("GitHub changelog sections reject missing and duplicate data", () => {
   );
 });
 
-Deno.test("GitHub publisher waits for a new release to appear without repeating creation", async () => {
+test("GitHub publisher waits for a new release to appear without repeating creation", async () => {
   const values = [undefined, undefined, undefined, expected];
   let creates = 0;
   const sleeps: number[] = [];

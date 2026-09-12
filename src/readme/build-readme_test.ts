@@ -1,8 +1,18 @@
+import { test as nativeTest } from "node:test";
+import { trackTests } from "../testing/inventory-test-fixtures.ts";
+const test = trackTests(import.meta.url, nativeTest);
+import {
+  makeTempDir,
+  mkdir,
+  remove,
+  writeTextFile,
+} from "../testing/files-test-fixtures.ts";
+import { runCommand } from "../runtime/command.ts";
 import { assertEquals, assertRejects } from "@std/assert";
 import { buildReadme } from "./build-readme.ts";
 import { readReadmeFile } from "./readme-path.ts";
 
-Deno.test("builds nested README includes with links and TypeScript package imports", async () => {
+test("builds nested README includes with links and TypeScript package imports", async () => {
   await withRepository(async (root) => {
     await write(
       root,
@@ -33,7 +43,7 @@ Deno.test("builds nested README includes with links and TypeScript package impor
   });
 });
 
-Deno.test("trims exact nested include directives and omits each shebang", async () => {
+test("trims exact nested include directives and omits each shebang", async () => {
   await withRepository(async (root) => {
     await write(
       root,
@@ -45,7 +55,7 @@ Deno.test("trims exact nested include directives and omits each shebang", async 
   });
 });
 
-Deno.test("does not rewrite links in fenced Markdown code", async () => {
+test("does not rewrite links in fenced Markdown code", async () => {
   await withRepository(async (root) => {
     await write(
       root,
@@ -59,7 +69,7 @@ Deno.test("does not rewrite links in fenced Markdown code", async () => {
   });
 });
 
-Deno.test("leaves imports without an exact package export unchanged", async () => {
+test("leaves imports without an exact package export unchanged", async () => {
   await withRepository(async (root) => {
     await write(
       root,
@@ -72,9 +82,9 @@ Deno.test("leaves imports without an exact package export unchanged", async () =
   });
 });
 
-Deno.test("rejects README paths that are not regular files", async () => {
+test("rejects README paths that are not regular files", async () => {
   await withRepository(async (root) => {
-    await Deno.mkdir(new URL("readme/directory", root), { recursive: true });
+    await mkdir(new URL("readme/directory", root), { recursive: true });
     await assertRejects(
       () => readReadmeFile(root.pathname, root.pathname, "readme/directory"),
       Error,
@@ -83,7 +93,7 @@ Deno.test("rejects README paths that are not regular files", async () => {
   });
 });
 
-Deno.test("rejects circular, escaping, and symlinked README includes", async () => {
+test("rejects circular, escaping, and symlinked README includes", async () => {
   await withRepository(async (root) => {
     await write(root, "readme/README.md", "@@include(two.md)\n");
     await write(root, "readme/two.md", "@@include(README.md)\n");
@@ -111,31 +121,31 @@ Deno.test("rejects circular, escaping, and symlinked README includes", async () 
 async function withRepository(
   action: (root: URL) => Promise<void>,
 ): Promise<void> {
-  const path = await Deno.makeTempDir({
+  const path = await makeTempDir({
     dir: "/tmp/opencode",
     prefix: "hj-readme-",
   });
   try {
     await action(new URL(`file://${path}/`));
   } finally {
-    await Deno.remove(path, { recursive: true });
+    await remove(path, { recursive: true });
   }
 }
 
 async function write(root: URL, path: string, text: string): Promise<void> {
   const target = new URL(path, root);
-  await Deno.mkdir(new URL(".", target), { recursive: true });
-  await Deno.writeTextFile(target, text);
+  await mkdir(new URL(".", target), { recursive: true });
+  await writeTextFile(target, text);
 }
 
 async function symlink(target: URL, path: URL): Promise<void> {
-  const result = await new Deno.Command("deno", {
+  const result = await runCommand("deno", {
     args: [
       "eval",
       "await Deno.symlink(Deno.args[0], Deno.args[1]);",
       target.pathname,
       path.pathname,
     ],
-  }).output();
+  });
   if (!result.success) throw new Error(new TextDecoder().decode(result.stderr));
 }

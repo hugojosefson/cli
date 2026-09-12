@@ -1,3 +1,6 @@
+import { test as nativeTest } from "node:test";
+import { trackTests } from "../testing/inventory-test-fixtures.ts";
+const test = trackTests(import.meta.url, nativeTest);
 import { assertEquals } from "@std/assert";
 import type {
   ArtifactObservation,
@@ -45,7 +48,7 @@ function changes(result: ReturnType<typeof planArtifactRemoval>) {
   return result.changes;
 }
 
-Deno.test("inspects exact absent, file, directory, and symlink schemas", () => {
+test("inspects exact absent, file, directory, and symlink schemas", () => {
   assertEquals(inspect({ kind: "absent", path: "gone" }, { kind: "absent" }), {
     result: "matches",
     schema: { kind: "absent", path: "gone" },
@@ -76,7 +79,7 @@ Deno.test("inspects exact absent, file, directory, and symlink schemas", () => {
   );
 });
 
-Deno.test("reports absent desired artifacts and absent observations", () => {
+test("reports absent desired artifacts and absent observations", () => {
   assertEquals(inspect(file, { kind: "absent" }), {
     result: "absent",
     schema: file,
@@ -106,7 +109,7 @@ Deno.test("reports absent desired artifacts and absent observations", () => {
   );
 });
 
-Deno.test("reports every file difference in stable order", () => {
+test("reports every file difference in stable order", () => {
   assertEquals(
     inspect(file, {
       kind: "file",
@@ -131,7 +134,7 @@ Deno.test("reports every file difference in stable order", () => {
   );
 });
 
-Deno.test("reports directory, symlink, kind, and unreadable differences", () => {
+test("reports directory, symlink, kind, and unreadable differences", () => {
   assertEquals(
     differences(directory, {
       kind: "directory",
@@ -174,7 +177,7 @@ Deno.test("reports directory, symlink, kind, and unreadable differences", () => 
   );
 });
 
-Deno.test("plans creation only for absent paths", () => {
+test("plans creation only for absent paths", () => {
   assertEquals(planArtifactCreation(inspect(file, { kind: "absent" })), {
     result: "planned",
     changes: [{
@@ -199,7 +202,7 @@ Deno.test("plans creation only for absent paths", () => {
   });
 });
 
-Deno.test("creation leaves matching artifacts alone and reports drift or ambiguity", () => {
+test("creation leaves matching artifacts alone and reports drift or ambiguity", () => {
   assertEquals(
     planArtifactCreation(inspect(file, {
       kind: "file",
@@ -234,7 +237,7 @@ Deno.test("creation leaves matching artifacts alone and reports drift or ambigui
   );
 });
 
-Deno.test("removes exact owned artifacts with state guards", () => {
+test("removes exact owned artifacts with state guards", () => {
   assertEquals(
     planArtifactRemoval(
       inspect(file, {
@@ -284,7 +287,7 @@ Deno.test("removes exact owned artifacts with state guards", () => {
   );
 });
 
-Deno.test("removal preserves seed artifacts and represents drift and ambiguity", () => {
+test("removal preserves seed artifacts and represents drift and ambiguity", () => {
   assertEquals(
     planArtifactRemoval(
       inspect(file, {

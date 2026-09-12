@@ -1,3 +1,12 @@
+import { test as nativeTest } from "node:test";
+import { trackTests } from "../testing/inventory-test-fixtures.ts";
+const test = trackTests(import.meta.url, nativeTest);
+import {
+  makeTempDir,
+  mkdir,
+  remove,
+  writeTextFile,
+} from "../testing/files-test-fixtures.ts";
 import { assertEquals, assertStringIncludes } from "@std/assert";
 import type { OperationContext } from "../api/repository-context.ts";
 import { LocalFileReader } from "../repository/local-file-reader.ts";
@@ -15,19 +24,19 @@ import {
   githubReleasePublishNpmFeature,
 } from "./github-release-publish-feature.ts";
 
-Deno.test("npm enablement requires coordinated legacy release migration and preserves its ownership", async () => {
-  const path = await Deno.makeTempDir({
+test("npm enablement requires coordinated legacy release migration and preserves its ownership", async () => {
+  const path = await makeTempDir({
     dir: "/tmp/opencode",
     prefix: "npm-legacy-",
   });
   const root = new URL(`file://${path}/`);
   const npm = githubReleasePublishNpmFeature;
   try {
-    await Deno.mkdir(new URL(".github/workflows/", root), { recursive: true });
+    await mkdir(new URL(".github/workflows/", root), { recursive: true });
     for (const artifact of [legacyReleaseArtifact, publishTagArtifact]) {
-      await Deno.writeTextFile(new URL(artifact.path, root), artifact.content);
+      await writeTextFile(new URL(artifact.path, root), artifact.content);
     }
-    await Deno.writeTextFile(
+    await writeTextFile(
       new URL("deno.json", root),
       JSON.stringify({
         name: "@example/package",
@@ -125,7 +134,7 @@ Deno.test("npm enablement requires coordinated legacy release migration and pres
       },
     };
     assertEquals((await npm.checkEnable(running)).result, "blocked");
-    await Deno.writeTextFile(
+    await writeTextFile(
       new URL(legacyReleaseArtifact.path, root),
       legacyReleaseArtifact.content + "# customized\n",
     );
@@ -133,6 +142,6 @@ Deno.test("npm enablement requires coordinated legacy release migration and pres
     assertEquals(custom.result, "blocked");
     assertEquals(await context.files.exists(publishNpmArtifact.path), false);
   } finally {
-    await Deno.remove(root, { recursive: true });
+    await remove(root, { recursive: true });
   }
 });

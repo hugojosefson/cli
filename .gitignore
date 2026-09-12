@@ -10,3 +10,7 @@
 
 .hj/npm-tools/
 .hj/npm-packing/
+# Local shared test emission and execution reports
+/.hj/test/
+/.hj/test-results/
+/.hj/test-tools/

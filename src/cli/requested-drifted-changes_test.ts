@@ -1,9 +1,12 @@
+import { test as nativeTest } from "node:test";
+import { trackTests } from "../testing/inventory-test-fixtures.ts";
+const test = trackTests(import.meta.url, nativeTest);
 import { assertEquals } from "@std/assert";
 import type { FeatureChangeRequest } from "../api/feature-change.ts";
 import type { FeatureDetection } from "../api/feature-detection.ts";
 import { requestedDriftedChanges } from "./requested-drifted-changes.ts";
 
-Deno.test("explicit enables reach drift safety checks", () => {
+test("explicit enables reach drift safety checks", () => {
   const detections = new Map<string, FeatureDetection>([
     ["drifted", { state: "drifted", evidence: [], issues: [] }],
     ["enabled", { state: "enabled", evidence: [] }],

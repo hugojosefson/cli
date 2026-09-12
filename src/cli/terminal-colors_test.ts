@@ -1,3 +1,8 @@
+import process from "node:process";
+import { test as nativeTest } from "node:test";
+import { trackTests } from "../testing/inventory-test-fixtures.ts";
+const test = trackTests(import.meta.url, nativeTest);
+import { runCliProcess } from "../testing/runtime-test-fixtures.ts";
 import { assertEquals, assertStringIncludes } from "@std/assert";
 import {
   colorText,
@@ -7,7 +12,7 @@ import {
 } from "./terminal-colors.ts";
 import { formatTable } from "./format-table.ts";
 
-Deno.test("color policy follows Deno overrides and each output stream", () => {
+test("color policy follows Deno overrides and each output stream", () => {
   for (const terminal of [false, true]) {
     for (const noColor of [false, true]) {
       for (const term of [undefined, "xterm-256color", "dumb"]) {
@@ -23,11 +28,11 @@ Deno.test("color policy follows Deno overrides and each output stream", () => {
   // The test runner grants no TERM permission. Detection must not prompt.
   assertEquals(
     terminalColor({ isTerminal: () => false }),
-    Boolean(Deno.env.get("FORCE_COLOR")),
+    Boolean(process.env.FORCE_COLOR),
   );
 });
 
-Deno.test("colored tables preserve plain alignment, wrapping, and status words", () => {
+test("colored tables preserve plain alignment, wrapping, and status words", () => {
   const rows = [
     ["git", "enabled", "one two three\nfour"],
     ["fmt", "drifted", "custom task"],
@@ -66,7 +71,7 @@ Deno.test("colored tables preserve plain alignment, wrapping, and status words",
   );
 });
 
-Deno.test("styles reset at line ends and errors keep details readable", () => {
+test("styles reset at line ends and errors keep details readable", () => {
   assertEquals(
     colorText("ok\n\nnext\r\n", "green", true),
     "\x1b[32mok\x1b[0m\n\n\x1b[32mnext\x1b[0m\r\n",
@@ -80,8 +85,7 @@ Deno.test("styles reset at line ends and errors keep details readable", () => {
   assertEquals(formatCliError("failure"), "failure");
 });
 
-Deno.test("executable honors color overrides in pipes without permission prompts", async () => {
-  const cli = new URL("./cli.ts", import.meta.url).href;
+test("executable honors color overrides in pipes without permission prompts", async () => {
   for (
     const [env, colored] of [
       [{ NO_COLOR: "", FORCE_COLOR: "", TERM: "xterm" }, false],
@@ -94,19 +98,18 @@ Deno.test("executable honors color overrides in pipes without permission prompts
     for (
       const args of [["--help"], ["repo", "features", "--help"], ["unknown"]]
     ) {
-      const result = await new Deno.Command("deno", {
-        args: ["run", "--frozen", "--no-prompt", cli, ...args],
+      const result = await runCliProcess(args, {
         env,
         stdin: "null",
         stdout: "piped",
         stderr: "piped",
-      }).output();
+      }, true);
       const error = args[0] === "unknown";
       assertEquals(result.code, error ? 1 : 0);
       const text = new TextDecoder().decode(
         error ? result.stderr : result.stdout,
       );
-      assertEquals(text.includes("\x1b["), colored);
+      assertEquals(text.includes("\x1b["), colored, JSON.stringify({ env, args, text }));
       assertStringIncludes(
         text,
         error ? "Unknown command" : "--help" === args[0] ? "Command" : "Flag",

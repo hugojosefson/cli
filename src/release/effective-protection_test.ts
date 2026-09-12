@@ -1,3 +1,6 @@
+import { test as nativeTest } from "node:test";
+import { trackTests } from "../testing/inventory-test-fixtures.ts";
+const test = trackTests(import.meta.url, nativeTest);
 import { assertEquals, assertStringIncludes } from "@std/assert";
 import type {
   GithubProtection,
@@ -20,13 +23,13 @@ const input = {
   releaseTag: "1.2.3",
 };
 
-Deno.test("effective protection accepts the exact release configuration", () => {
+test("effective protection accepts the exact release configuration", () => {
   assertEquals(evaluateReleaseProtection(exactProtection(), input), {
     kind: "compatible",
   });
 });
 
-Deno.test("personal tag rules permit creation but hj rejects invalid SemVer", () => {
+test("personal tag rules permit creation but hj rejects invalid SemVer", () => {
   for (const releaseTag of ["01.2.3", "1.2.3-01", "1.2.3+", "v1.2.3"]) {
     const result = evaluateReleaseProtection(exactProtection(), {
       ...input,
@@ -37,7 +40,7 @@ Deno.test("personal tag rules permit creation but hj rejects invalid SemVer", ()
   }
 });
 
-Deno.test("inherited tag-name restrictions are still enforced", () => {
+test("inherited tag-name restrictions are still enforced", () => {
   for (
     const [parameters, compatible, reason] of [
       [
@@ -106,7 +109,7 @@ Deno.test("inherited tag-name restrictions are still enforced", () => {
   }
 });
 
-Deno.test("release-first collision requires strict source status checks", () => {
+test("release-first collision requires strict source status checks", () => {
   const weakened = {
     ...mainProtectionDefinition,
     rules: (mainProtectionDefinition.rules as readonly JsonObject[]).map((
@@ -136,7 +139,7 @@ Deno.test("release-first collision requires strict source status checks", () => 
   assertStringIncludes(result.reasons.join("\n"), "not strict");
 });
 
-Deno.test("effective protection fails closed for extra main requirements", () => {
+test("effective protection fails closed for extra main requirements", () => {
   const approval = branchRuleset("external/approval", [{
     type: "pull_request",
     parameters: {
@@ -167,7 +170,7 @@ Deno.test("effective protection fails closed for extra main requirements", () =>
   assertStringIncludes(result.reasons.join("\n"), "only the two hj checks");
 });
 
-Deno.test("effective protection proves release branch and tag actor behavior", () => {
+test("effective protection proves release branch and tag actor behavior", () => {
   const branchBlock = branchRuleset(
     "external/branches",
     [{ type: "creation" }],
@@ -209,7 +212,7 @@ Deno.test("effective protection proves release branch and tag actor behavior", (
   );
 });
 
-Deno.test("effective protection rejects unavailable and unknown data", () => {
+test("effective protection rejects unavailable and unknown data", () => {
   const noSource = {
     ...exactProtection(),
     rulesets: exactProtection().rulesets.map(({ source: _source, ...item }) =>
@@ -240,7 +243,7 @@ Deno.test("effective protection rejects unavailable and unknown data", () => {
   );
 });
 
-Deno.test("projected rulesets replace only local rules", () => {
+test("projected rulesets replace only local rules", () => {
   const protection = exactProtection();
   const projected = projectRulesets(
     protection,

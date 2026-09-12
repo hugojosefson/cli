@@ -1,3 +1,13 @@
+import { test as nativeTest } from "node:test";
+import { trackTests } from "../testing/inventory-test-fixtures.ts";
+const test = trackTests(import.meta.url, nativeTest);
+import {
+  chmod,
+  makeTempDir,
+  mkdir,
+  remove,
+  writeTextFile,
+} from "../testing/files-test-fixtures.ts";
 import {
   assert,
   assertEquals,
@@ -17,7 +27,7 @@ import {
   reconcileGitIgnorePlans,
 } from "./git-ignore-feature.ts";
 
-Deno.test("git-ignore enables independently, repeats without changes, and removes owned file", async () => {
+test("git-ignore enables independently, repeats without changes, and removes owned file", async () => {
   await repository(async (context) => {
     assertEquals((await gitIgnoreFeature.detect(context)).state, "disabled");
     await apply(context, true);
@@ -37,12 +47,12 @@ Deno.test("git-ignore enables independently, repeats without changes, and remove
   });
 });
 
-Deno.test("git-ignore preserves custom bytes, duplicate patterns, edits, and mode", async () => {
+test("git-ignore preserves custom bytes, duplicate patterns, edits, and mode", async () => {
   await repository(async (context) => {
     const initial =
       "# user entries\r\n/coverage/\r\n.*.swp\r\n!important.log\r\n";
     await write(context, ".gitignore", initial);
-    await Deno.chmod(new URL(".gitignore", context.repositoryRoot), 0o600);
+    await chmod(new URL(".gitignore", context.repositoryRoot), 0o600);
     await write(
       context,
       "deno.jsonc",
@@ -71,7 +81,7 @@ Deno.test("git-ignore preserves custom bytes, duplicate patterns, edits, and mod
   });
 });
 
-Deno.test("git-ignore accepts custom lines after owned entries without repair", async () => {
+test("git-ignore accepts custom lines after owned entries without repair", async () => {
   await repository(async (context) => {
     await write(
       context,
@@ -107,7 +117,7 @@ Deno.test("git-ignore accepts custom lines after owned entries without repair", 
   });
 });
 
-Deno.test("git-ignore repairs missing exclusions without moving custom or valid owned lines", async () => {
+test("git-ignore repairs missing exclusions without moving custom or valid owned lines", async () => {
   await repository(async (context) => {
     await write(
       context,
@@ -128,7 +138,7 @@ Deno.test("git-ignore repairs missing exclusions without moving custom or valid 
   });
 });
 
-Deno.test("git-ignore repairs edited exclusions while preserving their custom replacement", async () => {
+test("git-ignore repairs edited exclusions while preserving their custom replacement", async () => {
   await repository(async (context) => {
     const content =
       "# hj:git-ignore\n# hj:git-ignore .*.swp\n.*.swo\n\n# Custom suffix\ncustom/\n";
@@ -144,7 +154,7 @@ Deno.test("git-ignore repairs edited exclusions while preserving their custom re
   });
 });
 
-Deno.test("git-ignore requirements follow coverage targets and node_modules configuration", async () => {
+test("git-ignore requirements follow coverage targets and node_modules configuration", async () => {
   await repository(async (context) => {
     for (
       const command of [
@@ -217,15 +227,17 @@ Deno.test("git-ignore requirements follow coverage targets and node_modules conf
   });
 });
 
-Deno.test("git-ignore blocks conflicting files and configs, but removal preserves custom entries", async () => {
+test("git-ignore blocks conflicting files and configs, but removal preserves custom entries", async () => {
   await repository(async (context) => {
-    await Deno.mkdir(new URL(".gitignore", context.repositoryRoot));
+    await mkdir(new URL(".gitignore", context.repositoryRoot));
     assertEquals((await gitIgnoreFeature.detect(context)).state, "ambiguous");
     assertEquals(
       (await gitIgnoreFeature.checkEnable(context)).result,
       "blocked",
     );
-    await Deno.remove(new URL(".gitignore", context.repositoryRoot));
+    await remove(new URL(".gitignore", context.repositoryRoot), {
+      recursive: true,
+    });
     await apply(context, true);
     for (const content of ["invalid", "[]"]) {
       await write(context, "deno.json", content);
@@ -242,9 +254,9 @@ Deno.test("git-ignore blocks conflicting files and configs, but removal preserve
       "blocked",
     );
     await apply(context, false);
-    await Deno.remove(new URL("deno.jsonc", context.repositoryRoot));
-    await Deno.remove(new URL("deno.json", context.repositoryRoot));
-    await Deno.mkdir(new URL("package.json", context.repositoryRoot));
+    await remove(new URL("deno.jsonc", context.repositoryRoot));
+    await remove(new URL("deno.json", context.repositoryRoot));
+    await mkdir(new URL("package.json", context.repositoryRoot));
     assertEquals(
       (await gitIgnoreFeature.checkEnable(context)).result,
       "blocked",
@@ -252,7 +264,7 @@ Deno.test("git-ignore blocks conflicting files and configs, but removal preserve
   });
 });
 
-Deno.test("git-ignore rejects stale ignore or configuration before writing", async () => {
+test("git-ignore rejects stale ignore or configuration before writing", async () => {
   await repository(async (context) => {
     const check = await gitIgnoreFeature.checkEnable(context);
     assert(check.result === "allowed");
@@ -262,7 +274,7 @@ Deno.test("git-ignore rejects stale ignore or configuration before writing", asy
       applyLocalChangePlan(context.repositoryRoot, plan)
     );
     assertEquals(await context.files.readText(".gitignore"), undefined);
-    await Deno.remove(new URL("deno.json", context.repositoryRoot));
+    await remove(new URL("deno.json", context.repositoryRoot));
     await write(context, ".gitignore", "keep\n");
     await assertRejects(() =>
       applyLocalChangePlan(context.repositoryRoot, plan)
@@ -271,7 +283,7 @@ Deno.test("git-ignore rejects stale ignore or configuration before writing", asy
   });
 });
 
-Deno.test("git-ignore reconciles projected config creation, JSON edits and removal", async () => {
+test("git-ignore reconciles projected config creation, JSON edits and removal", async () => {
   await repository(async (context) => {
     await apply(context, true);
     const initial: ChangePlan = {
@@ -357,7 +369,7 @@ Deno.test("git-ignore reconciles projected config creation, JSON edits and remov
   });
 });
 
-Deno.test("git-ignore preserves unknown markers and a missing final newline", () => {
+test("git-ignore preserves unknown markers and a missing final newline", () => {
   assertEquals(
     gitIgnoreContent("# hj:git-ignore unknown\ncustom"),
     "# hj:git-ignore unknown\ncustom",
@@ -383,13 +395,13 @@ async function apply(context: OperationContext, enabled: boolean) {
 }
 
 function write(context: OperationContext, path: string, content: string) {
-  return Deno.writeTextFile(new URL(path, context.repositoryRoot), content);
+  return writeTextFile(new URL(path, context.repositoryRoot), content);
 }
 
 async function repository(
   action: (context: OperationContext) => Promise<void>,
 ) {
-  const path = await Deno.makeTempDir({
+  const path = await makeTempDir({
     dir: "/tmp/opencode",
     prefix: "hj-git-ignore-",
   });
@@ -415,6 +427,6 @@ async function repository(
       options: {},
     });
   } finally {
-    await Deno.remove(root, { recursive: true });
+    await remove(root, { recursive: true });
   }
 }

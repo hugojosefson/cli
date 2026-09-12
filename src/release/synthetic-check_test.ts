@@ -1,3 +1,6 @@
+import { test as nativeTest } from "node:test";
+import { trackTests } from "../testing/inventory-test-fixtures.ts";
+const test = trackTests(import.meta.url, nativeTest);
 import { assertThrows } from "@std/assert";
 import {
   assertExactCurrentCheck,
@@ -6,7 +9,7 @@ import {
   type SyntheticCheckRun,
 } from "./synthetic-check.ts";
 
-Deno.test("check ownership accepts GitHub's exact check URL but rejects other checks and repositories", () => {
+test("check ownership accepts GitHub's exact check URL but rejects other checks and repositories", () => {
   const expected = {
     runId: "12",
     runAttempt: "1",

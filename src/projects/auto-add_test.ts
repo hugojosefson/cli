@@ -1,3 +1,6 @@
+import { test as nativeTest } from "node:test";
+import { trackTests } from "../testing/inventory-test-fixtures.ts";
+const test = trackTests(import.meta.url, nativeTest);
 import { assertEquals, assertRejects, assertThrows } from "@std/assert";
 import {
   type AutoAddBrowser,
@@ -18,7 +21,7 @@ import {
   template,
 } from "./auto-add-test-fixtures.ts";
 
-Deno.test("auto-add creates all-issue workflow from the server template", () => {
+test("auto-add creates all-issue workflow from the server template", () => {
   const plan = planAutoAdd(target, before)!;
   assertEquals(plan.workflow.contentTypes, ["Issue"]);
   assertEquals(
@@ -45,7 +48,7 @@ Deno.test("auto-add creates all-issue workflow from the server template", () => 
     undefined,
   );
 });
-Deno.test("auto-add enables a disabled exact workflow without replacing its filter", () => {
+test("auto-add enables a disabled exact workflow without replacing its filter", () => {
   const plan = planAutoAdd(target, {
     ...before,
     workflows: [{ ...enabled, enabled: false }],
@@ -56,7 +59,7 @@ Deno.test("auto-add enables a disabled exact workflow without replacing its filt
   });
   assertEquals(workflowRequest(plan).method, "PUT");
 });
-Deno.test("auto-add preserves custom, duplicate, and unknown workflow configurations", () => {
+test("auto-add preserves custom, duplicate, and unknown workflow configurations", () => {
   assertThrows(
     () => planAutoAdd(target, { ...before, workflows: [enabled, enabled] }),
     Error,
@@ -102,7 +105,7 @@ Deno.test("auto-add preserves custom, duplicate, and unknown workflow configurat
   assertEquals(plan.workflow.name, "Auto-add example/cli");
   assertEquals(plan.before.workflows, [unrelated]);
 });
-Deno.test("auto-add rejects foreign targets and endpoint changes", () => {
+test("auto-add rejects foreign targets and endpoint changes", () => {
   for (
     const change of [
       { projectUrl: "https://example.org/users/example/projects/10" },
@@ -165,7 +168,7 @@ function browser(
   };
   return { adapter, counts: () => [writes, clicks] };
 }
-Deno.test("auto-add confirms successful endpoint writes and skips existing workflows", async () => {
+test("auto-add confirms successful endpoint writes and skips existing workflows", async () => {
   const service = browser([before, before]);
   assertEquals(await enableProjectAutoAdd(target, service.adapter), "endpoint");
   assertEquals(service.counts(), [1, 0]);
@@ -173,7 +176,7 @@ Deno.test("auto-add confirms successful endpoint writes and skips existing workf
   assertEquals(await enableProjectAutoAdd(target, noop.adapter), "unchanged");
   assertEquals(noop.counts(), [0, 0]);
 });
-Deno.test("auto-add falls back only after a definite protocol rejection", async () => {
+test("auto-add falls back only after a definite protocol rejection", async () => {
   const service = browser([before, before, before], new EndpointUnavailable());
   assertEquals(await enableProjectAutoAdd(target, service.adapter), "browser");
   assertEquals(service.counts(), [1, 1]);
@@ -190,7 +193,7 @@ Deno.test("auto-add falls back only after a definite protocol rejection", async 
   );
   assertEquals(endpoint.counts(), [1, 0]);
 });
-Deno.test("auto-add never duplicates an uncertain write or retries access failures", async () => {
+test("auto-add never duplicates an uncertain write or retries access failures", async () => {
   for (
     const error of [
       new UncertainProjectWrite(),
@@ -206,7 +209,7 @@ Deno.test("auto-add never duplicates an uncertain write or retries access failur
   assertEquals(await enableProjectAutoAdd(target, lost.adapter), "endpoint");
   assertEquals(lost.counts(), [1, 0]);
 });
-Deno.test("auto-add refuses stale state and requires confirmation after writes", async () => {
+test("auto-add refuses stale state and requires confirmation after writes", async () => {
   const stale = browser([before, after]);
   await assertRejects(
     () => enableProjectAutoAdd(target, stale.adapter),

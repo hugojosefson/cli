@@ -1,0 +1,10 @@
+{
+  "name": "hj-shared-test-runtimes",
+  "version": "0.0.0",
+  "private": true,
+  "dependencies": {
+    "node24": "npm:node-linux-x64@24.21.0",
+    "node26": "npm:node-linux-x64@26.2.0",
+    "@oven/bun-linux-x64": "1.4.2"
+  }
+}

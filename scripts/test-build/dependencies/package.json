@@ -1,0 +1,19 @@
+{
+  "name": "hj-native-test-dependencies",
+  "version": "0.0.0",
+  "private": true,
+  "dependencies": {
+    "@inquirer/core": "12.0.3",
+    "@jsr/std__path": "1.1.6",
+    "fork-version": "5.2.0",
+    "jsonc-parser": "3.3.1",
+    "yaml": "2.8.3",
+    "@jsr/std__assert": "1.0.19",
+    "ws": "8.21.3",
+    "@types/ws": "8.18.1",
+    "@types/node": "24.13.4"
+  },
+  "overrides": {
+    "undici": "7.29.0"
+  }
+}

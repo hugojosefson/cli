@@ -36,7 +36,8 @@
     "fork-version": "npm:fork-version@5.2.0",
     "jsonc-parser": "npm:jsonc-parser@3.3.1",
     "yaml": "npm:yaml@2.8.3",
-    "@inquirer/core": "npm:@inquirer/core@12.0.3"
+    "@inquirer/core": "npm:@inquirer/core@12.0.3",
+    "ws": "npm:ws@8.21.3"
   },
   "fmt": {
     "include": [
@@ -76,7 +77,7 @@
     },
     "test": {
       "description": "Run tests",
-      "command": "deno run --allow-env --allow-run=deno --allow-read --allow-write=/tmp/opencode scripts/run-tests.ts"
+      "command": "deno run --allow-env --allow-run --allow-read --allow-write=/tmp/opencode,.hj/test-results scripts/run-tests.ts"
     },
     "diff-check": {
       "description": "Check the working diff for whitespace errors",
@@ -111,7 +112,8 @@
         "coverage",
         "diff-check",
         "publish-check",
-        "readme-check"
+        "readme-check",
+        "native-tests"
       ]
     },
     "hj": {
@@ -145,6 +147,21 @@
     "readme-check": {
       "description": "Generate and compare the README and feature example without writes",
       "command": "deno run --frozen --allow-read=. scripts/readme-example.ts --check"
+    },
+    "test-build": {
+      "description": "Emit every shared test for native Node and Bun execution",
+      "command": "deno run --allow-all scripts/build-tests.ts"
+    },
+    "native-tests": {
+      "description": "Gate CI on all native runtimes and identical executed test inventories",
+      "dependencies": [
+        "coverage"
+      ],
+      "command": "deno run --allow-all scripts/run-test-matrix.ts --reuse-deno"
+    },
+    "test-matrix": {
+      "description": "Run every test in Deno, Node 24/26 and Bun",
+      "command": "deno run --allow-all scripts/run-test-matrix.ts"
     }
   },
   "coverage": {

@@ -1,3 +1,6 @@
+import { test as nativeTest } from "node:test";
+import { trackTests } from "../testing/inventory-test-fixtures.ts";
+const test = trackTests(import.meta.url, nativeTest);
 import { assertEquals } from "@std/assert";
 import type { GithubReader } from "../api/repository-context.ts";
 import {
@@ -20,7 +23,7 @@ const reader = (overrides: Partial<GithubReader>): GithubReader => ({
   ...overrides,
 });
 
-Deno.test("publisher quiescence accepts only completed runs", async () => {
+test("publisher quiescence accepts only completed runs", async () => {
   for (
     const status of [
       "queued",
@@ -42,7 +45,7 @@ Deno.test("publisher quiescence accepts only completed runs", async () => {
   assertEquals(await requirePublisherQuiescence(reader({}), ["a"]), undefined);
 });
 
-Deno.test("tag quiescence rejects release collisions and unavailable data", async () => {
+test("tag quiescence rejects release collisions and unavailable data", async () => {
   const cases: Partial<GithubReader>[] = [
     { workflowRuns: () => Promise.resolve([{ status: "queued" }]) },
     {
@@ -76,7 +79,7 @@ Deno.test("tag quiescence rejects release collisions and unavailable data", asyn
   );
 });
 
-Deno.test("tag quiescence requires complete lifecycle reads", async () => {
+test("tag quiescence requires complete lifecycle reads", async () => {
   for (
     const key of [
       "workflowRuns",
@@ -114,7 +117,7 @@ Deno.test("tag quiescence requires complete lifecycle reads", async () => {
   }
 });
 
-Deno.test("tag quiescence reserves release pull requests and branches", async () => {
+test("tag quiescence reserves release pull requests and branches", async () => {
   assertEquals(
     await requireTagQuiescence(
       reader({
@@ -136,7 +139,7 @@ Deno.test("tag quiescence reserves release pull requests and branches", async ()
   );
 });
 
-Deno.test("tag quiescence requires one correct lightweight release tag", async () => {
+test("tag quiescence requires one correct lightweight release tag", async () => {
   const commit = { oid: "a", subject: "chore(release): 1.0.0" };
   const check = (
     tags: readonly { name: string; target: string; lightweight: boolean }[],

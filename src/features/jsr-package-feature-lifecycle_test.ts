@@ -1,3 +1,7 @@
+import { test as nativeTest } from "node:test";
+import { trackTests } from "../testing/inventory-test-fixtures.ts";
+const test = trackTests(import.meta.url, nativeTest);
+import { readTextFile, writeTextFile } from "../testing/files-test-fixtures.ts";
 import { assert, assertEquals, assertRejects } from "@std/assert";
 import { applyLocalChangePlan } from "../operations/local-change-plan.ts";
 import { jsrPackageFeature } from "./jsr-package-feature.ts";
@@ -6,11 +10,11 @@ import {
   ownedTasks,
   withRepository,
   writeConfig,
-} from "./jsr-package-feature-support.ts";
+} from "./jsr-package-test-fixtures.ts";
 
-Deno.test("jsr-package adopts SemVer, preserves JSONC, repairs exact drift, and disables without metadata removal", async () => {
+test("jsr-package adopts SemVer, preserves JSONC, repairs exact drift, and disables without metadata removal", async () => {
   await withRepository(async (root) => {
-    await Deno.writeTextFile(
+    await writeTextFile(
       new URL("deno.jsonc", root),
       `{
   // retain this comment
@@ -30,14 +34,14 @@ Deno.test("jsr-package adopts SemVer, preserves JSONC, repairs exact drift, and 
       root,
       await jsrPackageFeature.planEnable(current, enable),
     );
-    const configured = await Deno.readTextFile(new URL("deno.jsonc", root));
+    const configured = await readTextFile(new URL("deno.jsonc", root));
     assert(configured.includes("// retain this comment"));
     assert(configured.includes('"version": "1.2.3-beta.1"'));
     assertEquals(
       (await jsrPackageFeature.detect(context(root))).state,
       "enabled",
     );
-    await Deno.writeTextFile(
+    await writeTextFile(
       new URL("deno.jsonc", root),
       configured.replace(
         "deno publish --dry-run --allow-dirty --check=all",
@@ -68,14 +72,14 @@ Deno.test("jsr-package adopts SemVer, preserves JSONC, repairs exact drift, and 
       root,
       await jsrPackageFeature.planDisable(context(root), disable),
     );
-    const disabled = await Deno.readTextFile(new URL("deno.jsonc", root));
+    const disabled = await readTextFile(new URL("deno.jsonc", root));
     assert(disabled.includes('"name": "@owner/repository"'));
     assert(disabled.includes('"version": "1.2.3-beta.1"'));
     assert(!disabled.includes("publish-check"));
   });
 });
 
-Deno.test("jsr-package safely adds missing metadata to an owned task", async () => {
+test("jsr-package safely adds missing metadata to an owned task", async () => {
   await withRepository(async (root) => {
     await writeConfig(root, {
       exports: { ".": "./mod.ts" },
@@ -98,7 +102,7 @@ Deno.test("jsr-package safely adds missing metadata to an owned task", async () 
 });
 
 for (const provider of [false, true]) {
-  Deno.test(`jsr-package ${provider ? "allows" : "blocks"} missing exports ${provider ? "with" : "without"} an enabling provider`, async () => {
+  test(`jsr-package ${provider ? "allows" : "blocks"} missing exports ${provider ? "with" : "without"} an enabling provider`, async () => {
     await withRepository(async (root) => {
       await writeConfig(root, {
         name: "@owner/repository",
@@ -119,7 +123,7 @@ for (const provider of [false, true]) {
   });
 }
 
-Deno.test("jsr-package composes metadata while deno-fmt owns newly absent tasks", async () => {
+test("jsr-package composes metadata while deno-fmt owns newly absent tasks", async () => {
   await withRepository(async (root) => {
     await writeConfig(root, { exports: { ".": "./mod.ts" } });
     const allowed = await jsrPackageFeature.checkEnable(
@@ -140,7 +144,7 @@ Deno.test("jsr-package composes metadata while deno-fmt owns newly absent tasks"
   });
 });
 
-Deno.test("jsr-package repair preserves custom task keys", async () => {
+test("jsr-package repair preserves custom task keys", async () => {
   await withRepository(async (root) => {
     await writeConfig(root, {
       name: "@owner/repository",
@@ -164,7 +168,7 @@ Deno.test("jsr-package repair preserves custom task keys", async () => {
       await jsrPackageFeature.planEnable(current, allowed),
     );
     assert(
-      (await Deno.readTextFile(new URL("deno.json", root))).includes(
+      (await readTextFile(new URL("deno.json", root))).includes(
         '"custom"',
       ),
     );
@@ -172,7 +176,7 @@ Deno.test("jsr-package repair preserves custom task keys", async () => {
 });
 
 for (const drift of ["publish-check", "check"] as const) {
-  Deno.test(`jsr-package gates ${drift} repair independently`, async () => {
+  test(`jsr-package gates ${drift} repair independently`, async () => {
     await withRepository(async (root) => {
       const tasks = ownedTasks();
       tasks[drift] = drift === "check"
@@ -198,10 +202,10 @@ for (const drift of ["publish-check", "check"] as const) {
   });
 }
 
-Deno.test("jsr-package disable preserves metadata, custom tasks, and comments", async () => {
+test("jsr-package disable preserves metadata, custom tasks, and comments", async () => {
   await withRepository(async (root) => {
     const tasks = { ...ownedTasks(), custom: { command: "custom" } };
-    await Deno.writeTextFile(
+    await writeTextFile(
       new URL("deno.jsonc", root),
       `// retained\n${
         JSON.stringify(
@@ -224,7 +228,7 @@ Deno.test("jsr-package disable preserves metadata, custom tasks, and comments", 
       root,
       await jsrPackageFeature.planDisable(current, allowed),
     );
-    const text = await Deno.readTextFile(new URL("deno.jsonc", root));
+    const text = await readTextFile(new URL("deno.jsonc", root));
     assert(
       text.includes("// retained") && text.includes('"custom"') &&
         text.includes('"name"'),
@@ -233,7 +237,7 @@ Deno.test("jsr-package disable preserves metadata, custom tasks, and comments", 
   });
 });
 
-Deno.test("jsr-package plan rejects new task drift after its check", async () => {
+test("jsr-package plan rejects new task drift after its check", async () => {
   await withRepository(async (root) => {
     await writeConfig(root, {
       exports: { ".": "./mod.ts" },
@@ -251,7 +255,7 @@ Deno.test("jsr-package plan rejects new task drift after its check", async () =>
   });
 });
 
-Deno.test("legacy publish checks are repaired to accept an uncommitted release candidate", async () => {
+test("legacy publish checks are repaired to accept an uncommitted release candidate", async () => {
   await withRepository(async (root) => {
     const tasks = ownedTasks();
     tasks["publish-check"] = {
@@ -283,7 +287,7 @@ Deno.test("legacy publish checks are repaired to accept an uncommitted release c
       "enabled",
     );
     const config = JSON.parse(
-      await Deno.readTextFile(new URL("deno.json", root)),
+      await readTextFile(new URL("deno.json", root)),
     );
     assert(config.tasks["publish-check"].command.includes("--allow-dirty"));
   });

@@ -1,3 +1,14 @@
+import { test as nativeTest } from "node:test";
+import { trackTests } from "../testing/inventory-test-fixtures.ts";
+const test = trackTests(import.meta.url, nativeTest);
+import {
+  chmod,
+  makeTempDir,
+  mkdir,
+  readTextFile,
+  remove,
+  writeTextFile,
+} from "../testing/files-test-fixtures.ts";
 import { assertEquals, assertRejects, assertStringIncludes } from "@std/assert";
 import { preflightLocalChangePlan } from "../operations/local-change-plan.ts";
 import type { OperationContext } from "../api/repository-context.ts";
@@ -19,7 +30,7 @@ import {
   legacyReadmeTask,
 } from "./legacy-readme.ts";
 
-Deno.test("legacy README includes preserve custom prose and reject unknown quoted paths", () => {
+test("legacy README includes preserve custom prose and reject unknown quoted paths", () => {
   assertEquals(
     convertLegacyIncludes(
       'Edited prose\n"@@include(./install.sh)";\n"@@include(./example-usage.ts)";\n',
@@ -33,7 +44,7 @@ Deno.test("legacy README includes preserve custom prose and reject unknown quote
   );
 });
 
-Deno.test("legacy README recognizes the generator and builds edited inputs without mutation", async () => {
+test("legacy README recognizes the generator and builds edited inputs without mutation", async () => {
   await fixture(async (root, context) => {
     const before = await context.files.observe("readme/README.md");
     const state = await inspectLegacyReadme(
@@ -55,16 +66,16 @@ Deno.test("legacy README recognizes the generator and builds edited inputs witho
     assertEquals(await context.files.observe("readme/README.md"), before);
     assertEquals(await context.files.exists("README.md"), false);
     assertStringIncludes(
-      await Deno.readTextFile(new URL("deno.json", root)),
+      await readTextFile(new URL("deno.json", root)),
       '"./example-usage": "./public-example.ts"',
     );
   });
 });
 
-Deno.test("legacy README rejects edited generators and unsafe include files", async () => {
+test("legacy README rejects edited generators and unsafe include files", async () => {
   await fixture(async (root, context) => {
     const source = await context.files.observe("readme/README.md");
-    await Deno.writeTextFile(
+    await writeTextFile(
       new URL("readme/generate-readme.ts", root),
       legacyReadmeGenerator + "\n// custom behavior\n",
     );
@@ -72,12 +83,12 @@ Deno.test("legacy README rejects edited generators and unsafe include files", as
       (await inspectLegacyReadme(context, legacyReadmeTask, source)).kind,
       "conflict",
     );
-    await Deno.writeTextFile(
+    await writeTextFile(
       new URL("readme/generate-readme.ts", root),
       legacyReadmeGenerator,
     );
-    await Deno.remove(new URL("readme/install.sh", root));
-    await Deno.mkdir(new URL("readme/install.sh", root));
+    await remove(new URL("readme/install.sh", root));
+    await mkdir(new URL("readme/install.sh", root));
     assertEquals(
       (await inspectLegacyReadme(context, legacyReadmeTask, source)).kind,
       "conflict",
@@ -89,7 +100,7 @@ Deno.test("legacy README rejects edited generators and unsafe include files", as
   });
 });
 
-Deno.test("legacy README migration previews changes, replaces tasks, and preserves sources", async () => {
+test("legacy README migration previews changes, replaces tasks, and preserves sources", async () => {
   await fixture(async (root, context) => {
     const registry: FeatureRegistry = {
       features: [denoFmtFeature, readmeBuildFeature],
@@ -100,15 +111,15 @@ Deno.test("legacy README migration previews changes, replaces tasks, and preserv
       }],
     };
     const configPath = new URL("deno.json", root);
-    const config = JSON.parse(await Deno.readTextFile(configPath));
+    const config = JSON.parse(await readTextFile(configPath));
     config.tasks = {
       default: legacyDefaultTask,
       all: legacyAllTask,
       readme: legacyReadmeTask,
     };
-    await Deno.writeTextFile(configPath, JSON.stringify(config, null, 2));
-    await Deno.writeTextFile(new URL("README.md", root), "# Previous output\n");
-    await Deno.chmod(new URL("README.md", root), 0o444);
+    await writeTextFile(configPath, JSON.stringify(config, null, 2));
+    await writeTextFile(new URL("README.md", root), "# Previous output\n");
+    await chmod(new URL("README.md", root), 0o444);
     const flags = [
       "repo",
       "features",
@@ -145,7 +156,7 @@ Deno.test("legacy README migration previews changes, replaces tasks, and preserv
       beforeSource,
     );
     await run("--yes");
-    const after = JSON.parse(await Deno.readTextFile(configPath));
+    const after = JSON.parse(await readTextFile(configPath));
     assertEquals(after.tasks.readme, readmeTaskDefinition);
     assertEquals(after.tasks.default, denoTaskDefinitions([], true).default);
     assertEquals(after.exports, config.exports);
@@ -173,12 +184,12 @@ Deno.test("legacy README migration previews changes, replaces tasks, and preserv
   });
 });
 
-Deno.test("legacy README plan rejects source changes after preview", async () => {
+test("legacy README plan rejects source changes after preview", async () => {
   await fixture(async (root, context) => {
     const configPath = new URL("deno.json", root);
-    const config = JSON.parse(await Deno.readTextFile(configPath));
+    const config = JSON.parse(await readTextFile(configPath));
     config.tasks = { ...denoTaskDefinitions(), readme: legacyReadmeTask };
-    await Deno.writeTextFile(configPath, JSON.stringify(config));
+    await writeTextFile(configPath, JSON.stringify(config));
     const operation: OperationContext = {
       ...context,
       detections: new Map(),
@@ -194,7 +205,7 @@ Deno.test("legacy README plan rejects source changes after preview", async () =>
     assertStringIncludes(plan.summary, "Replace tasks.readme:");
     assertStringIncludes(plan.summary, "+++ README.md after");
     await preflightLocalChangePlan(root, plan);
-    await Deno.writeTextFile(
+    await writeTextFile(
       new URL("readme/example-usage.ts", root),
       "new user edit\n",
     );
@@ -207,7 +218,7 @@ Deno.test("legacy README plan rejects source changes after preview", async () =>
   });
 });
 
-Deno.test("legacy README replaces its task when formatting is already configured", async () => {
+test("legacy README replaces its task when formatting is already configured", async () => {
   await fixture(async (root, context) => {
     const registry: FeatureRegistry = {
       features: [denoFmtFeature, readmeBuildFeature],
@@ -218,9 +229,9 @@ Deno.test("legacy README replaces its task when formatting is already configured
       }],
     };
     const configPath = new URL("deno.json", root);
-    const config = JSON.parse(await Deno.readTextFile(configPath));
+    const config = JSON.parse(await readTextFile(configPath));
     config.tasks = { ...denoTaskDefinitions(), readme: legacyReadmeTask };
-    await Deno.writeTextFile(configPath, JSON.stringify(config));
+    await writeTextFile(configPath, JSON.stringify(config));
     await runFeatureOperation(
       root,
       parseFeatures([
@@ -242,14 +253,14 @@ Deno.test("legacy README replaces its task when formatting is already configured
 async function fixture(
   run: (root: URL, context: DetectionContext) => Promise<void>,
 ) {
-  const path = await Deno.makeTempDir({
+  const path = await makeTempDir({
     dir: "/tmp/opencode",
     prefix: "legacy-readme-",
   });
   const root = new URL(`file://${path}/`);
   try {
-    await Deno.mkdir(new URL("readme", root));
-    await Deno.writeTextFile(
+    await mkdir(new URL("readme", root));
+    await writeTextFile(
       new URL("deno.json", root),
       JSON.stringify(
         {
@@ -263,19 +274,19 @@ async function fixture(
         2,
       ),
     );
-    await Deno.writeTextFile(
+    await writeTextFile(
       new URL("readme/generate-readme.ts", root),
       legacyReadmeGenerator,
     );
-    await Deno.writeTextFile(
+    await writeTextFile(
       new URL("readme/README.md", root),
       '# Legacy\nEdited instructions stay.\n```sh\n"@@include(./install.sh)";\n```\n```ts\n"@@include(./example-usage.ts)";\n```\n',
     );
-    await Deno.writeTextFile(
+    await writeTextFile(
       new URL("readme/install.sh", root),
       "#!/bin/sh\ndeno add jsr:@custom/package\n",
     );
-    await Deno.writeTextFile(
+    await writeTextFile(
       new URL("readme/example-usage.ts", root),
       '#!/usr/bin/env -S deno run\nimport { custom } from "../mod.ts";\nconsole.log(custom(42));\n',
     );
@@ -286,6 +297,6 @@ async function fixture(
     } as DetectionContext;
     await run(root, context);
   } finally {
-    await Deno.remove(root, { recursive: true });
+    await remove(root, { recursive: true });
   }
 }

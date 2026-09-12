@@ -1,3 +1,13 @@
+import { test as nativeTest } from "node:test";
+import { testStep, trackTests } from "../testing/inventory-test-fixtures.ts";
+const test = trackTests(import.meta.url, nativeTest);
+import {
+  makeTempDir,
+  readTextFile,
+  remove,
+  writeTextFile,
+} from "../testing/files-test-fixtures.ts";
+import { runCommand } from "../runtime/command.ts";
 import { packageMetadataTask } from "./deno-cli-artifacts.ts";
 import { assert, assertEquals, assertRejects } from "@std/assert";
 import { parse } from "jsonc-parser";
@@ -13,7 +23,7 @@ import { denoTaskDefinitions, leafTaskDefinitions } from "./deno-tasks.ts";
 
 const taskIds = ["deno-lint", "deno-typecheck", "deno-test"] as const;
 
-Deno.test("repairs formatting without replacing configured tasks or unrelated aggregates", async () => {
+test("repairs formatting without replacing configured tasks or unrelated aggregates", async () => {
   await withRepository(async (root) => {
     await run(root, ...taskIds.map((id) => `--${id}`));
     let config = await readConfig(root);
@@ -44,7 +54,7 @@ Deno.test("repairs formatting without replacing configured tasks or unrelated ag
   });
 });
 
-Deno.test("preserves JSONC comments and custom tasks", async () => {
+test("preserves JSONC comments and custom tasks", async () => {
   await withRepository(async (root) => {
     const base = denoTaskDefinitions();
     const text = `// keep this comment\n${
@@ -56,12 +66,12 @@ Deno.test("preserves JSONC comments and custom tasks", async () => {
         2,
       )
     }\n`;
-    await Deno.writeTextFile(new URL("deno.jsonc", root), text);
+    await writeTextFile(new URL("deno.jsonc", root), text);
 
     await run(root, ...taskIds.map((id) => `--${id}`));
     await run(root, "--no-deno-lint", "--no-deno-test");
 
-    const result = await Deno.readTextFile(new URL("deno.jsonc", root));
+    const result = await readTextFile(new URL("deno.jsonc", root));
     const config = parse(result) as { tasks: Record<string, unknown> };
     assert(result.replace(/ +/g, " ").includes("// keep this comment"));
     assertEquals(config.tasks.custom, { command: "deno eval 'custom'" });
@@ -73,7 +83,7 @@ Deno.test("preserves JSONC comments and custom tasks", async () => {
   });
 });
 
-Deno.test("composes task and code features initially", async () => {
+test("composes task and code features initially", async () => {
   await withRepository(async (root) => {
     await run(
       root,
@@ -110,7 +120,7 @@ Deno.test("composes task and code features initially", async () => {
   });
 });
 
-Deno.test("classifies task conflicts", async (t) => {
+test("classifies task conflicts", async (t) => {
   const cases = [{
     name: "missing tasks are disabled and enable is allowed",
     config: {},
@@ -135,7 +145,7 @@ Deno.test("classifies task conflicts", async (t) => {
     enabled: false,
   }];
   for (const item of cases) {
-    await t.step(item.name, async () => {
+    await testStep(t, item.name, async () => {
       await withRepository(async (root) => {
         await writeConfig(root, item.config);
         const status = await run(root);
@@ -154,26 +164,26 @@ Deno.test("classifies task conflicts", async (t) => {
   }
 });
 
-Deno.test("lint task fixes locally and only checks in CI", async () => {
+test("lint task fixes locally and only checks in CI", async () => {
   await withRepository(async (root) => {
     await run(root, "--deno-lint");
     const target = new URL("lint_target.ts", root);
-    await Deno.writeTextFile(target, 'window.console.log("x");\n');
+    await writeTextFile(target, 'window.console.log("x");\n');
     await command(root, ["lint", "--fix", "lint_target.ts"]);
     assertEquals(
-      await Deno.readTextFile(target),
+      await readTextFile(target),
       'globalThis.console.log("x");\n',
     );
 
-    await Deno.writeTextFile(target, 'window.console.log("x");\n');
+    await writeTextFile(target, 'window.console.log("x");\n');
     const ci = await command(root, ["task", "lint"], { CI: "1" }, false);
     assert(!ci.success, ci.stderr);
-    assertEquals(await Deno.readTextFile(target), 'window.console.log("x");\n');
+    assertEquals(await readTextFile(target), 'window.console.log("x");\n');
 
     const local = await command(root, ["task", "lint"], { CI: "" }, false);
     assert(local.success, local.stderr);
     assertEquals(
-      await Deno.readTextFile(target),
+      await readTextFile(target),
       'globalThis.console.log("x");\n',
     );
   });
@@ -182,14 +192,14 @@ Deno.test("lint task fixes locally and only checks in CI", async () => {
 async function withRepository(
   action: (root: URL) => Promise<void>,
 ): Promise<void> {
-  const path = await Deno.makeTempDir({
+  const path = await makeTempDir({
     dir: "/tmp/opencode",
     prefix: "hj-tasks-",
   });
   try {
     await action(new URL(`file://${path}/`));
   } finally {
-    await Deno.remove(path, { recursive: true });
+    await remove(path, { recursive: true });
   }
 }
 
@@ -202,12 +212,12 @@ function run(root: URL, ...flags: string[]): Promise<string> {
 
 async function readConfig(root: URL): Promise<TaskConfig> {
   return JSON.parse(
-    await Deno.readTextFile(new URL("deno.jsonc", root)),
+    await readTextFile(new URL("deno.jsonc", root)),
   ) as TaskConfig;
 }
 
 function writeConfig(root: URL, config: unknown): Promise<void> {
-  return Deno.writeTextFile(
+  return writeTextFile(
     new URL("deno.jsonc", root),
     `${JSON.stringify(config, null, 2)}\n`,
   );
@@ -219,11 +229,11 @@ async function command(
   env: Record<string, string> = {},
   requireSuccess = true,
 ): Promise<{ readonly success: boolean; readonly stderr: string }> {
-  const result = await new Deno.Command("deno", {
+  const result = await runCommand("deno", {
     args,
     cwd: root.pathname,
     env,
-  }).output();
+  });
   const output = {
     success: result.success,
     stderr: new TextDecoder().decode(result.stderr),

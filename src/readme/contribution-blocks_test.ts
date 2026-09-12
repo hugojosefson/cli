@@ -1,3 +1,6 @@
+import { test as nativeTest } from "node:test";
+import { trackTests } from "../testing/inventory-test-fixtures.ts";
+const test = trackTests(import.meta.url, nativeTest);
 import { assert, assertEquals, assertStringIncludes } from "@std/assert";
 import {
   reconcileBlocks,
@@ -5,7 +8,7 @@ import {
   unchangedBlocks,
 } from "./contribution-blocks.ts";
 
-Deno.test("contribution blocks retain custom bodies and remove only unchanged owned content", async () => {
+test("contribution blocks retain custom bodies and remove only unchanged owned content", async () => {
   const desired = [{
     id: "jsr-package:api",
     content: "## API\n\nGenerated API.",
@@ -28,7 +31,7 @@ Deno.test("contribution blocks retain custom bodies and remove only unchanged ow
   assertEquals(await unchangedBlocks(rendered), new Set(["jsr-package:api"]));
 });
 
-Deno.test("badges do not nest ownership markers and customized sections prevent duplicates", async () => {
+test("badges do not nest ownership markers and customized sections prevent duplicates", async () => {
   let text = await reconcileBlocks("# Project\n\nIntro.\n", [{
     id: "readme:requirements",
     content: "## Requirements\n\nDeno.",
@@ -59,7 +62,7 @@ Deno.test("badges do not nest ownership markers and customized sections prevent 
   );
 });
 
-Deno.test("ownership tolerates prose wrapping while code string edits remain custom", async () => {
+test("ownership tolerates prose wrapping while code string edits remain custom", async () => {
   const original = await reconcileBlocks("# Package\n", [{
     id: "deno-lib:example",
     position: "section",
@@ -76,7 +79,7 @@ Deno.test("ownership tolerates prose wrapping while code string edits remain cus
   assertEquals(await reconcileBlocks(edited, []), edited);
 });
 
-Deno.test("custom Install instructions suppress and retire only an unchanged generated Installation section", async () => {
+test("custom Install instructions suppress and retire only an unchanged generated Installation section", async () => {
   const desired = [{
     id: "jsr-package:installation",
     content: "## Installation\n\nAdd the package as a dependency.",

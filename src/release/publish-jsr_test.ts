@@ -1,3 +1,12 @@
+import { test as nativeTest } from "node:test";
+import { trackTests } from "../testing/inventory-test-fixtures.ts";
+const test = trackTests(import.meta.url, nativeTest);
+import {
+  makeTempDir,
+  mkdir,
+  remove,
+  writeTextFile,
+} from "../testing/files-test-fixtures.ts";
 import { assertEquals, assertRejects, assertThrows } from "@std/assert";
 import {
   type JsrApi,
@@ -41,7 +50,7 @@ const object = (value: unknown) => value as Record<string, unknown>;
 const nested = (value: unknown, ...keys: string[]) =>
   keys.reduce((x, key) => object(x[key]), object(value));
 
-Deno.test("JSR retries accept provenance from either supported publishing trigger", async () => {
+test("JSR retries accept provenance from either supported publishing trigger", async () => {
   const memberInput = { ...input, route: "user" as const };
   const verify = (value: unknown) =>
     jsrHttpApi(() => Promise.resolve(response(value))).verifyProvenance(
@@ -71,7 +80,7 @@ Deno.test("JSR retries accept provenance from either supported publishing trigge
     }).then(verify)
   );
 });
-Deno.test("Rekor v1 fixture accepts exact data and rejects every release-bound group", async () => {
+test("Rekor v1 fixture accepts exact data and rejects every release-bound group", async () => {
   const verify = (value: unknown) =>
     jsrHttpApi(() => Promise.resolve(response(value))).verifyProvenance(input);
   await verify(await rekor());
@@ -209,7 +218,7 @@ Deno.test("Rekor v1 fixture accepts exact data and rejects every release-bound g
     TypeError,
   );
 });
-Deno.test("JSR HTTP status and metadata validation are fail-closed", async () => {
+test("JSR HTTP status and metadata validation are fail-closed", async () => {
   const management = {
     scope: "owner",
     package: "repo",
@@ -290,7 +299,7 @@ Deno.test("JSR HTTP status and metadata validation are fail-closed", async () =>
     "https://jsr.io/@owner/repo/1.2.3_meta.json",
   ]);
 });
-Deno.test("JSR existing versions require exact exports, files, graph, and provenance", async () => {
+test("JSR existing versions require exact exports, files, graph, and provenance", async () => {
   const packageFiles = { read: () => Promise.resolve(encoder.encode("x")) };
   const exactCalls: string[] = [];
   await publishJsr({
@@ -345,7 +354,7 @@ Deno.test("JSR existing versions require exact exports, files, graph, and proven
       },
     }), TypeError);
 });
-Deno.test("JSR publish retries transient uncertainty, confirms failed publish, and bounds polling", async () => {
+test("JSR publish retries transient uncertainty, confirms failed publish, and bounds polling", async () => {
   const packageFiles = { read: () => Promise.resolve(encoder.encode("x")) };
   const api = (
     values: Array<
@@ -451,25 +460,25 @@ Deno.test("JSR publish retries transient uncertainty, confirms failed publish, a
   assertEquals(jsrPackageName("Owner-1/Repo-2"), "@owner-1/repo-2");
   assertThrows(() => jsrPackageName("owner/repo_name"), TypeError);
 });
-Deno.test("local package reader rejects unsafe paths, directories, and symlinks", async () => {
-  const root = await Deno.makeTempDir({
+test("local package reader rejects unsafe paths, directories, and symlinks", async () => {
+  const root = await makeTempDir({
     dir: "/tmp/opencode",
     prefix: "package-",
   });
   try {
-    await Deno.mkdir(`${root}/dir`);
-    await Deno.writeTextFile(`${root}/file.ts`, "x");
+    await mkdir(`${root}/dir`);
+    await writeTextFile(`${root}/file.ts`, "x");
     await createGitSymlink(new URL(`file://${root}/`), "link.ts", "file.ts");
     const reader = localPackageFiles(new URL(`file://${root}/`));
     for (const path of ["../file.ts", "/file.ts", "dir", "link.ts"]) {
       await assertRejects(() => reader.read(path), TypeError);
     }
   } finally {
-    await Deno.remove(root, { recursive: true });
+    await remove(root, { recursive: true });
   }
 });
 
-Deno.test("JSR verification binds transformed modules to the clean release and manifest digest", async () => {
+test("JSR verification binds transformed modules to the clean release and manifest digest", async () => {
   const changed = {
     ...remote(),
     manifest: { "/mod.ts": { size: 20, checksum } },
@@ -520,7 +529,7 @@ Deno.test("JSR verification binds transformed modules to the clean release and m
   );
 });
 
-Deno.test("JSR blocks uploads whose workflow identity names another commit", async () => {
+test("JSR blocks uploads whose workflow identity names another commit", async () => {
   const calls: string[] = [];
   await assertRejects(
     () =>

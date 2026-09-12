@@ -1,10 +1,18 @@
+import { test as nativeTest } from "node:test";
+import { trackTests } from "../testing/inventory-test-fixtures.ts";
+const test = trackTests(import.meta.url, nativeTest);
+import {
+  makeTempDir,
+  remove,
+  writeTextFile,
+} from "../testing/files-test-fixtures.ts";
 import { assert, assertEquals, assertStringIncludes } from "@std/assert";
 import type { PlannedChange } from "../api/planned-change.ts";
 import { LocalFileReader } from "../repository/local-file-reader.ts";
 import { describePlannedChange } from "./describe-planned-change.ts";
 import { describeConfiguration } from "./repair-configuration-description.ts";
 
-Deno.test("repair configuration names changed commands, dependencies and rule values but omits preserved data and credentials", () => {
+test("repair configuration names changed commands, dependencies and rule values but omits preserved data and credentials", () => {
   const old = {
     tasks: {
       fmt: { command: "prettier --write ." },
@@ -65,15 +73,15 @@ Deno.test("repair configuration names changed commands, dependencies and rule va
   assertEquals(describeConfiguration(old, old), []);
 });
 
-Deno.test("repair descriptions show file replacement, removals, permissions and remote resource settings", async () => {
-  const path = await Deno.makeTempDir({
+test("repair descriptions show file replacement, removals, permissions and remote resource settings", async () => {
+  const path = await makeTempDir({
     dir: "/tmp/opencode",
     prefix: "hj-describe-repair-",
   });
   const root = new URL(`file://${path}/`);
   const files = new LocalFileReader(root);
   try {
-    await Deno.writeTextFile(
+    await writeTextFile(
       new URL("config.txt", root),
       "keep\nkeep\nprivate-old-content\n",
     );
@@ -281,6 +289,6 @@ Deno.test("repair descriptions show file replacement, removals, permissions and 
     assertStringIncludes(rules, 'enforcement = "active"');
     assert(!rules.includes("target ="));
   } finally {
-    await Deno.remove(path, { recursive: true });
+    await remove(path, { recursive: true });
   }
 });

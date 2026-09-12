@@ -1,7 +1,10 @@
+import { test as nativeTest } from "node:test";
+import { trackTests } from "../testing/inventory-test-fixtures.ts";
+const test = trackTests(import.meta.url, nativeTest);
 import { assert, assertStringIncludes } from "@std/assert";
 import { describeFileRepair } from "./describe-file-repair.ts";
 
-Deno.test("workflow repair names only changed jobs, permissions and steps", () => {
+test("workflow repair names only changed jobs, permissions and steps", () => {
   const old =
     `name: CI\npermissions:\n  contents: write\njobs:\n  check:\n    steps:\n      - run: custom command with a preserved secret\n      - run: deno task old\n`;
   const desired = old.replace("contents: write", "contents: read").replace(
@@ -22,7 +25,7 @@ Deno.test("workflow repair names only changed jobs, permissions and steps", () =
   assert(!details.includes("name ="));
 });
 
-Deno.test("file repair identifies exact text additions, removals and movement without exposing prior contents", () => {
+test("file repair identifies exact text additions, removals and movement without exposing prior contents", () => {
   const old = "custom secret line\n# managed\nmanaged-pattern\nkeep\n";
   const desired = "keep\n# managed\nmanaged-pattern\nnew-pattern\n";
   const details = describeFileRepair(".gitignore", old, desired).join("\n");
@@ -47,7 +50,7 @@ Deno.test("file repair identifies exact text additions, removals and movement wi
   );
 });
 
-Deno.test("JSON repair handles creation, formatting, invalid input, and array removals", () => {
+test("JSON repair handles creation, formatting, invalid input, and array removals", () => {
   assertStringIncludes(
     describeFileRepair("deno.json", undefined, '{"lock":true}')[0],
     "lock = true",

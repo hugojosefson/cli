@@ -1,3 +1,16 @@
+import { runCliProcess } from "../testing/runtime-test-fixtures.ts";
+import { assertMissingFile } from "../testing/files-test-fixtures.ts";
+import { test as nativeTest } from "node:test";
+import { trackTests } from "../testing/inventory-test-fixtures.ts";
+const test = trackTests(import.meta.url, nativeTest);
+import {
+  fixtureStat,
+  makeTempDir,
+  readTextFile,
+  remove,
+  writeTextFile,
+} from "../testing/files-test-fixtures.ts";
+import { runCommand } from "../runtime/command.ts";
 import {
   assert,
   assertEquals,
@@ -22,7 +35,7 @@ const registry: FeatureRegistry = {
   }],
 };
 
-Deno.test("initial library checks pass before separate configuration contributions are committed", async () => {
+test("initial library checks pass before separate configuration contributions are committed", async () => {
   await fixture(async (root) => {
     const result = await runFeatureOperation(
       root,
@@ -79,7 +92,7 @@ Deno.test("initial library checks pass before separate configuration contributio
       "jsr:@std/assert@^1.0.19",
     );
     assertEquals(
-      JSON.parse(await Deno.readTextFile(new URL("deno.jsonc", root))).lock,
+      JSON.parse(await readTextFile(new URL("deno.jsonc", root))).lock,
       false,
     );
     assertEquals(await git(root, "diff", "HEAD", "--"), "");
@@ -91,7 +104,7 @@ Deno.test("initial library checks pass before separate configuration contributio
   });
 });
 
-Deno.test("library assertion imports enter an application lock before frozen checks", async () => {
+test("library assertion imports enter an application lock before frozen checks", async () => {
   await fixture(async (root) => {
     const result = await runFeatureOperation(
       root,
@@ -107,25 +120,25 @@ Deno.test("library assertion imports enter an application lock before frozen che
     );
     assertStringIncludes(result, "deno task default passed.");
     const config = JSON.parse(
-      await Deno.readTextFile(new URL("deno.jsonc", root)),
+      await readTextFile(new URL("deno.jsonc", root)),
     );
     assertEquals(config.lock, true);
     const lock = JSON.parse(
-      await Deno.readTextFile(new URL("deno.lock", root)),
+      await readTextFile(new URL("deno.lock", root)),
     );
     assert(lock.specifiers["jsr:@std/assert@^1.0.19"]);
     assertEquals(await git(root, "diff", "HEAD", "--"), "");
-    const check = await new Deno.Command("deno", {
+    const check = await runCommand("deno", {
       args: ["test", "--frozen", "test/lib_test.ts"],
       cwd: root,
-    }).output();
+    });
     assert(check.success, new TextDecoder().decode(check.stderr));
   });
 });
 
-Deno.test("server setup creates its owned lock before a frozen final check and commits its digest", async () => {
+test("server setup creates its owned lock before a frozen final check and commits its digest", async () => {
   await fixture(async (root) => {
-    await Deno.writeTextFile(
+    await writeTextFile(
       new URL("deno.json", root),
       JSON.stringify({
         tasks: {
@@ -152,13 +165,13 @@ Deno.test("server setup creates its owned lock before a frozen final check and c
     assert(ownership.digest);
     assertEquals(
       await git(root, "show", "HEAD:deno.lock"),
-      (await Deno.readTextFile(new URL("deno.lock", root))).trim(),
+      (await readTextFile(new URL("deno.lock", root))).trim(),
     );
     assertEquals(await git(root, "status", "--porcelain"), "");
   });
 });
 
-Deno.test("operation runs final task before content commits and commits the validated task output", async () => {
+test("operation runs final task before content commits and commits the validated task output", async () => {
   await fixture(async (root) => {
     await seed(
       root,
@@ -179,7 +192,7 @@ Deno.test("operation runs final task before content commits and commits the vali
   });
 });
 
-Deno.test("operation returns task failure without content commits and preserves task edits", async () => {
+test("operation returns task failure without content commits and preserves task edits", async () => {
   await fixture(async (root) => {
     await seed(
       root,
@@ -193,14 +206,14 @@ Deno.test("operation returns task failure without content commits and preserves 
     assertEquals(error.exitCode, 17);
     assertEquals(await git(root, "rev-parse", "HEAD"), before);
     assertEquals(
-      await Deno.readTextFile(new URL("README.md", root)),
+      await readTextFile(new URL("README.md", root)),
       "# Fix this\n",
     );
     assertEquals(await git(root, "status", "--porcelain"), "?? README.md");
   });
 });
 
-Deno.test("unattributed task edits remain visible and prevent content commits", async () => {
+test("unattributed task edits remain visible and prevent content commits", async () => {
   await fixture(async (root) => {
     await seed(
       root,
@@ -210,7 +223,7 @@ Deno.test("unattributed task edits remain visible and prevent content commits", 
     await assertRejects(() => run(root, "--readme-static"));
     assertEquals(await git(root, "rev-parse", "HEAD"), before);
     assertEquals(
-      await Deno.readTextFile(new URL("unrelated.txt", root)),
+      await readTextFile(new URL("unrelated.txt", root)),
       "unexpected\n",
     );
     assertStringIncludes(
@@ -220,23 +233,14 @@ Deno.test("unattributed task edits remain visible and prevent content commits", 
   });
 });
 
-Deno.test("CLI exits with the final task's original failure code", async () => {
+test("CLI exits with the final task's original failure code", async () => {
   await fixture(async (root) => {
     await seed(root, "Deno.exit(17);");
-    const result = await new Deno.Command("deno", {
-      args: [
-        "run",
-        "--frozen",
-        "--allow-all",
-        "--config",
-        new URL("../../deno.json", import.meta.url).pathname,
-        new URL("./cli.ts", import.meta.url).href,
-        "repo",
-        "features",
-        "--readme-static",
-      ],
-      cwd: root,
-    }).output();
+    const result = await runCliProcess([
+      "repo",
+      "features",
+      "--readme-static",
+    ], { cwd: root });
     assertEquals(result.code, 17, new TextDecoder().decode(result.stderr));
     assertStringIncludes(
       new TextDecoder().decode(result.stderr),
@@ -246,7 +250,7 @@ Deno.test("CLI exits with the final task's original failure code", async () => {
   });
 });
 
-Deno.test("removing the feature that supplied default reports its absence", async () => {
+test("removing the feature that supplied default reports its absence", async () => {
   await fixture(async (root) => {
     const fmtRegistry = { features: [denoFmtFeature], capabilities: [] };
     const operation = (flag: string) =>
@@ -261,15 +265,12 @@ Deno.test("removing the feature that supplied default reports its absence", asyn
     );
     const result = await operation("--no-deno-fmt");
     assertStringIncludes(result, "No final default task remains.");
-    await assertRejects(
-      () => Deno.stat(new URL("deno.jsonc", root)),
-      Deno.errors.NotFound,
-    );
+    await assertMissingFile(() => fixtureStat(new URL("deno.jsonc", root)));
     assertEquals(await git(root, "status", "--porcelain"), "");
   });
 });
 
-Deno.test("status inspection never starts an existing failing default task", async () => {
+test("status inspection never starts an existing failing default task", async () => {
   await fixture(async (root) => {
     await seed(root, "Deno.exit(17);");
     assertStringIncludes(await run(root), "readme-static");
@@ -286,8 +287,8 @@ async function run(root: URL, ...flags: string[]) {
 }
 
 async function seed(root: URL, code: string) {
-  await Deno.writeTextFile(new URL("task.ts", root), code);
-  await Deno.writeTextFile(
+  await writeTextFile(new URL("task.ts", root), code);
+  await writeTextFile(
     new URL("deno.json", root),
     JSON.stringify({
       tasks: {
@@ -300,7 +301,7 @@ async function seed(root: URL, code: string) {
 }
 
 async function fixture(action: (root: URL) => Promise<void>) {
-  const path = await Deno.makeTempDir({
+  const path = await makeTempDir({
     dir: "/tmp/opencode",
     prefix: "hj-final-operation-",
   });
@@ -311,12 +312,12 @@ async function fixture(action: (root: URL) => Promise<void>) {
     await git(root, "config", "user.email", "test@example.invalid");
     await action(root);
   } finally {
-    await Deno.remove(root, { recursive: true });
+    await remove(root, { recursive: true });
   }
 }
 
 async function git(root: URL, ...args: string[]) {
-  const result = await new Deno.Command("git", { args, cwd: root }).output();
+  const result = await runCommand("git", { args, cwd: root });
   assert(result.success, new TextDecoder().decode(result.stderr));
   return new TextDecoder().decode(result.stdout).trim();
 }

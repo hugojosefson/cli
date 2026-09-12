@@ -1,3 +1,6 @@
+import { test as nativeTest } from "node:test";
+import { trackTests } from "../testing/inventory-test-fixtures.ts";
+const test = trackTests(import.meta.url, nativeTest);
 import { assertEquals, assertThrows } from "@std/assert";
 import { builtInFeatureRegistry } from "../features/built-in-feature-registry.ts";
 import { formatFeatureStatus } from "./format-features.ts";
@@ -8,7 +11,7 @@ import {
   parseFeatures,
 } from "./parse-features.ts";
 
-Deno.test("status retains the configured toolchain version for repair previews", () => {
+test("status retains the configured toolchain version for repair previews", () => {
   const result = parseFeatures(["repo", "features"], builtInFeatureRegistry, {
     "deno-version": "2.5.0",
   });
@@ -16,7 +19,7 @@ Deno.test("status retains the configured toolchain version for repair previews",
   assertEquals(result.defaultDenoVersion, "2.5.0");
 });
 
-Deno.test("parses built-in features, capability aliases, and defaults", () => {
+test("parses built-in features, capability aliases, and defaults", () => {
   assertEquals(
     changeRequest(parseFeatures(
       ["repo", "features", "--deno-fmt"],
@@ -107,7 +110,7 @@ Deno.test("parses built-in features, capability aliases, and defaults", () => {
   );
 });
 
-Deno.test("formats statuses by stable feature ID", () => {
+test("formats statuses by stable feature ID", () => {
   assertEquals(
     formatFeatureStatus(
       builtInFeatureRegistry,
@@ -129,7 +132,7 @@ Deno.test("formats statuses by stable feature ID", () => {
   );
 });
 
-Deno.test("parses explicit repair selections and rejects negative flags", () => {
+test("parses explicit repair selections and rejects negative flags", () => {
   assertEquals(
     parseFeatures(["repo", "features", "--repair"], builtInFeatureRegistry),
     {
@@ -165,7 +168,7 @@ Deno.test("parses explicit repair selections and rejects negative flags", () => 
   );
 });
 
-Deno.test("parses interactive mode and rejects incompatible options", () => {
+test("parses interactive mode and rejects incompatible options", () => {
   assertEquals(
     parseFeatures(["repo", "features", "-i"], builtInFeatureRegistry),
     { kind: "interactive", confirmation: false },
@@ -192,7 +195,7 @@ Deno.test("parses interactive mode and rejects incompatible options", () => {
   );
 });
 
-Deno.test("parses confirmation without changing status or feature resolution", () => {
+test("parses confirmation without changing status or feature resolution", () => {
   assertEquals(
     parseFeatures(["repo", "features", "--yes"], builtInFeatureRegistry),
     {
@@ -237,7 +240,7 @@ Deno.test("parses confirmation without changing status or feature resolution", (
   );
 });
 
-Deno.test("parses positive presets and rejects duplicate and negative forms", () => {
+test("parses positive presets and rejects duplicate and negative forms", () => {
   const registry = {
     ...builtInFeatureRegistry,
     presets: [{
@@ -290,7 +293,7 @@ function changeRequest(args: FeaturesArguments) {
   return args.request;
 }
 
-Deno.test("JSR preset selects package, version, and release dependencies through the CLI", () => {
+test("JSR preset selects package, version, and release dependencies through the CLI", () => {
   const request = changeRequest(parseFeatures(
     ["repo", "features", "--jsr", "--deno-lib"],
     builtInFeatureRegistry,
@@ -330,7 +333,7 @@ Deno.test("JSR preset selects package, version, and release dependencies through
   assertEquals(enabled.has("github-private"), false);
 });
 
-Deno.test("workflow CLI source accepts exact GitHub commits and explicit registry migration", () => {
+test("workflow CLI source accepts exact GitHub commits and explicit registry migration", () => {
   for (const source of ["jsr", `github:owner/hj@${"a".repeat(40)}`]) {
     const parsed = parseFeatures([
       "repo",

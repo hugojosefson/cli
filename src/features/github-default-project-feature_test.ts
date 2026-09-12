@@ -1,3 +1,7 @@
+import { makeTempDir, remove } from "../testing/files-test-fixtures.ts";
+import { test as nativeTest } from "node:test";
+import { trackTests } from "../testing/inventory-test-fixtures.ts";
+const test = trackTests(import.meta.url, nativeTest);
 import { assertEquals, assertRejects, assertStringIncludes } from "@std/assert";
 import { builtInFeatureRegistry } from "./built-in-feature-registry.ts";
 import { parseFeatures } from "../cli/parse-features.ts";
@@ -33,7 +37,7 @@ async function withProject(
     run: (...args: string[]) => Promise<string>,
   ) => Promise<void>,
 ) {
-  const path = await Deno.makeTempDir({
+  const path = await makeTempDir({
     dir: "/tmp/opencode",
     prefix: "hj-project-",
   });
@@ -52,11 +56,11 @@ async function withProject(
         ),
     );
   } finally {
-    await Deno.remove(root, { recursive: true });
+    await remove(root, { recursive: true });
   }
 }
 
-Deno.test("default project lifecycle confirms writes, repairs missing issues, and preserves data on disable", async () => {
+test("default project lifecycle confirms writes, repairs missing issues, and preserves data on disable", async () => {
   await withProject(async (fixture, run) => {
     await assertRejects(
       () => run("--github-default-project"),
@@ -87,7 +91,7 @@ Deno.test("default project lifecycle confirms writes, repairs missing issues, an
   });
 });
 
-Deno.test("GitHub preset includes the default project and allows an explicit opt-out", async () => {
+test("GitHub preset includes the default project and allows an explicit opt-out", async () => {
   await withProject(async (fixture, run) => {
     await run("--github", "--no-github-default-project", "--yes");
     assertEquals(fixture.projects, []);
@@ -98,7 +102,7 @@ Deno.test("GitHub preset includes the default project and allows an explicit opt
   });
 });
 
-Deno.test("default project status previews additive Area repair for each issue without writes", async () => {
+test("default project status previews additive Area repair for each issue without writes", async () => {
   await withProject(async (fixture, run) => {
     await run("--github-default-project", "--yes");
     fixture.areaValues.set("item-open-issue", "docs");
@@ -142,7 +146,7 @@ Deno.test("default project status previews additive Area repair for each issue w
   });
 });
 
-Deno.test("default project repair shows each Area addition once with one short hint and no setup boilerplate", async () => {
+test("default project repair shows each Area addition once with one short hint and no setup boilerplate", async () => {
   await withProject(async (fixture, run) => {
     fixture.issues = Array.from({ length: 76 }, (_, index) => ({
       id: `issue-${index + 1}`,
@@ -205,7 +209,7 @@ Deno.test("default project repair shows each Area addition once with one short h
   });
 });
 
-Deno.test("default project status identifies missing configuration and issues", async () => {
+test("default project status identifies missing configuration and issues", async () => {
   await withProject(async (fixture, run) => {
     await run("--github-default-project", "--yes");
     fixture.fields = fixture.fields.filter((field) =>
@@ -228,7 +232,7 @@ Deno.test("default project status identifies missing configuration and issues", 
   });
 });
 
-Deno.test("default project refuses unavailable or conflicting configuration before mutations", async () => {
+test("default project refuses unavailable or conflicting configuration before mutations", async () => {
   await withProject(async (fixture, run) => {
     fixture.fail = "projectsV2(first";
     await assertRejects(

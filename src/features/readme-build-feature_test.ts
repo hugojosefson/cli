@@ -1,3 +1,18 @@
+import { externalDeno } from "../testing/runtime-test-fixtures.ts";
+import { test as nativeTest } from "node:test";
+import { trackTests } from "../testing/inventory-test-fixtures.ts";
+const test = trackTests(import.meta.url, nativeTest);
+import {
+  chmod,
+  fixtureReadDir,
+  fixtureStat,
+  makeTempDir,
+  mkdir,
+  readTextFile,
+  remove,
+  writeTextFile,
+} from "../testing/files-test-fixtures.ts";
+import { runCommand } from "../runtime/command.ts";
 import {
   assert,
   assertEquals,
@@ -60,7 +75,7 @@ Deno.test("readme-build retains an exact older CLI pin across releases", async (
   });
 });
 
-Deno.test("readme-build converts static content and reverses it", async () => {
+test("readme-build converts static content and reverses it", async () => {
   await withRepository(async (root) => {
     await write(root, "README.md", "# Kept\n");
     await runCli(root, ["repo", "features", "--readme-build"]);
@@ -90,7 +105,7 @@ Deno.test("readme-build converts static content and reverses it", async () => {
   });
 });
 
-Deno.test("readme-build composes existing config and simultaneous removal", async () => {
+test("readme-build composes existing config and simultaneous removal", async () => {
   await withRepository(async (root) => {
     await write(root, "README.md", "# Existing config\n");
     await write(
@@ -119,7 +134,7 @@ Deno.test("readme-build composes existing config and simultaneous removal", asyn
   });
 });
 
-Deno.test("readme-build extends an enabled deno.json without stale edits", async () => {
+test("readme-build extends an enabled deno.json without stale edits", async () => {
   await withRepository(async (root) => {
     await write(root, "README.md", "# deno.json\n");
     await write(
@@ -145,13 +160,13 @@ Deno.test("readme-build extends an enabled deno.json without stale edits", async
   });
 });
 
-Deno.test("readme-build repairs task, aggregate, output, and mode drift", async () => {
+test("readme-build repairs task, aggregate, output, and mode drift", async () => {
   await withRepository(async (root) => {
     await write(root, "README.md", "# Source\n");
     await runCli(root, ["repo", "features", "--readme-build"]);
-    await Deno.chmod(new URL("README.md", root), 0o644);
+    await chmod(new URL("README.md", root), 0o644);
     await write(root, "README.md", "# Drift\n");
-    await Deno.chmod(new URL("README.md", root), 0o444);
+    await chmod(new URL("README.md", root), 0o444);
     const config = JSON.parse(await read(root, "deno.jsonc"));
     config.tasks.readme = { command: "false" };
     config.tasks.default = { command: "false" };
@@ -171,10 +186,10 @@ Deno.test("readme-build repairs task, aggregate, output, and mode drift", async 
   });
 });
 
-Deno.test("readme-build rejects ambiguous source paths without traversing them", async () => {
+test("readme-build rejects ambiguous source paths without traversing them", async () => {
   await withRepository(async (root) => {
     const target = new URL("other", root);
-    await Deno.mkdir(target);
+    await mkdir(target);
     await symlink(target, new URL("readme", root));
     const status = (await runCli(root, ["repo", "features"])).output;
     assertStringIncludes(status.replace(/ +/g, " "), "readme-build ambiguous");
@@ -186,7 +201,7 @@ Deno.test("readme-build rejects ambiguous source paths without traversing them",
   });
 });
 
-Deno.test("readme-build rejects unsafe output and config without mutation", async () => {
+test("readme-build rejects unsafe output and config without mutation", async () => {
   await withRepository(async (root) => {
     await write(root, "README.md", "# Invalid config\n");
     await write(root, "deno.json", "not json\n");
@@ -202,9 +217,9 @@ Deno.test("readme-build rejects unsafe output and config without mutation", asyn
   await withRepository(async (root) => {
     await write(root, "README.md", "# Unsafe output\n");
     await runCli(root, ["repo", "features", "--readme-build"]);
-    await Deno.chmod(new URL("README.md", root), 0o755);
-    await Deno.remove(new URL("README.md", root));
-    await Deno.mkdir(new URL("README.md", root));
+    await chmod(new URL("README.md", root), 0o755);
+    await remove(new URL("README.md", root));
+    await mkdir(new URL("README.md", root));
     await assertRejects(
       () =>
         runCli(root, [
@@ -217,13 +232,13 @@ Deno.test("readme-build rejects unsafe output and config without mutation", asyn
       "ambiguous-feature",
     );
     assertEquals(
-      (await Deno.stat(new URL("README.md", root))).isDirectory,
+      (await fixtureStat(new URL("README.md", root))).isDirectory,
       true,
     );
   });
 });
 
-Deno.test("readme-build preserves a conflicting default task", async () => {
+test("readme-build preserves a conflicting default task", async () => {
   await withRepository(async (root) => {
     await write(root, "README.md", "# Custom default\n");
     const tasks = denoTaskDefinitions();
@@ -251,28 +266,28 @@ Deno.test("readme-build preserves a conflicting default task", async () => {
   });
 });
 
-Deno.test("readme task preserves failures and atomically replaces successes", async () => {
+test("readme task preserves failures and atomically replaces successes", async () => {
   await withRepository(async (root) => {
     await write(root, "README.md", "# Preserved\n");
     await runCli(root, ["repo", "features", "--readme-build"]);
     await git(root, "init");
     await git(root, "add", "README.md");
     await git(root, "ls-files", "--error-unmatch", "README.md");
-    await Deno.mkdir(new URL("bin", root));
+    await mkdir(new URL("bin", root));
     await write(root, "bin/deno", "#!/bin/sh\nexit 17\n");
-    await Deno.chmod(new URL("bin/deno", root), 0o755);
-    const result = await new Deno.Command(Deno.execPath(), {
+    await chmod(new URL("bin/deno", root), 0o755);
+    const result = await runCommand(externalDeno, {
       args: ["task", "readme"],
       cwd: root,
       env: { PATH: `${new URL("bin", root).pathname}:/usr/bin:/bin` },
-      stdout: "null",
-      stderr: "null",
-    }).output();
+      stdout: "piped",
+      stderr: "piped",
+    });
     assert(!result.success);
     assertStringIncludes(await read(root, "README.md"), "# Preserved\n");
     assertEquals(await new LocalFileReader(root).mode("README.md"), 0o444);
     const names = [];
-    for await (const entry of Deno.readDir(root)) {
+    for await (const entry of fixtureReadDir(root)) {
       names.push(entry.name);
     }
     assertEquals(names.filter((name) => name.startsWith("README.md.")), []);
@@ -282,13 +297,13 @@ Deno.test("readme task preserves failures and atomically replaces successes", as
     await git(root, "checkout-index", "--force", "README.md");
     assert((await new LocalFileReader(root).mode("README.md"))! & 0o200);
     await write(root, "bin/deno", "#!/bin/sh\nprintf '# Built\\n'\n");
-    const success = await new Deno.Command(Deno.execPath(), {
+    const success = await runCommand(externalDeno, {
       args: ["task", "readme"],
       cwd: root,
       env: { PATH: `${new URL("bin", root).pathname}:/usr/bin:/bin` },
-      stdout: "null",
-      stderr: "null",
-    }).output();
+      stdout: "piped",
+      stderr: "piped",
+    });
     assert(success.success);
     assertEquals(await read(root, "README.md"), "# Built\n");
     assertEquals(await new LocalFileReader(root).mode("README.md"), 0o444);
@@ -296,7 +311,7 @@ Deno.test("readme task preserves failures and atomically replaces successes", as
   });
 });
 
-Deno.test("clean Git removal skips confirmation but dirty removal requires it", async () => {
+test("clean Git removal skips confirmation but dirty removal requires it", async () => {
   await withRepository(async (root) => {
     await write(root, "README.md", "# Git\n");
     await git(root, "init");
@@ -316,7 +331,7 @@ Deno.test("clean Git removal skips confirmation but dirty removal requires it", 
       "confirmation required",
     );
     assertEquals(await read(root, "readme/untracked.md"), "keep\n");
-    await Deno.remove(new URL("readme/untracked.md", root));
+    await remove(new URL("readme/untracked.md", root));
     await write(root, ".gitignore", "/readme/ignored.md\n");
     await git(root, "add", ".gitignore");
     await git(root, "commit", "-m", "chore: ignore generated fixture");
@@ -331,7 +346,7 @@ Deno.test("clean Git removal skips confirmation but dirty removal requires it", 
 });
 
 async function withRepository(run: (root: URL) => Promise<void>) {
-  const path = await Deno.makeTempDir({
+  const path = await makeTempDir({
     dir: "/tmp/opencode",
     prefix: "hj-readme-build-",
   });
@@ -339,32 +354,32 @@ async function withRepository(run: (root: URL) => Promise<void>) {
   try {
     await run(root);
   } finally {
-    await Deno.remove(path, { recursive: true });
+    await remove(path, { recursive: true });
   }
 }
 
 function write(root: URL, path: string, content: string): Promise<void> {
-  return Deno.writeTextFile(new URL(path, root), content);
+  return writeTextFile(new URL(path, root), content);
 }
 
 function read(root: URL, path: string): Promise<string> {
-  return Deno.readTextFile(new URL(path, root));
+  return readTextFile(new URL(path, root));
 }
 
 async function git(root: URL, ...args: string[]): Promise<void> {
-  const result = await new Deno.Command("git", { args, cwd: root }).output();
+  const result = await runCommand("git", { args, cwd: root });
   assert(result.success, new TextDecoder().decode(result.stderr));
 }
 
 async function symlink(target: URL, path: URL): Promise<void> {
-  const result = await new Deno.Command("deno", {
+  const result = await runCommand("deno", {
     args: [
       "eval",
       "await Deno.symlink(Deno.args[0], Deno.args[1]);",
       target.pathname,
       path.pathname,
     ],
-  }).output();
+  });
   assert(result.success, new TextDecoder().decode(result.stderr));
 }
 

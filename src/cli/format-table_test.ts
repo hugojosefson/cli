@@ -1,7 +1,10 @@
+import { test as nativeTest } from "node:test";
+import { trackTests } from "../testing/inventory-test-fixtures.ts";
+const test = trackTests(import.meta.url, nativeTest);
 import { assertEquals } from "@std/assert";
 import { formatTable } from "./format-table.ts";
 
-Deno.test("tables align cells without terminal codes or trailing spaces", () => {
+test("tables align cells without terminal codes or trailing spaces", () => {
   assertEquals(
     formatTable(["Feature", "State"], [["git", "enabled"], [
       "readme",
@@ -11,7 +14,7 @@ Deno.test("tables align cells without terminal codes or trailing spaces", () => 
   );
 });
 
-Deno.test("tables wrap long and multiline cells without losing content", () => {
+test("tables wrap long and multiline cells without losing content", () => {
   assertEquals(
     formatTable(["ID", "Note"], [["a", "one two three\nfour"], [
       "b",
@@ -21,7 +24,7 @@ Deno.test("tables wrap long and multiline cells without losing content", () => {
   );
 });
 
-Deno.test("tables handle empty data, missing cells, and control characters", () => {
+test("tables handle empty data, missing cells, and control characters", () => {
   assertEquals(formatTable(["ID"], []), "ID\n--");
   assertEquals(
     formatTable(["ID", "Note"], [["a"], [

@@ -1,3 +1,6 @@
+import { test as nativeTest } from "node:test";
+import { trackTests } from "../testing/inventory-test-fixtures.ts";
+const test = trackTests(import.meta.url, nativeTest);
 import { assertEquals, assertRejects, assertThrows } from "@std/assert";
 import { cleanStatusRecovery } from "./apply-cleanup.ts";
 import { expectedChecks } from "./apply-checks.ts";
@@ -138,7 +141,7 @@ class Github implements ApplyGithub {
   }
 }
 
-Deno.test("synthetic external IDs are canonical and malformed prefixed IDs conflict", () => {
+test("synthetic external IDs are canonical and malformed prefixed IDs conflict", () => {
   const externalId = releaseCheckExternalId({ ...input, context: "check" });
   assertEquals(externalId, `hjrc/1/12/3/check/${digest}/${sha}`);
   assertEquals(parseReleaseCheckExternalId(externalId)?.context, "check");
@@ -149,7 +152,7 @@ Deno.test("synthetic external IDs are canonical and malformed prefixed IDs confl
   assertEquals(parseReleaseCheckExternalId("foreign"), undefined);
 });
 
-Deno.test("check classification distinguishes current, old, and different data", () => {
+test("check classification distinguishes current, old, and different data", () => {
   const current = { ...input, context: "check" as const };
   const run = (externalId: string): SyntheticCheckRun => ({
     id: 1,
@@ -181,7 +184,7 @@ Deno.test("check classification distinguishes current, old, and different data",
   );
 });
 
-Deno.test("apply blocks, neutralizes older checks, enables exact rebase, and waits for merge", async () => {
+test("apply blocks, neutralizes older checks, enables exact rebase, and waits for merge", async () => {
   const github = new Github();
   const clock = new Clock();
   github.runs.push({
@@ -212,7 +215,7 @@ Deno.test("apply blocks, neutralizes older checks, enables exact rebase, and wai
   ]);
 });
 
-Deno.test("apply disables only an exact prior request and rejects another merge method", async () => {
+test("apply disables only an exact prior request and rejects another merge method", async () => {
   const github = new Github();
   const clock = new Clock();
   github.pr = {
@@ -229,7 +232,7 @@ Deno.test("apply disables only an exact prior request and rejects another merge 
   assertEquals(github.calls, []);
 });
 
-Deno.test("apply validates route fields before GitHub effects", async () => {
+test("apply validates route fields before GitHub effects", async () => {
   const github = new Github();
   await assertRejects(
     () => applyPublishTag(github, new Clock(), { ...input, runId: "01" }),
@@ -238,7 +241,7 @@ Deno.test("apply validates route fields before GitHub effects", async () => {
   assertEquals(github.calls, []);
 });
 
-Deno.test("apply rejects malformed older owned checks without changing them", async () => {
+test("apply rejects malformed older owned checks without changing them", async () => {
   const github = new Github();
   const older: SyntheticCheckRun = {
     id: 99,
@@ -262,7 +265,7 @@ Deno.test("apply rejects malformed older owned checks without changing them", as
   assertEquals(github.runs.find((run) => run.id === older.id), older);
 });
 
-Deno.test("apply retries read errors but treats malformed reads as conflicts", async () => {
+test("apply retries read errors but treats malformed reads as conflicts", async () => {
   class ReadErrors extends Github {
     failures: ("error" | "malformed")[] = [];
     override listCheckRuns() {
@@ -293,14 +296,14 @@ Deno.test("apply retries read errors but treats malformed reads as conflicts", a
   assertEquals(malformedClock.time, 0);
 });
 
-Deno.test("apply resumes at an already merged owned pull request", async () => {
+test("apply resumes at an already merged owned pull request", async () => {
   const github = new Github();
   github.pr = { ...github.pr, state: "MERGED" };
   assertEquals(await applyPublishTag(github, new Clock(), input), "merged");
   assertEquals(github.calls, []);
 });
 
-Deno.test("apply uses source-first cleanup with a branch lease", async () => {
+test("apply uses source-first cleanup with a branch lease", async () => {
   class SourceChangesAfterChecks extends Github {
     override completeCheckRun(
       id: number,
@@ -319,7 +322,7 @@ Deno.test("apply uses source-first cleanup with a branch lease", async () => {
   assertEquals(github.calls.slice(-3), ["disable", "delete-branch", "close"]);
 });
 
-Deno.test("source-first cleanup revalidates ownership before mutation", async () => {
+test("source-first cleanup revalidates ownership before mutation", async () => {
   class ChangedOwnership extends Github {
     override fetchMainSha() {
       this.pr = { ...this.pr, ownership: undefined };
@@ -339,7 +342,7 @@ Deno.test("source-first cleanup revalidates ownership before mutation", async ()
   );
 });
 
-Deno.test("apply removes a stale release before creating checks or auto-merge", async () => {
+test("apply removes a stale release before creating checks or auto-merge", async () => {
   const github = new Github();
   github.main = "e".repeat(40);
   github.pr = { ...github.pr, mergeStateStatus: "BEHIND" };
@@ -350,7 +353,7 @@ Deno.test("apply removes a stale release before creating checks or auto-merge", 
   assertEquals(github.calls, ["delete-branch", "close"]);
 });
 
-Deno.test("apply cancels owned checks when source changes while waiting for blocked status", async () => {
+test("apply cancels owned checks when source changes while waiting for blocked status", async () => {
   const github = new Github();
   const clock = new Clock();
   github.pr = { ...github.pr, mergeStateStatus: "UNKNOWN" };
@@ -370,7 +373,7 @@ Deno.test("apply cancels owned checks when source changes while waiting for bloc
   assertEquals(github.calls.some((call) => call.startsWith("enable:")), false);
 });
 
-Deno.test("early collision preserves a foreign auto-merge request", async () => {
+test("early collision preserves a foreign auto-merge request", async () => {
   const github = new Github();
   github.main = "e".repeat(40);
   github.pr = {
@@ -387,7 +390,7 @@ Deno.test("early collision preserves a foreign auto-merge request", async () => 
   assertEquals(github.calls, []);
 });
 
-Deno.test("apply timeout disables the exact request but does not merge", async () => {
+test("apply timeout disables the exact request but does not merge", async () => {
   const github = new Github();
   const clock = new Clock();
   await assertRejects(
@@ -397,7 +400,7 @@ Deno.test("apply timeout disables the exact request but does not merge", async (
   assertEquals(github.calls.at(-1), "disable");
 });
 
-Deno.test("apply rejects a pull request closed during the wait loop", async () => {
+test("apply rejects a pull request closed during the wait loop", async () => {
   const github = new Github();
   const clock = new Clock();
   clock.onSleep = () => {
@@ -410,7 +413,7 @@ Deno.test("apply rejects a pull request closed during the wait loop", async () =
   assertEquals(github.calls.at(-1), "disable");
 });
 
-Deno.test("apply rejects an exact auto-merge request disappearing while waiting", async () => {
+test("apply rejects an exact auto-merge request disappearing while waiting", async () => {
   const github = new Github();
   const clock = new Clock();
   clock.onSleep = () => {
@@ -425,7 +428,7 @@ Deno.test("apply rejects an exact auto-merge request disappearing while waiting"
   assertEquals(github.calls.includes("disable"), false);
 });
 
-Deno.test("error cleanup rereads ownership before disabling auto-merge", async () => {
+test("error cleanup rereads ownership before disabling auto-merge", async () => {
   const clock = new Clock();
   class OwnershipChangesDuringCleanup extends Github {
     readsAtRequestLimit = 0;
@@ -465,7 +468,7 @@ Deno.test("error cleanup rereads ownership before disabling auto-merge", async (
   assertEquals(github.calls.includes("complete:cancelled"), true);
 });
 
-Deno.test("apply reports failed synthetic-run cleanup", async () => {
+test("apply reports failed synthetic-run cleanup", async () => {
   class FailedCheckCleanup extends Github {
     override completeCheckRun(
       id: number,
@@ -486,7 +489,7 @@ Deno.test("apply reports failed synthetic-run cleanup", async () => {
   assertEquals(github.calls.at(-1), "complete:cancelled");
 });
 
-Deno.test("recovery retries a tag push read, deletes only an owned branch, then emits event", async () => {
+test("recovery retries a tag push read, deletes only an owned branch, then emits event", async () => {
   let tag: string | undefined;
   let branch: string | undefined = sha;
   const events: unknown[] = [];
@@ -515,7 +518,7 @@ Deno.test("recovery retries a tag push read, deletes only an owned branch, then 
   }]);
 });
 
-Deno.test("recovery emits an event when the release branch is already absent", async () => {
+test("recovery emits an event when the release branch is already absent", async () => {
   const events: unknown[] = [];
   let deletes = 0;
   await recoverPublishedTag({
@@ -538,7 +541,7 @@ Deno.test("recovery emits an event when the release branch is already absent", a
   assertEquals(events.length, 1);
 });
 
-Deno.test("recovery rejects a release branch lease mismatch without an event", async () => {
+test("recovery rejects a release branch lease mismatch without an event", async () => {
   let events = 0;
   await assertRejects(
     () =>
@@ -560,7 +563,7 @@ Deno.test("recovery rejects a release branch lease mismatch without an event", a
   assertEquals(events, 0);
 });
 
-Deno.test("recovery accepts a missing delete result after confirming branch absence", async () => {
+test("recovery accepts a missing delete result after confirming branch absence", async () => {
   let branch: string | undefined = sha;
   let deletes = 0;
   let events = 0;
@@ -586,7 +589,7 @@ Deno.test("recovery accepts a missing delete result after confirming branch abse
   });
 });
 
-Deno.test("recovery rejects ambiguous reserved pull-request history", async () => {
+test("recovery rejects ambiguous reserved pull-request history", async () => {
   await assertRejects(
     () =>
       recoverPublishedTag({
@@ -602,7 +605,7 @@ Deno.test("recovery rejects ambiguous reserved pull-request history", async () =
   );
 });
 
-Deno.test("orchestration rejects an invalid environment bundle before injected effects", async () => {
+test("orchestration rejects an invalid environment bundle before injected effects", async () => {
   let called = false;
   const environment = {
     get: (name: string) =>
@@ -629,7 +632,7 @@ Deno.test("orchestration rejects an invalid environment bundle before injected e
   assertEquals(called, false);
 });
 
-Deno.test("orchestration validates usual route metadata before process effects", async () => {
+test("orchestration validates usual route metadata before process effects", async () => {
   const bundle: ReleaseBundle = {
     schema: releaseBundleSchema,
     previousTag: null,
@@ -682,7 +685,7 @@ Deno.test("orchestration validates usual route metadata before process effects",
   assertEquals(called, false);
 });
 
-Deno.test("cleanup retries a temporary read and confirms an uncertain cancellation", async () => {
+test("cleanup retries a temporary read and confirms an uncertain cancellation", async () => {
   const github = new Github();
   const clock = new Clock();
   for (const check of expectedChecks(input)) await github.createCheckRun(check);
@@ -711,7 +714,7 @@ Deno.test("cleanup retries a temporary read and confirms an uncertain cancellati
   ]);
 });
 
-Deno.test("cleanup stops on missing or malformed PRs and bounds unavailable reads", async () => {
+test("cleanup stops on missing or malformed PRs and bounds unavailable reads", async () => {
   for (
     const error of [
       new ReleasePullRequestNotFoundError(),
@@ -733,7 +736,7 @@ Deno.test("cleanup stops on missing or malformed PRs and bounds unavailable read
   }
 });
 
-Deno.test("cleanup preserves ambiguous synthetic checks", async () => {
+test("cleanup preserves ambiguous synthetic checks", async () => {
   const github = new Github();
   const check = expectedChecks(input)[0];
   await github.createCheckRun(check);
@@ -748,7 +751,7 @@ Deno.test("cleanup preserves ambiguous synthetic checks", async () => {
   assertEquals(github.runs.every((run) => run.status === "in_progress"), true);
 });
 
-Deno.test("cleanup confirms auto-merge was disabled after a lost response", async () => {
+test("cleanup confirms auto-merge was disabled after a lost response", async () => {
   const github = new Github();
   const clock = new Clock();
   for (const check of expectedChecks(input)) await github.createCheckRun(check);

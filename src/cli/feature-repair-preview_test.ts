@@ -1,3 +1,11 @@
+import { test as nativeTest } from "node:test";
+import { trackTests } from "../testing/inventory-test-fixtures.ts";
+const test = trackTests(import.meta.url, nativeTest);
+import {
+  makeTempDir,
+  remove,
+  writeTextFile,
+} from "../testing/files-test-fixtures.ts";
 import { assert, assertEquals, assertStringIncludes } from "@std/assert";
 import type { ChangePlan } from "../api/change-plan.ts";
 import type { FeatureDetection } from "../api/feature-detection.ts";
@@ -26,18 +34,18 @@ const drifted: FeatureDetection = {
 };
 const disabled: FeatureDetection = { state: "disabled", evidence: [] };
 
-Deno.test("git-ignore status accepts a custom suffix and names only missing exclusion lines", async () => {
+test("git-ignore status accepts a custom suffix and names only missing exclusion lines", async () => {
   await repository(async (context) => {
     const root = context.repositoryRoot;
     const registry = { features: [gitIgnoreFeature], capabilities: [] };
-    await Deno.writeTextFile(
+    await writeTextFile(
       new URL("deno.json", root),
       JSON.stringify({ tasks: { test: "deno test --coverage=coverage" } }),
     );
     const suffix = "# Custom suffix\nprivate.log\n";
     const complete =
       gitIgnoreContent("# Custom prefix\n", [".*.swp", "/coverage/"]) + suffix;
-    await Deno.writeTextFile(new URL(".gitignore", root), complete);
+    await writeTextFile(new URL(".gitignore", root), complete);
     const run = (...flags: string[]) =>
       runFeatureOperation(
         root,
@@ -54,7 +62,7 @@ Deno.test("git-ignore status accepts a custom suffix and names only missing excl
       "# hj:git-ignore /coverage/\n/coverage/\n",
       "",
     );
-    await Deno.writeTextFile(new URL(".gitignore", root), missing);
+    await writeTextFile(new URL(".gitignore", root), missing);
     const preview = await run();
     assertStringIncludes(preview.replace(/ +/g, " "), "git-ignore drifted");
     assertStringIncludes(
@@ -71,7 +79,7 @@ Deno.test("git-ignore status accepts a custom suffix and names only missing excl
       missing + "# hj:git-ignore /coverage/\n/coverage/\n",
     );
     assert(!(await run()).includes("Repair:"));
-    await Deno.remove(new URL(".gitignore", root));
+    await remove(new URL(".gitignore", root));
     const disabledRepair = await run("--repair");
     assertStringIncludes(
       disabledRepair.replace(/ +/g, " "),
@@ -85,10 +93,10 @@ Deno.test("git-ignore status accepts a custom suffix and names only missing excl
   });
 });
 
-Deno.test("repair completion describes managed locks and final tasks without touching either", async () => {
+test("repair completion describes managed locks and final tasks without touching either", async () => {
   await repository(async (context) => {
     const config = { lock: true, tasks: { default: "deno task check" } };
-    await Deno.writeTextFile(
+    await writeTextFile(
       new URL("deno.json", context.repositoryRoot),
       JSON.stringify(config),
     );
@@ -117,7 +125,7 @@ Deno.test("repair completion describes managed locks and final tasks without tou
     assertStringIncludes(details, "deno task --config deno.json default");
     assertEquals(await context.files.exists("deno.lock"), false);
     assertEquals(await context.files.exists(".hj"), false);
-    await Deno.writeTextFile(
+    await writeTextFile(
       new URL("deno.lock", context.repositoryRoot),
       "custom lock",
     );
@@ -148,7 +156,7 @@ Deno.test("repair completion describes managed locks and final tasks without tou
   });
 });
 
-Deno.test("status previews the real formatting repair and shared files without changing the repository", async () => {
+test("status previews the real formatting repair and shared files without changing the repository", async () => {
   await repository(async (context) => {
     const root = context.repositoryRoot;
     const registry = {
@@ -167,13 +175,13 @@ Deno.test("status previews the real formatting repair and shared files without c
         custom,
       },
     };
-    await Deno.writeTextFile(
+    await writeTextFile(
       new URL("deno.json", root),
       JSON.stringify(config),
     );
     const ignore = gitIgnoreContent("# user exclusions\nprivate.log\n", []);
-    await Deno.writeTextFile(new URL(".gitignore", root), ignore);
-    await Deno.writeTextFile(new URL("README.md", root), "# Custom project\n");
+    await writeTextFile(new URL(".gitignore", root), ignore);
+    await writeTextFile(new URL("README.md", root), "# Custom project\n");
     let taskCalls = 0;
     const run = (...flags: string[]) =>
       runFeatureOperation(
@@ -233,7 +241,7 @@ Deno.test("status previews the real formatting repair and shared files without c
   });
 });
 
-Deno.test("repair preview resolves missing dependencies and reports ambiguous dependencies without plans", async () => {
+test("repair preview resolves missing dependencies and reports ambiguous dependencies without plans", async () => {
   await repository(async (context) => {
     let planned = 0;
     const dependency = feature("dependency", []);
@@ -286,7 +294,7 @@ Deno.test("repair preview resolves missing dependencies and reports ambiguous de
   });
 });
 
-Deno.test("repair previews preserve manual blockers and do not leak unexpected planner errors", async () => {
+test("repair previews preserve manual blockers and do not leak unexpected planner errors", async () => {
   await repository(async (context) => {
     const template = feature("example", []);
     const cases: readonly [Feature, string][] = [
@@ -375,7 +383,7 @@ function feature(id: string, changes: ChangePlan["changes"]): Feature {
 async function repository(
   action: (context: OperationContext) => Promise<void>,
 ): Promise<void> {
-  const path = await Deno.makeTempDir({
+  const path = await makeTempDir({
     dir: "/tmp/opencode",
     prefix: "hj-repair-preview-",
   });
@@ -392,6 +400,6 @@ async function repository(
       options: {},
     });
   } finally {
-    await Deno.remove(path, { recursive: true });
+    await remove(path, { recursive: true });
   }
 }

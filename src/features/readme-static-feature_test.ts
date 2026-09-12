@@ -1,3 +1,6 @@
+import { test as nativeTest } from "node:test";
+import { trackTests } from "../testing/inventory-test-fixtures.ts";
+const test = trackTests(import.meta.url, nativeTest);
 import { assertEquals } from "@std/assert";
 import type { ArtifactObservation } from "../api/artifact-inspection.ts";
 import type { OperationContext } from "../api/repository-context.ts";
@@ -40,7 +43,7 @@ const exact: ArtifactObservation = {
   mode: 0o644,
 };
 
-Deno.test("readme-static detects writable content and ambiguous artifacts", async () => {
+test("readme-static detects writable content and ambiguous artifacts", async () => {
   assertEquals(await readmeStaticFeature.detect(context({ kind: "absent" })), {
     state: "disabled",
     evidence: [{
@@ -79,7 +82,7 @@ Deno.test("readme-static detects writable content and ambiguous artifacts", asyn
   );
 });
 
-Deno.test("readme-static plans only absent creation and exact digest-guarded removal", async () => {
+test("readme-static plans only absent creation and exact digest-guarded removal", async () => {
   const absent = context({ kind: "absent" });
   const enable = await readmeStaticFeature.checkEnable(absent);
   assertEquals(enable, {
@@ -142,7 +145,7 @@ Deno.test("readme-static plans only absent creation and exact digest-guarded rem
   );
 });
 
-Deno.test("readme-static preserves writable edits and blocks ambiguity without Git", async () => {
+test("readme-static preserves writable edits and blocks ambiguity without Git", async () => {
   for (
     const observation of [
       { ...exact, content: "# edited\n" },
@@ -164,7 +167,7 @@ Deno.test("readme-static preserves writable edits and blocks ambiguity without G
   }
 });
 
-Deno.test("readme-static reports already-satisfied operations as no-ops", async () => {
+test("readme-static reports already-satisfied operations as no-ops", async () => {
   assertEquals(await readmeStaticFeature.checkEnable(context(exact)), {
     result: "no-op",
     reason: "README.md is already writable.",

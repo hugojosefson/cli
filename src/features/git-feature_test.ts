@@ -1,3 +1,6 @@
+import { test as nativeTest } from "node:test";
+import { trackTests } from "../testing/inventory-test-fixtures.ts";
+const test = trackTests(import.meta.url, nativeTest);
 import { assertEquals, assertRejects } from "@std/assert";
 import type {
   DetectionContext,
@@ -38,7 +41,7 @@ function operationContext(isRepository: boolean): OperationContext {
   };
 }
 
-Deno.test("Git detection reports repository state with deterministic evidence", async () => {
+test("Git detection reports repository state with deterministic evidence", async () => {
   assertEquals(await gitFeature.detect(detectionContext(true)), {
     state: "enabled",
     evidence: [{
@@ -59,7 +62,7 @@ Deno.test("Git detection reports repository state with deterministic evidence", 
   });
 });
 
-Deno.test("Git enable is a no-op when enabled and otherwise plans git-init", async () => {
+test("Git enable is a no-op when enabled and otherwise plans git-init", async () => {
   assertEquals(await gitFeature.checkEnable(operationContext(true)), {
     result: "no-op",
     reason: "The target is already a Git repository.",
@@ -89,7 +92,7 @@ Deno.test("Git enable is a no-op when enabled and otherwise plans git-init", asy
   });
 });
 
-Deno.test("Git disable blocks removal and is a no-op outside a repository", async () => {
+test("Git disable blocks removal and is a no-op outside a repository", async () => {
   const context = operationContext(true);
   assertEquals(await gitFeature.checkDisable(context), {
     result: "blocked",

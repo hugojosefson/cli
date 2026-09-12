@@ -1,3 +1,6 @@
+import { test as nativeTest } from "node:test";
+import { trackTests } from "../testing/inventory-test-fixtures.ts";
+const test = trackTests(import.meta.url, nativeTest);
 import { assert, assertEquals } from "@std/assert";
 import { initialDenoConfig } from "./deno-initial-config.ts";
 import { jsrPackageFeature } from "./jsr-package-feature.ts";
@@ -6,18 +9,21 @@ import {
   ownedTasks,
   withRepository,
   writeConfig,
-} from "./jsr-package-feature-support.ts";
+} from "./jsr-package-test-fixtures.ts";
 import { publishCheckDefinition } from "./jsr-package-config.ts";
 import { builtInFeatureRegistry } from "./built-in-feature-registry.ts";
 import { resolveFeatureChanges } from "./resolve-feature-changes.ts";
 
-Deno.test("jsr-package composes identity and publish checks into an initial config", async () => {
+test("jsr-package composes identity and publish checks into an initial config", async () => {
   await withRepository(async (root) => {
     const value = await initialDenoConfig(context(root), {
       exports: { ".": "./mod.ts" },
       tasks: { check: { dependencies: ["format"] } },
     }, "deno-fmt");
-    assertEquals(value.name, `@owner/${root.pathname.split("/").at(-2)}`);
+    assertEquals(
+      value.name,
+      `@owner/${root.pathname.split("/").at(-2)!.toLowerCase()}`,
+    );
     assertEquals(value.version, "0.0.0");
     assertEquals(
       (value.tasks as Record<string, unknown>)["publish-check"],
@@ -30,7 +36,7 @@ Deno.test("jsr-package composes identity and publish checks into an initial conf
   });
 });
 
-Deno.test("jsr-package uses an explicitly enabled built-in deno-export provider", () => {
+test("jsr-package uses an explicitly enabled built-in deno-export provider", () => {
   const detections = Object.fromEntries(
     builtInFeatureRegistry.features.map((
       feature,
@@ -50,7 +56,7 @@ Deno.test("jsr-package uses an explicitly enabled built-in deno-export provider"
   assert(result.changes.some((change) => change.featureId === "jsr-package"));
 });
 
-Deno.test("jsr-package reports a missing deno-export provider", () => {
+test("jsr-package reports a missing deno-export provider", () => {
   const detections = Object.fromEntries(
     builtInFeatureRegistry.features.map((
       feature,
@@ -78,7 +84,7 @@ for (
     "1.2.3-",
   ]
 ) {
-  Deno.test(`jsr-package SemVer ${version}`, async () => {
+  test(`jsr-package SemVer ${version}`, async () => {
     await withRepository(async (root) => {
       await writeConfig(root, {
         name: "@owner/repository",

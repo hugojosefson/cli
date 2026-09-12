@@ -1,3 +1,13 @@
+import { test as nativeTest } from "node:test";
+import { trackTests } from "../testing/inventory-test-fixtures.ts";
+const test = trackTests(import.meta.url, nativeTest);
+import {
+  chmod,
+  makeTempDir,
+  remove,
+  writeTextFile,
+} from "../testing/files-test-fixtures.ts";
+import { runCommand } from "../runtime/command.ts";
 import { assertEquals, assertStringIncludes } from "@std/assert";
 import { parse } from "yaml";
 import {
@@ -6,7 +16,7 @@ import {
   publishTagArtifact,
 } from "./github-release-publish-artifacts.ts";
 
-Deno.test("JSR dispatch selects the protected tag without interpreting input as shell code", async () => {
+test("JSR dispatch selects the protected tag without interpreting input as shell code", async () => {
   const workflow = parse(publishJsrArtifact.content) as {
     permissions: Record<string, string>;
     jobs: Record<string, {
@@ -26,25 +36,25 @@ Deno.test("JSR dispatch selects the protected tag without interpreting input as 
     workflow.jobs["publish-jsr"].if,
     "github.event_name == 'workflow_dispatch' || github.sha == github.event.client_payload.releaseSha",
   );
-  const root = await Deno.makeTempDir({
+  const root = await makeTempDir({
     dir: "/tmp/opencode",
     prefix: "hj-dispatch-",
   });
   try {
-    await Deno.writeTextFile(
+    await writeTextFile(
       `${root}/gh`,
       "#!/bin/sh\nprintf '%s\\0' \"$@\"\n",
     );
-    await Deno.chmod(`${root}/gh`, 0o755);
+    await chmod(`${root}/gh`, 0o755);
     const tag = "0.1.0; $(exit 42) `exit 43`";
-    const result = await new Deno.Command("sh", {
+    const result = await runCommand("sh", {
       args: ["-eu", "-c", dispatch.steps[0].run],
       env: {
         PATH: `${root}:/usr/bin:/bin`,
         GH_REPO: "owner/repo",
         HJ_RELEASE_TAG: tag,
       },
-    }).output();
+    });
     assertEquals(result.success, true);
     assertEquals(new TextDecoder().decode(result.stdout).split("\0"), [
       "workflow",
@@ -59,19 +69,19 @@ Deno.test("JSR dispatch selects the protected tag without interpreting input as 
       "",
     ]);
   } finally {
-    await Deno.remove(root, { recursive: true });
+    await remove(root, { recursive: true });
   }
 });
 
-Deno.test("generated release YAML runs one complete command with quoted output paths", async () => {
-  const root = await Deno.makeTempDir({
+test("generated release YAML runs one complete command with quoted output paths", async () => {
+  const root = await makeTempDir({
     dir: "/tmp/opencode",
     prefix: "hj-workflow-shell-",
   });
   try {
     const executable = `${root}/deno`;
-    await Deno.writeTextFile(executable, "#!/bin/sh\nprintf '%s\\0' \"$@\"\n");
-    await Deno.chmod(executable, 0o755);
+    await writeTextFile(executable, "#!/bin/sh\nprintf '%s\\0' \"$@\"\n");
+    await chmod(executable, 0o755);
     const outputPath = `${root}/output with spaces`;
     const summaryPath = `${root}/summary with spaces`;
     const commands: string[] = [];
@@ -88,7 +98,7 @@ Deno.test("generated release YAML runs one complete command with quoted output p
       for (const job of Object.values(workflow.jobs)) {
         for (const step of job.steps) {
           if (!step.run?.startsWith("deno run")) continue;
-          const result = await new Deno.Command("sh", {
+          const result = await runCommand("sh", {
             args: ["-eu", "-c", step.run],
             cwd: root,
             env: {
@@ -99,7 +109,7 @@ Deno.test("generated release YAML runs one complete command with quoted output p
             stdin: "null",
             stdout: "piped",
             stderr: "piped",
-          }).output();
+          });
           assertEquals(
             result.success,
             true,
@@ -132,6 +142,6 @@ Deno.test("generated release YAML runs one complete command with quoted output p
       "publish-github",
     ]);
   } finally {
-    await Deno.remove(root, { recursive: true });
+    await remove(root, { recursive: true });
   }
 });

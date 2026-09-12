@@ -1,3 +1,6 @@
+import { test as nativeTest } from "node:test";
+import { trackTests } from "../testing/inventory-test-fixtures.ts";
+const test = trackTests(import.meta.url, nativeTest);
 import { assertEquals, assertRejects, assertThrows } from "@std/assert";
 import { before, target, template } from "./auto-add-test-fixtures.ts";
 import {
@@ -21,7 +24,7 @@ export const pageData: ProjectPageData = {
   create: { url: "/memexes/123/workflows" },
   update: { url: "/memexes/123/workflows" },
 };
-Deno.test("GitHub browser metadata requires the intended project and write access", () => {
+test("GitHub browser metadata requires the intended project and write access", () => {
   assertEquals(parseProjectPage(target, pageData), before);
   assertEquals(
     parseProjectPage(target, {
@@ -80,7 +83,7 @@ Deno.test("GitHub browser metadata requires the intended project and write acces
     undefined,
   );
 });
-Deno.test("GitHub adapter distinguishes endpoint rejection from uncertain writes", async () => {
+test("GitHub adapter distinguishes endpoint rejection from uncertain writes", async () => {
   const destinations: string[] = [];
   let result: unknown = pageData;
   let lost = false;
@@ -117,7 +120,7 @@ Deno.test("GitHub adapter distinguishes endpoint rejection from uncertain writes
   lost = true;
   await assertRejects(() => adapter.request(plan), UncertainProjectWrite);
 });
-Deno.test("internal endpoint sends only same-origin authenticated JSON", async () => {
+test("internal endpoint sends only same-origin authenticated JSON", async () => {
   const originalLocation = Object.getOwnPropertyDescriptor(
     globalThis,
     "location",
@@ -170,7 +173,7 @@ Deno.test("internal endpoint sends only same-origin authenticated JSON", async (
   }
 });
 
-Deno.test("browser fallback uses visible controls when GitHub omits test attributes", async () => {
+test("browser fallback uses visible controls when GitHub omits test attributes", async () => {
   const { configureWorkflow } = await import("./github-project-browser.ts");
   const { after, enabled } = await import("./auto-add-test-fixtures.ts");
   const plan = planAutoAdd(target, {

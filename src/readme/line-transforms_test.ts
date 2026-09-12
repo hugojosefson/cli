@@ -1,8 +1,16 @@
+import { test as nativeTest } from "node:test";
+import { trackTests } from "../testing/inventory-test-fixtures.ts";
+const test = trackTests(import.meta.url, nativeTest);
+import {
+  makeTempDir,
+  remove,
+  writeTextFile,
+} from "../testing/files-test-fixtures.ts";
 import { assertEquals } from "@std/assert";
 import { rewriteMarkdownLinks } from "./markdown-link.ts";
 import { packageImports, rewritePackageImport } from "./package-import.ts";
 
-Deno.test("rewrites only relative Markdown link destinations", () => {
+test("rewrites only relative Markdown link destinations", () => {
   const root = "/repository";
   const file = "/repository/readme/part.md";
   assertEquals(
@@ -19,7 +27,7 @@ Deno.test("rewrites only relative Markdown link destinations", () => {
   );
 });
 
-Deno.test("rewrites TypeScript declarations without touching comments or strings", () => {
+test("rewrites TypeScript declarations without touching comments or strings", () => {
   const imports = new Map([["/repository/mod.ts", "@scope/pkg"]]);
   assertEquals(
     rewritePackageImport(
@@ -63,25 +71,25 @@ Deno.test("rewrites TypeScript declarations without touching comments or strings
   );
 });
 
-Deno.test("does not resolve ambiguous or malformed Deno configs", async () => {
-  const root = await Deno.makeTempDir({
+test("does not resolve ambiguous or malformed Deno configs", async () => {
+  const root = await makeTempDir({
     dir: "/tmp/opencode",
     prefix: "hj-readme-",
   });
   try {
-    await Deno.writeTextFile(
+    await writeTextFile(
       `${root}/deno.json`,
       '{"name":"@scope/pkg","exports":"./mod.ts"}',
     );
-    await Deno.writeTextFile(
+    await writeTextFile(
       `${root}/deno.jsonc`,
       '{"name":"@scope/pkg","exports":"./mod.ts"}',
     );
     assertEquals((await packageImports(root)).size, 0);
-    await Deno.remove(`${root}/deno.jsonc`);
-    await Deno.writeTextFile(`${root}/deno.json`, "{");
+    await remove(`${root}/deno.jsonc`);
+    await writeTextFile(`${root}/deno.json`, "{");
     assertEquals((await packageImports(root)).size, 0);
   } finally {
-    await Deno.remove(root, { recursive: true });
+    await remove(root, { recursive: true });
   }
 });

@@ -1,3 +1,6 @@
+import { test as nativeTest } from "node:test";
+import { trackTests } from "../testing/inventory-test-fixtures.ts";
+const test = trackTests(import.meta.url, nativeTest);
 import { assertEquals, assertRejects, assertStringIncludes } from "@std/assert";
 import {
   defaultProjectName,
@@ -23,7 +26,7 @@ async function apply(fixture: ProjectFixture, enabled = true) {
   });
 }
 
-Deno.test("default project creates, links, organizes every issue, and reuses setup", async () => {
+test("default project creates, links, organizes every issue, and reuses setup", async () => {
   const fixture = new ProjectFixture();
   assertEquals((await client(fixture).resource()).definition.projectId, null);
   await apply(fixture);
@@ -54,7 +57,7 @@ Deno.test("default project creates, links, organizes every issue, and reuses set
   assertEquals((await client(fixture).resource()).definition.linked, true);
 });
 
-Deno.test("default project preserves existing fields, items, and custom project titles", async () => {
+test("default project preserves existing fields, items, and custom project titles", async () => {
   const fixture = new ProjectFixture();
   fixture.projects = [fixture.project("Development")];
   fixture.fields.push({
@@ -73,7 +76,7 @@ Deno.test("default project preserves existing fields, items, and custom project 
   assertEquals(fixture.items.length, 4);
 });
 
-Deno.test("default project rejects ambiguity, closed projects, and conflicting fields before writes", async () => {
+test("default project rejects ambiguity, closed projects, and conflicting fields before writes", async () => {
   for (
     const setup of [
       (f: ProjectFixture) => {
@@ -102,7 +105,7 @@ Deno.test("default project rejects ambiguity, closed projects, and conflicting f
   }
 });
 
-Deno.test("default project rejects stale state and unsupported changes", async () => {
+test("default project rejects stale state and unsupported changes", async () => {
   const fixture = new ProjectFixture();
   const github = client(fixture);
   const resource = await github.resource();
@@ -132,7 +135,7 @@ Deno.test("default project rejects stale state and unsupported changes", async (
   assertEquals(fixture.mutations, []);
 });
 
-Deno.test("default project retries partial setup without duplicates", async () => {
+test("default project retries partial setup without duplicates", async () => {
   const fixture = new ProjectFixture();
   fixture.fail = "createProjectV2Field(input";
   await assertRejects(() => apply(fixture), Error, "project access");
@@ -146,7 +149,7 @@ Deno.test("default project retries partial setup without duplicates", async () =
   assertEquals(fixture.items.length, 3);
 });
 
-Deno.test("default project paginates all connections and rejects repeated cursors", async () => {
+test("default project paginates all connections and rejects repeated cursors", async () => {
   const fixture = new ProjectFixture();
   fixture.override = (query, variables) => {
     if (!query.includes("projectsV2(first")) return;
@@ -182,7 +185,7 @@ Deno.test("default project paginates all connections and rejects repeated cursor
   await assertRejects(() => client(fixture).resource(), Error, "Repeated");
 });
 
-Deno.test("default project rejects partial, malformed, and unsuccessful API responses", async () => {
+test("default project rejects partial, malformed, and unsuccessful API responses", async () => {
   for (
     const response of [
       { data: { repository: null } },
@@ -223,7 +226,7 @@ Deno.test("default project rejects partial, malformed, and unsuccessful API resp
   await assertRejects(() => unavailable.resource(), Error, "Could not start");
 });
 
-Deno.test("local GitHub adapter exposes project diagnostics and rejects mixed resource batches", async () => {
+test("local GitHub adapter exposes project diagnostics and rejects mixed resource batches", async () => {
   const fixture = new ProjectFixture();
   const github = new LocalGithubClient(
     new URL("file:///tmp/opencode/"),
@@ -259,7 +262,7 @@ Deno.test("local GitHub adapter exposes project diagnostics and rejects mixed re
   assertStringIncludes(github.diagnostics.join(" "), "gh auth refresh");
 });
 
-Deno.test("default project waits for delayed item visibility without repeating writes", async () => {
+test("default project waits for delayed item visibility without repeating writes", async () => {
   const fixture = new ProjectFixture();
   let delayedReads = 0;
   fixture.override = (query) => {
@@ -281,7 +284,7 @@ Deno.test("default project waits for delayed item visibility without repeating w
   assertEquals(delayedReads, 3);
 });
 
-Deno.test("default project supplies absent status fields and preserves custom status options", async () => {
+test("default project supplies absent status fields and preserves custom status options", async () => {
   const fixture = new ProjectFixture();
   fixture.projects = [fixture.project()];
   fixture.fields = [];
@@ -299,7 +302,7 @@ Deno.test("default project supplies absent status fields and preserves custom st
   assertEquals(fixture.items.length, 3);
 });
 
-Deno.test("default project synchronizes issues beyond the first hundred and preserves paginated items", async () => {
+test("default project synchronizes issues beyond the first hundred and preserves paginated items", async () => {
   const fixture = new ProjectFixture();
   fixture.projects = [fixture.project()];
   fixture.fields.unshift({
@@ -341,7 +344,7 @@ Deno.test("default project synchronizes issues beyond the first hundred and pres
   );
 });
 
-Deno.test("default project starts on Board and preserves status IDs when adding Backlog", async () => {
+test("default project starts on Board and preserves status IDs when adding Backlog", async () => {
   const fixture = new ProjectFixture();
   await apply(fixture);
   assertEquals(fixture.views.map((view) => [view.name, view.layout]), [[
@@ -364,7 +367,7 @@ Deno.test("default project starts on Board and preserves status IDs when adding 
   );
 });
 
-Deno.test("default project keeps custom views and moves Backlog without replacing options", async () => {
+test("default project keeps custom views and moves Backlog without replacing options", async () => {
   const fixture = new ProjectFixture();
   fixture.projects = [fixture.project()];
   fixture.fields.unshift({ id: "title", name: "Title" });
@@ -400,7 +403,7 @@ Deno.test("default project keeps custom views and moves Backlog without replacin
   assertEquals(fixture.mutations.length, before);
 });
 
-Deno.test("default project repairs areas by adding values and labels without removing either", async () => {
+test("default project repairs areas by adding values and labels without removing either", async () => {
   const fixture = new ProjectFixture();
   fixture.issueLabels.set("open-issue", [
     "area:github",
@@ -435,7 +438,7 @@ Deno.test("default project repairs areas by adding values and labels without rem
   assertEquals(fixture.mutations.length, before);
 });
 
-Deno.test("default project reuses repository labels and creates new areas once for multiple issues", async () => {
+test("default project reuses repository labels and creates new areas once for multiple issues", async () => {
   const fixture = new ProjectFixture();
   await apply(fixture);
   fixture.repositoryLabels.set("area:Docs", "existing-docs");
@@ -465,7 +468,7 @@ Deno.test("default project reuses repository labels and creates new areas once f
   assertEquals(fixture.mutations.length, before);
 });
 
-Deno.test("default project retries a failed label assignment without losing areas or duplicating labels", async () => {
+test("default project retries a failed label assignment without losing areas or duplicating labels", async () => {
   const fixture = new ProjectFixture();
   await apply(fixture);
   fixture.areaValues.set("item-open-issue", "docs");
@@ -490,7 +493,7 @@ Deno.test("default project retries a failed label assignment without losing area
   );
 });
 
-Deno.test("default project rereads uncertain label creation and rejects unavailable labels", async () => {
+test("default project rereads uncertain label creation and rejects unavailable labels", async () => {
   for (const created of [true, false]) {
     const fixture = new ProjectFixture();
     await apply(fixture);
@@ -516,7 +519,7 @@ Deno.test("default project rereads uncertain label creation and rejects unavaila
   }
 });
 
-Deno.test("default project refuses incomplete label lookups before creating labels", async () => {
+test("default project refuses incomplete label lookups before creating labels", async () => {
   const fixture = new ProjectFixture();
   await apply(fixture);
   fixture.areaValues.set("item-open-issue", "docs");
@@ -534,7 +537,7 @@ Deno.test("default project refuses incomplete label lookups before creating labe
   assertEquals(fixture.mutations.length, before);
 });
 
-Deno.test("default project rejects conflicting Area and Board definitions", async () => {
+test("default project rejects conflicting Area and Board definitions", async () => {
   for (
     const configure of [
       (f: ProjectFixture) =>

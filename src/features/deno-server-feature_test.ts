@@ -1,3 +1,16 @@
+import { test as nativeTest } from "node:test";
+import { trackTests } from "../testing/inventory-test-fixtures.ts";
+const test = trackTests(import.meta.url, nativeTest);
+import { runCommand } from "../runtime/command.ts";
+import {
+  chmod,
+  fixtureStat,
+  makeTempDir,
+  mkdir,
+  readTextFile,
+  remove,
+  writeTextFile,
+} from "../testing/files-test-fixtures.ts";
 import { assert, assertEquals, assertRejects } from "@std/assert";
 import type { OperationContext } from "../api/repository-context.ts";
 import { applyLocalChangePlan } from "../operations/local-change-plan.ts";
@@ -11,7 +24,7 @@ import { denoCliFeature } from "./deno-cli-feature.ts";
 import { denoServerArtifacts } from "./deno-server-artifacts.ts";
 import { denoServerFeature } from "./deno-server-feature.ts";
 
-Deno.test("deno-server creates dependency-free seeds and smoke test", async () => {
+test("deno-server creates dependency-free seeds and smoke test", async () => {
   assertEquals(denoServerArtifacts.map((item) => item.path), [
     "src/server/server.ts",
     "test/server_test.ts",
@@ -22,10 +35,10 @@ Deno.test("deno-server creates dependency-free seeds and smoke test", async () =
       (await denoServerFeature.detect(context(root))).state,
       "enabled",
     );
-    const result = await new Deno.Command("deno", {
+    const result = await runCommand("deno", {
       args: ["test", "test/server_test.ts"],
       cwd: root.pathname,
-    }).output();
+    });
     assert(result.success, new TextDecoder().decode(result.stderr));
     const disable = await denoServerFeature.checkDisable(context(root));
     if (disable.result !== "allowed") {
@@ -40,10 +53,10 @@ Deno.test("deno-server creates dependency-free seeds and smoke test", async () =
       "disabled",
     );
     for (const artifact of denoServerArtifacts) {
-      assert((await Deno.stat(new URL(artifact.path, root))).isFile);
+      assert((await fixtureStat(new URL(artifact.path, root))).isFile);
     }
     const config = JSON.parse(
-      await Deno.readTextFile(new URL("deno.jsonc", root)),
+      await readTextFile(new URL("deno.jsonc", root)),
     );
     assertEquals(config.tasks.serve, undefined);
     assertEquals(config.tasks.dev, undefined);
@@ -51,7 +64,7 @@ Deno.test("deno-server creates dependency-free seeds and smoke test", async () =
   });
 });
 
-Deno.test("deno-server composes the exact CLI registry", async () => {
+test("deno-server composes the exact CLI registry", async () => {
   await withRepository(async (root) => {
     await enable(root, denoCliFeature);
     const changes = [{
@@ -61,13 +74,13 @@ Deno.test("deno-server composes the exact CLI registry", async () => {
     }];
     await enable(root, denoServerFeature, changes);
     assert(
-      (await Deno.readTextFile(new URL("src/cli/commands.ts", root))).includes(
+      (await readTextFile(new URL("src/cli/commands.ts", root))).includes(
         "serveCommand",
       ),
     );
     assertEquals((await denoCliFeature.detect(context(root))).state, "enabled");
     assert(
-      (await Deno.readTextFile(new URL("src/cli/cli.ts", root)))
+      (await readTextFile(new URL("src/cli/cli.ts", root)))
         .includes('DENO_RUN_ARGS="--allow-net=0.0.0.0:8000"'),
     );
     const disable = await denoServerFeature.checkDisable(
@@ -82,17 +95,17 @@ Deno.test("deno-server composes the exact CLI registry", async () => {
     );
     assertEquals((await denoCliFeature.detect(context(root))).state, "enabled");
     assert(
-      (await Deno.readTextFile(new URL("src/cli/cli.ts", root)))
+      (await readTextFile(new URL("src/cli/cli.ts", root)))
         .includes('DENO_RUN_ARGS=""'),
     );
   });
 });
 
-Deno.test("deno-server repairs selected content and mode drift", async () => {
+test("deno-server repairs selected content and mode drift", async () => {
   await withRepository(async (root) => {
     await enable(root, denoServerFeature);
-    await Deno.writeTextFile(new URL("src/server/server.ts", root), "edited\n");
-    await Deno.chmod(new URL("test/server_test.ts", root), 0o755);
+    await writeTextFile(new URL("src/server/server.ts", root), "edited\n");
+    await chmod(new URL("test/server_test.ts", root), 0o755);
     assertEquals(
       (await denoServerFeature.detect(context(root))).state,
       "drifted",
@@ -113,20 +126,20 @@ Deno.test("deno-server repairs selected content and mode drift", async () => {
     );
     for (const artifact of denoServerArtifacts) {
       assertEquals(
-        await Deno.readTextFile(new URL(artifact.path, root)),
+        await readTextFile(new URL(artifact.path, root)),
         artifact.content,
       );
       assertEquals(
-        (await Deno.stat(new URL(artifact.path, root))).mode! & 0o777,
+        (await fixtureStat(new URL(artifact.path, root))).mode! & 0o777,
         0o644,
       );
     }
   });
 });
 
-Deno.test("deno-server blocks export, path, and CLI registry conflicts", async () => {
+test("deno-server blocks export, path, and CLI registry conflicts", async () => {
   await withRepository(async (root) => {
-    await Deno.writeTextFile(
+    await writeTextFile(
       new URL("deno.jsonc", root),
       '{ "exports": { "./server": "./other.ts" } }\n',
     );
@@ -140,16 +153,16 @@ Deno.test("deno-server blocks export, path, and CLI registry conflicts", async (
     );
   });
   await withRepository(async (root) => {
-    await Deno.writeTextFile(new URL("deno.json", root), "{}\n");
-    await Deno.writeTextFile(new URL("deno.jsonc", root), "{}\n");
+    await writeTextFile(new URL("deno.json", root), "{}\n");
+    await writeTextFile(new URL("deno.jsonc", root), "{}\n");
     assertEquals(
       (await denoServerFeature.checkEnable(context(root))).result,
       "blocked",
     );
   });
   await withRepository(async (root) => {
-    await Deno.mkdir(new URL("src", root));
-    await Deno.writeTextFile(new URL("src/server", root), "conflict\n");
+    await mkdir(new URL("src", root));
+    await writeTextFile(new URL("src/server", root), "conflict\n");
     assertEquals(
       (await denoServerFeature.checkEnable(context(root))).result,
       "blocked",
@@ -162,7 +175,7 @@ Deno.test("deno-server blocks export, path, and CLI registry conflicts", async (
       enabled: true,
       reason: { kind: "explicit-request" },
     }]);
-    await Deno.writeTextFile(new URL("src/cli/commands.ts", root), "edited\n");
+    await writeTextFile(new URL("src/cli/commands.ts", root), "edited\n");
     assertEquals(
       (await denoServerFeature.checkEnable(context(root))).result,
       "blocked",
@@ -174,10 +187,10 @@ Deno.test("deno-server blocks export, path, and CLI registry conflicts", async (
   });
 });
 
-Deno.test("server tasks compose with existing configuration and preserve custom tasks", async () => {
+test("server tasks compose with existing configuration and preserve custom tasks", async () => {
   for (const config of [{}, { tasks: { custom: "echo keep" } }]) {
     await withRepository(async (root) => {
-      await Deno.writeTextFile(
+      await writeTextFile(
         new URL("deno.json", root),
         JSON.stringify(config),
       );
@@ -190,7 +203,7 @@ Deno.test("server tasks compose with existing configuration and preserve custom 
       );
       assert(output.replace(/ +/g, " ").includes("deno-server enabled"));
       const value = JSON.parse(
-        await Deno.readTextFile(new URL("deno.json", root)),
+        await readTextFile(new URL("deno.json", root)),
       );
       assertEquals(value.tasks.serve, denoServerTasks.serve);
       assertEquals(value.tasks.dev, denoServerTasks.dev);
@@ -203,14 +216,14 @@ Deno.test("server tasks compose with existing configuration and preserve custom 
   }
 });
 
-Deno.test("server task drift needs repair and custom tasks cannot be removed", async () => {
+test("server task drift needs repair and custom tasks cannot be removed", async () => {
   await withRepository(async (root) => {
     await enable(root, denoServerFeature);
     const path = new URL("deno.jsonc", root);
-    const config = JSON.parse(await Deno.readTextFile(path));
+    const config = JSON.parse(await readTextFile(path));
     delete config.tasks.dev;
     config.tasks.serve = { command: "custom-server" };
-    await Deno.writeTextFile(path, JSON.stringify(config));
+    await writeTextFile(path, JSON.stringify(config));
     assertEquals(
       (await denoServerFeature.detect(context(root))).state,
       "drifted",
@@ -238,24 +251,24 @@ Deno.test("server task drift needs repair and custom tasks cannot be removed", a
     const disable = await denoServerFeature.checkDisable(context(root));
     if (disable.result !== "allowed") throw new Error("expected disable");
     const removal = await denoServerFeature.planDisable(context(root), disable);
-    const changed = JSON.parse(await Deno.readTextFile(path));
+    const changed = JSON.parse(await readTextFile(path));
     changed.tasks.dev = { command: "keep-custom-dev" };
-    await Deno.writeTextFile(path, JSON.stringify(changed));
+    await writeTextFile(path, JSON.stringify(changed));
     await assertRejects(() => applyLocalChangePlan(root, removal));
     assertEquals(
-      JSON.parse(await Deno.readTextFile(path)).exports["./server"],
+      JSON.parse(await readTextFile(path)).exports["./server"],
       "./src/server/server.ts",
     );
   });
 });
 
-Deno.test("malformed server tasks and custom CLI adapters block setup", async () => {
+test("malformed server tasks and custom CLI adapters block setup", async () => {
   await withRepository(async (root) => {
     await enable(root, denoServerFeature);
     const path = new URL("deno.jsonc", root);
-    const config = JSON.parse(await Deno.readTextFile(path));
+    const config = JSON.parse(await readTextFile(path));
     config.tasks = [];
-    await Deno.writeTextFile(path, JSON.stringify(config));
+    await writeTextFile(path, JSON.stringify(config));
     assertEquals(
       (await denoServerFeature.detect(context(root))).state,
       "ambiguous",
@@ -271,7 +284,7 @@ Deno.test("malformed server tasks and custom CLI adapters block setup", async ()
   });
   await withRepository(async (root) => {
     await enable(root, denoCliFeature);
-    await Deno.writeTextFile(
+    await writeTextFile(
       new URL("src/cli/serve-command.ts", root),
       "custom adapter",
     );
@@ -283,22 +296,22 @@ Deno.test("malformed server tasks and custom CLI adapters block setup", async ()
   });
 });
 
-Deno.test("server repair migrates the exact old adapter and CLI registry", async () => {
+test("server repair migrates the exact old adapter and CLI registry", async () => {
   await withRepository(async (root) => {
     await enable(root, denoCliFeature);
     await enable(root, denoServerFeature);
     const registryPath = new URL("src/cli/commands.ts", root);
-    const registry = await Deno.readTextFile(registryPath);
-    await Deno.writeTextFile(
+    const registry = await readTextFile(registryPath);
+    await writeTextFile(
       registryPath,
       registry.replace('"./serve-command.ts"', '"../server/serve-command.ts"'),
     );
-    await Deno.remove(new URL("src/cli/serve-command.ts", root));
-    await Deno.writeTextFile(
+    await remove(new URL("src/cli/serve-command.ts", root));
+    await writeTextFile(
       new URL(legacyServerAdapter.path, root),
       legacyServerAdapter.content,
     );
-    await Deno.chmod(new URL(legacyServerAdapter.path, root), 0o644);
+    await chmod(new URL(legacyServerAdapter.path, root), 0o644);
     const current = context(root, [], {
       kind: "features",
       featureIds: ["deno-server"],
@@ -310,25 +323,25 @@ Deno.test("server repair migrates the exact old adapter and CLI registry", async
       await denoServerFeature.planEnable(current, check),
     );
     assertEquals(await current.files.exists(legacyServerAdapter.path), false);
-    assertEquals(await Deno.readTextFile(registryPath), registry);
+    assertEquals(await readTextFile(registryPath), registry);
     assertEquals(await current.files.exists("src/cli/serve-command.ts"), true);
   });
 });
 
-Deno.test("server setup preserves custom CLI launchers and repairs its old launcher", async () => {
+test("server setup preserves custom CLI launchers and repairs its old launcher", async () => {
   await withRepository(async (root) => {
     await enable(root, denoCliFeature);
     const path = new URL("src/cli/cli.ts", root);
-    const base = await Deno.readTextFile(path);
-    await Deno.writeTextFile(path, base + "// custom launcher\n");
+    const base = await readTextFile(path);
+    await writeTextFile(path, base + "// custom launcher\n");
     assertEquals(
       (await denoServerFeature.checkEnable(context(root))).result,
       "blocked",
     );
-    await Deno.writeTextFile(path, base);
+    await writeTextFile(path, base);
     await enable(root, denoServerFeature);
-    const integrated = await Deno.readTextFile(path);
-    await Deno.writeTextFile(path, base);
+    const integrated = await readTextFile(path);
+    await writeTextFile(path, base);
     assertEquals(
       (await denoServerFeature.detect(context(root))).state,
       "drifted",
@@ -341,14 +354,14 @@ Deno.test("server setup preserves custom CLI launchers and repairs its old launc
       ),
     );
     assert(output.replace(/ +/g, " ").includes("deno-server enabled"));
-    assertEquals(await Deno.readTextFile(path), integrated);
-    await Deno.writeTextFile(path, integrated + "// custom launcher\n");
+    assertEquals(await readTextFile(path), integrated);
+    await writeTextFile(path, integrated + "// custom launcher\n");
     assertEquals(
       (await denoServerFeature.checkDisable(context(root))).result,
       "blocked",
     );
     assertEquals(
-      await Deno.readTextFile(path),
+      await readTextFile(path),
       integrated + "// custom launcher\n",
     );
   });
@@ -391,14 +404,14 @@ function context(
 async function withRepository(
   action: (root: URL) => Promise<void>,
 ): Promise<void> {
-  const path = await Deno.makeTempDir({
+  const path = await makeTempDir({
     dir: "/tmp/opencode",
     prefix: "hj-deno-server-",
   });
   try {
     await action(new URL(`file://${path}/`));
   } finally {
-    await Deno.remove(path, { recursive: true });
+    await remove(path, { recursive: true });
   }
 }
 

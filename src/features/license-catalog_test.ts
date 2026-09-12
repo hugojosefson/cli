@@ -1,3 +1,6 @@
+import { test as nativeTest } from "node:test";
+import { trackTests } from "../testing/inventory-test-fixtures.ts";
+const test = trackTests(import.meta.url, nativeTest);
 import { assertEquals, assertRejects } from "@std/assert";
 import type { ArtifactObservation } from "../api/artifact-inspection.ts";
 import type { OperationContext } from "../api/repository-context.ts";
@@ -29,7 +32,7 @@ const templateFiles = new Map([
   ["license-unlicense", "unlicense"],
 ]);
 
-Deno.test("catalog has pinned direct templates and exact declared replacements", async () => {
+test("catalog has pinned direct templates and exact declared replacements", async () => {
   for (const [id, definition] of licenseCatalogDefinitions) {
     const kinds = definition.placeholders.map(({ kind }) => kind);
     if (expected.has(id)) {
@@ -63,7 +66,7 @@ Deno.test("catalog has pinned direct templates and exact declared replacements",
   );
 });
 
-Deno.test("every provider renders, detects, repairs, and directly disables exact content", async () => {
+test("every provider renders, detects, repairs, and directly disables exact content", async () => {
   for (const provider of licenseCatalog) {
     const text = template(provider.definition);
     const feature = createSpdxLicenseFeature({
@@ -155,7 +158,7 @@ Deno.test("every provider recognizes reflowed terms and preserves raw attributio
   }
 });
 
-Deno.test("catalog providers recognize every exact alternate and only new replacements write", async () => {
+test("catalog providers recognize every exact alternate and only new replacements write", async () => {
   for (
     const [oldId, newId] of [
       ["license-mit", "license-gpl-3.0-only"],
@@ -212,7 +215,7 @@ Deno.test("catalog providers recognize every exact alternate and only new replac
   }
 });
 
-Deno.test("large license templates still recognize an alternate", async () => {
+test("large license templates still recognize an alternate", async () => {
   const own = licenseCatalog.find(({ id }) => id === "license-agpl-3.0-only")!;
   const alternate = licenseCatalog.find(({ id }) => id === "license-mit")!;
   const ownText = `large-${"x".repeat(40_000)} {{ year }} {{ organization }}\n`;

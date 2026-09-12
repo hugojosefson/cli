@@ -1,3 +1,13 @@
+import { test as nativeTest } from "node:test";
+import { trackTests } from "../testing/inventory-test-fixtures.ts";
+const test = trackTests(import.meta.url, nativeTest);
+import {
+  makeTempDir,
+  mkdir,
+  readTextFile,
+  remove,
+  writeTextFile,
+} from "../testing/files-test-fixtures.ts";
 import { assertEquals, assertRejects } from "@std/assert";
 import type { ArtifactObservation } from "../api/artifact-inspection.ts";
 import type { OperationContext } from "../api/repository-context.ts";
@@ -49,7 +59,7 @@ function exact(): Extract<ArtifactObservation, { kind: "file" }> {
   };
 }
 
-Deno.test("jsr-release detects absent, exact, drifted, custom, and mode-insensitive workflows", async () => {
+test("jsr-release detects absent, exact, drifted, custom, and mode-insensitive workflows", async () => {
   assertEquals((await jsrReleaseFeature.detect(context({}))).state, "disabled");
   assertEquals(
     (await jsrReleaseFeature.detect(
@@ -84,14 +94,14 @@ Deno.test("jsr-release detects absent, exact, drifted, custom, and mode-insensit
   );
 });
 
-Deno.test("jsr-release has only the required direct dependencies", () => {
+test("jsr-release has only the required direct dependencies", () => {
   assertEquals(
     jsrReleaseFeature.dependencies.requires.map((item) => item.featureId),
     ["jsr-package", "github-protected-tags"],
   );
 });
 
-Deno.test("jsr-release gates repair, protects custom content, and checks parents", async () => {
+test("jsr-release gates repair, protects custom content, and checks parents", async () => {
   const drifted = {
     [jsrReleaseArtifact.path]: {
       ...exact(),
@@ -134,16 +144,16 @@ Deno.test("jsr-release gates repair, protects custom content, and checks parents
   );
 });
 
-Deno.test("jsr-release lifecycle preserves unrelated workflows", async () => {
-  const path = await Deno.makeTempDir({
+test("jsr-release lifecycle preserves unrelated workflows", async () => {
+  const path = await makeTempDir({
     dir: "/tmp/opencode",
     prefix: "hj-release-",
   });
   const root = new URL(`file://${path}/`);
   try {
-    await Deno.mkdir(new URL(".github/workflows/", root), { recursive: true });
+    await mkdir(new URL(".github/workflows/", root), { recursive: true });
     const unrelated = new URL(".github/workflows/custom.yaml", root);
-    await Deno.writeTextFile(unrelated, "name: Custom\n");
+    await writeTextFile(unrelated, "name: Custom\n");
     const current = contextFor(root);
     const enable = await jsrReleaseFeature.checkEnable(current);
     if (enable.result !== "allowed") {
@@ -162,13 +172,13 @@ Deno.test("jsr-release lifecycle preserves unrelated workflows", async () => {
       root,
       await jsrReleaseFeature.planDisable(disableCurrent, disable),
     );
-    assertEquals(await Deno.readTextFile(unrelated), "name: Custom\n");
+    assertEquals(await readTextFile(unrelated), "name: Custom\n");
   } finally {
-    await Deno.remove(path, { recursive: true });
+    await remove(path, { recursive: true });
   }
 });
 
-Deno.test("jsr-release plans reject workflow changes after checks", async () => {
+test("jsr-release plans reject workflow changes after checks", async () => {
   const observations: Record<string, ArtifactObservation> = {};
   const current = context(observations);
   const enable = await jsrReleaseFeature.checkEnable(current);

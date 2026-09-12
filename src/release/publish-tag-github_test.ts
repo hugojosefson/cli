@@ -1,3 +1,6 @@
+import { test as nativeTest } from "node:test";
+import { trackTests } from "../testing/inventory-test-fixtures.ts";
+const test = trackTests(import.meta.url, nativeTest);
 import { ReleasePullRequestNotFoundError } from "./apply-types.ts";
 import {
   assertEquals,
@@ -14,7 +17,7 @@ const sha = "a".repeat(40);
 const calls: { command: string; args: readonly string[]; stdin?: string }[] =
   [];
 
-Deno.test("auto-merge ownership uses GraphQL bot identity", async () => {
+test("auto-merge ownership uses GraphQL bot identity", async () => {
   for (
     const [actor, expected] of [
       [{ login: "github-actions", __typename: "Bot" }, true],
@@ -47,7 +50,7 @@ Deno.test("auto-merge ownership uses GraphQL bot identity", async () => {
   }
 });
 
-Deno.test("auto-merge reads reject missing actor and request data", async () => {
+test("auto-merge reads reject missing actor and request data", async () => {
   for (
     const autoMergeRequest of [
       undefined,
@@ -100,7 +103,7 @@ function github(reply: (command: string, args: readonly string[]) => string) {
   );
 }
 
-Deno.test("paginates check runs with gh slurp JSON", async () => {
+test("paginates check runs with gh slurp JSON", async () => {
   calls.length = 0;
   const api = github((_command, args) =>
     args.includes("--paginate")
@@ -136,7 +139,7 @@ Deno.test("paginates check runs with gh slurp JSON", async () => {
   );
 });
 
-Deno.test("recognizes only GitHub's exact clean-status error", async () => {
+test("recognizes only GitHub's exact clean-status error", async () => {
   calls.length = 0;
   const api = github((_command, args) => {
     const query = args.find((arg) => arg.startsWith("query=")) ?? "";
@@ -158,7 +161,7 @@ Deno.test("recognizes only GitHub's exact clean-status error", async () => {
   assertStringIncludes(calls[0].args.join(" "), "expectedHeadOid");
 });
 
-Deno.test("accepts lightweight tags and rejects annotated tags", async () => {
+test("accepts lightweight tags and rejects annotated tags", async () => {
   calls.length = 0;
   const lightweight = github((command, args) =>
     command === "git" && args[0] === "ls-remote"
@@ -174,7 +177,7 @@ Deno.test("accepts lightweight tags and rejects annotated tags", async () => {
   await assertRejects(() => annotated.readTag("1.2.3"), TypeError);
 });
 
-Deno.test("dispatch accepts GitHub's empty 204 response and rejects a body", async () => {
+test("dispatch accepts GitHub's empty 204 response and rejects a body", async () => {
   calls.length = 0;
   const api = github(() => "");
   await api.sendSuccessEvent({
@@ -207,7 +210,7 @@ Deno.test("dispatch accepts GitHub's empty 204 response and rejects a body", asy
   );
 });
 
-Deno.test("distinguishes zero, one, ambiguous, and later merged release PRs", async () => {
+test("distinguishes zero, one, ambiguous, and later merged release PRs", async () => {
   const page = (nodes: unknown[]) =>
     JSON.stringify({
       data: {
@@ -260,7 +263,7 @@ Deno.test("distinguishes zero, one, ambiguous, and later merged release PRs", as
   );
 });
 
-Deno.test("validates mutation payloads, merged PR pages, and branch deletion leases", async () => {
+test("validates mutation payloads, merged PR pages, and branch deletion leases", async () => {
   calls.length = 0;
   let mergedPage = 0;
   const api = github((command, args) => {
@@ -321,7 +324,7 @@ Deno.test("validates mutation payloads, merged PR pages, and branch deletion lea
   await assertRejects(() => malformed.closePullRequest("PR1"), TypeError);
 });
 
-Deno.test("rejects SemVer leading zero tags and branches", async () => {
+test("rejects SemVer leading zero tags and branches", async () => {
   assertThrows(() =>
     publishTagGithub(process(() => ""), {
       owner: "owner",

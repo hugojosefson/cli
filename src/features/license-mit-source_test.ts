@@ -1,7 +1,10 @@
+import { test as nativeTest } from "node:test";
+import { trackTests } from "../testing/inventory-test-fixtures.ts";
+const test = trackTests(import.meta.url, nativeTest);
 import { assertEquals, assertRejects } from "@std/assert";
 import { createMitTextSource, mitSourceUrl } from "./license-mit-source.ts";
 
-Deno.test("MIT source uses pinned URL, validates placeholders, and caches", async () => {
+test("MIT source uses pinned URL, validates placeholders, and caches", async () => {
   let calls = 0;
   const source = createMitTextSource((url) => {
     calls++;

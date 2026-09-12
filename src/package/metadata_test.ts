@@ -1,8 +1,12 @@
+import { test as nativeTest } from "node:test";
+import { trackTests } from "../testing/inventory-test-fixtures.ts";
+const test = trackTests(import.meta.url, nativeTest);
+import { remove, writeTextFile } from "../testing/files-test-fixtures.ts";
 import { assertEquals, assertRejects } from "@std/assert";
 import { projectMetadata, validJsrName } from "./metadata.ts";
-import { withRepository } from "../features/jsr-package-feature-support.ts";
+import { withRepository } from "../features/jsr-package-test-fixtures.ts";
 
-Deno.test("package metadata enforces public JSR length and character constraints", () => {
+test("package metadata enforces public JSR length and character constraints", () => {
   for (
     const name of [
       "@ab/cd",
@@ -26,26 +30,26 @@ Deno.test("package metadata enforces public JSR length and character constraints
   ) assertEquals(validJsrName(name), false, name);
 });
 
-Deno.test("package metadata reads JSONC and validates a single command override", async () => {
+test("package metadata reads JSONC and validates a single command override", async () => {
   await withRepository(async (root) => {
     const path = new URL("deno.jsonc", root);
-    await Deno.writeTextFile(
+    await writeTextFile(
       path,
       '// retained\n{"name":"@scope/deno-fancy", "hj":{"commandName":"custom-command"},}',
     );
     const value = await projectMetadata(root);
     assertEquals(value.name, "@scope/deno-fancy");
     assertEquals(value.command, "custom-command");
-    await Deno.writeTextFile(
+    await writeTextFile(
       path,
       '{"name":"@scope/tool", "hj":{"commandName":"bad command"}}',
     );
     await assertRejects(() => projectMetadata(root), Error, "commandName");
-    await Deno.writeTextFile(path, '{"name":"@scope/tool"}');
-    await Deno.writeTextFile(new URL("deno.json", root), "{}");
+    await writeTextFile(path, '{"name":"@scope/tool"}');
+    await writeTextFile(new URL("deno.json", root), "{}");
     await assertRejects(() => projectMetadata(root), Error, "Both deno.json");
-    await Deno.remove(new URL("deno.json", root));
-    await Deno.writeTextFile(path, '{"name":');
+    await remove(new URL("deno.json", root));
+    await writeTextFile(path, '{"name":');
     await assertRejects(() => projectMetadata(root), Error, "valid JSON");
   });
 });

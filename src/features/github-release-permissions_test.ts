@@ -1,45 +1,55 @@
+import { sourceFile } from "../testing/runtime-test-fixtures.ts";
+import { test as nativeTest } from "node:test";
+import { trackTests } from "../testing/inventory-test-fixtures.ts";
+const test = trackTests(import.meta.url, nativeTest);
+import {
+  makeTempDir,
+  remove,
+  writeTextFile,
+} from "../testing/files-test-fixtures.ts";
+import { runCommand } from "../runtime/command.ts";
 import { assertEquals } from "@std/assert";
 import { publishTagArtifact } from "./github-release-publish-artifacts.ts";
 
-Deno.test("generated preparation permissions let the real version calculator load", async () => {
-  const path = await Deno.makeTempDir({
+test("generated preparation permissions let the real version calculator load", async () => {
+  const path = await makeTempDir({
     dir: "/tmp/opencode",
     prefix: "hj-release-permissions-",
   });
   try {
     const script = `${path}/version.ts`;
-    const source = new URL("../release/fork-version.ts", import.meta.url).href;
-    await Deno.writeTextFile(
+    const source = sourceFile("src/release/fork-version.ts").href;
+    await writeTextFile(
       script,
       `import { nextVersion } from ${
         JSON.stringify(source)
       };\nconsole.log(await nextVersion("0.0.0", "patch"));\n`,
     );
     const permission = publishTagArtifact.content.match(/--allow-env=\S+/)![0];
-    const output = await new Deno.Command("deno", {
+    const output = await runCommand("deno", {
       args: [
         "run",
         "--frozen",
-        `--config=${new URL("../../deno.json", import.meta.url).pathname}`,
+        `--config=${sourceFile("deno.json").pathname}`,
         permission,
         script,
       ],
-    }).output();
+    });
     assertEquals(output.success, true, new TextDecoder().decode(output.stderr));
     assertEquals(new TextDecoder().decode(output.stdout).trim(), "0.0.1");
   } finally {
-    await Deno.remove(path, { recursive: true });
+    await remove(path, { recursive: true });
   }
 });
 
-Deno.test("generated JSR dry run validates a dirty candidate without creating a commit or tag", async () => {
+test("generated JSR dry run validates a dirty candidate without creating a commit or tag", async () => {
   const { publishCheckDefinition } = await import("./jsr-package-config.ts");
-  const path = await Deno.makeTempDir({
+  const path = await makeTempDir({
     dir: "/tmp/opencode",
     prefix: "hj-candidate-check-",
   });
   try {
-    await Deno.writeTextFile(
+    await writeTextFile(
       `${path}/deno.json`,
       JSON.stringify({
         name: "@example/scratchpad",
@@ -49,32 +59,32 @@ Deno.test("generated JSR dry run validates a dirty candidate without creating a 
         tasks: { "publish-check": publishCheckDefinition },
       }),
     );
-    await Deno.writeTextFile(
+    await writeTextFile(
       `${path}/mod.ts`,
       'export const message = "candidate";\n',
     );
-    const initialized = await new Deno.Command("git", {
+    const initialized = await runCommand("git", {
       args: ["init"],
       cwd: path,
-    }).output();
+    });
     assertEquals(initialized.success, true);
-    const output = await new Deno.Command("deno", {
+    const output = await runCommand("deno", {
       args: ["task", "publish-check"],
       cwd: path,
-    }).output();
+    });
     assertEquals(output.success, true, new TextDecoder().decode(output.stderr));
-    const head = await new Deno.Command("git", {
+    const head = await runCommand("git", {
       args: ["rev-parse", "--verify", "HEAD"],
       cwd: path,
-    }).output();
+    });
     assertEquals(head.success, false);
-    const tags = await new Deno.Command("git", {
+    const tags = await runCommand("git", {
       args: ["tag", "--list"],
       cwd: path,
-    }).output();
+    });
     assertEquals(new TextDecoder().decode(tags.stdout), "");
   } finally {
-    await Deno.remove(path, { recursive: true });
+    await remove(path, { recursive: true });
   }
 });
 

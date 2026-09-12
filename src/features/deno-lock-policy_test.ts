@@ -1,3 +1,15 @@
+import { serveFixture } from "../testing/network-test-fixtures.ts";
+import { test as nativeTest } from "node:test";
+import { trackTests } from "../testing/inventory-test-fixtures.ts";
+const test = trackTests(import.meta.url, nativeTest);
+import {
+  makeTempDir,
+  mkdir,
+  readTextFile,
+  remove,
+  writeTextFile,
+} from "../testing/files-test-fixtures.ts";
+import { runCommand } from "../runtime/command.ts";
 import { assert, assertEquals, assertRejects } from "@std/assert";
 import type { ChangePlan } from "../api/change-plan.ts";
 import type { OperationContext } from "../api/repository-context.ts";
@@ -12,7 +24,7 @@ import {
   reconcileDenoLockPlans,
 } from "./deno-lock-policy.ts";
 
-Deno.test("shared lock policy follows library, CLI, server and last application removal", async () => {
+test("shared lock policy follows library, CLI, server and last application removal", async () => {
   await repository(async (root) => {
     const ctx = context(root, { "deno-fmt": true });
     const allowed = await denoFmtFeature.checkEnable(ctx);
@@ -40,7 +52,7 @@ Deno.test("shared lock policy follows library, CLI, server and last application 
   });
 });
 
-Deno.test("formatter removal removes its standalone configuration and ownership record", async () => {
+test("formatter removal removes its standalone configuration and ownership record", async () => {
   await repository(async (root) => {
     const enableContext = context(root, { "deno-fmt": true });
     const allowed = await denoFmtFeature.checkEnable(enableContext);
@@ -66,9 +78,9 @@ Deno.test("formatter removal removes its standalone configuration and ownership 
   });
 });
 
-Deno.test("explicit lock requirement survives application removal and generates a missing file", async () => {
+test("explicit lock requirement survives application removal and generates a missing file", async () => {
   await repository(async (root) => {
-    await Deno.writeTextFile(new URL("deno.jsonc", root), '{"lock":true}\n');
+    await writeTextFile(new URL("deno.jsonc", root), '{"lock":true}\n');
     await transition(root, { "deno-cli": true });
     await prepareDenoLock(root);
     await transition(root, { "deno-cli": false });
@@ -81,81 +93,81 @@ Deno.test("explicit lock requirement survives application removal and generates 
   });
 });
 
-Deno.test("custom lock paths and content are preserved without inferred ownership", async () => {
+test("custom lock paths and content are preserved without inferred ownership", async () => {
   for (
     const lock of ["custom.lock", { path: "locks/deps.json", frozen: true }]
   ) {
     await repository(async (root) => {
       const content = JSON.stringify({ lock });
-      await Deno.writeTextFile(new URL("deno.jsonc", root), content);
-      await Deno.writeTextFile(new URL("deno.lock", root), "custom bytes\n");
+      await writeTextFile(new URL("deno.jsonc", root), content);
+      await writeTextFile(new URL("deno.lock", root), "custom bytes\n");
       await transition(root, { "deno-cli": true });
       assertEquals(
-        await Deno.readTextFile(new URL("deno.jsonc", root)),
+        await readTextFile(new URL("deno.jsonc", root)),
         content,
       );
       assertEquals(await prepareDenoLock(root), []);
       assertEquals(
-        await Deno.readTextFile(new URL("deno.lock", root)),
+        await readTextFile(new URL("deno.lock", root)),
         "custom bytes\n",
       );
     });
   }
   await repository(async (root) => {
-    await Deno.writeTextFile(new URL("deno.jsonc", root), "{}\n");
-    await Deno.writeTextFile(new URL("deno.lock", root), "custom bytes\n");
+    await writeTextFile(new URL("deno.jsonc", root), "{}\n");
+    await writeTextFile(new URL("deno.lock", root), "custom bytes\n");
     await transition(root, { "deno-cli": true });
     assertEquals(await prepareDenoLock(root), []);
     await transition(root, { "deno-cli": false });
     assertEquals(await lockValue(root), false);
     assertEquals(
-      await Deno.readTextFile(new URL("deno.lock", root)),
+      await readTextFile(new URL("deno.lock", root)),
       "custom bytes\n",
     );
   });
 });
 
-Deno.test("edited formerly owned lock is preserved, while unchanged stale plans fail safely", async () => {
+test("edited formerly owned lock is preserved, while unchanged stale plans fail safely", async () => {
   await repository(async (root) => {
-    await Deno.writeTextFile(new URL("deno.jsonc", root), "{}\n");
+    await writeTextFile(new URL("deno.jsonc", root), "{}\n");
     await transition(root, { "deno-cli": true });
     await prepareDenoLock(root);
     const ctx = context(root, { "deno-cli": false });
     const plans = await reconcileDenoLockPlans(ctx, [plan("deno-cli", false)]);
-    await Deno.writeTextFile(new URL("deno.lock", root), "user changes\n");
+    await writeTextFile(new URL("deno.lock", root), "user changes\n");
     await assertRejects(() => applyLocalChangePlan(root, plans[0]!));
     assertEquals(
-      await Deno.readTextFile(new URL("deno.lock", root)),
+      await readTextFile(new URL("deno.lock", root)),
       "user changes\n",
     );
     await transition(root, { "deno-cli": false });
     assertEquals(
-      await Deno.readTextFile(new URL("deno.lock", root)),
+      await readTextFile(new URL("deno.lock", root)),
       "user changes\n",
     );
   });
 });
 
-Deno.test("lock cache populates a local dependency graph before frozen checks", async () => {
+test("lock cache populates a local dependency graph before frozen checks", async () => {
   await repository(async (root) => {
-    await Deno.writeTextFile(new URL("deno.jsonc", root), "{}\n");
-    await Deno.mkdir(new URL("src/", root));
-    await Deno.writeTextFile(
+    await writeTextFile(new URL("deno.jsonc", root), "{}\n");
+    await mkdir(new URL("src/", root));
+    await writeTextFile(
       new URL("src/main.ts", root),
       'import { value } from "./value.ts"; export { value };\n',
     );
-    await Deno.writeTextFile(
+    await writeTextFile(
       new URL("src/value.ts", root),
       "export const value = 1;\n",
     );
     await transition(root, { "deno-cli": true });
     await prepareDenoLock(root);
-    const checked = await new Deno.Command("deno", {
+    const checked = await runCommand("deno", {
       args: ["check", "--frozen", "src/main.ts"],
       cwd: root,
       stdout: "piped",
       stderr: "piped",
-    }).output();
+    });
     assertEquals(checked.code, 0, new TextDecoder().decode(checked.stderr));
     await refreshDenoLock(root);
     assertEquals(
@@ -165,9 +177,8 @@ Deno.test("lock cache populates a local dependency graph before frozen checks", 
   });
 });
 
-Deno.test("lock generation records dependency integrity before frozen checks and reports failure", async () => {
-  const server = Deno.serve(
-    { hostname: "127.0.0.1", port: 0, onListen() {} },
+test("lock generation records dependency integrity before frozen checks and reports failure", async () => {
+  const server = await serveFixture(
     () =>
       new Response("export const value = 42;", {
         headers: { "content-type": "application/typescript" },
@@ -176,25 +187,25 @@ Deno.test("lock generation records dependency integrity before frozen checks and
   try {
     await repository(async (root) => {
       const url = `http://127.0.0.1:${server.addr.port}/value.ts`;
-      await Deno.writeTextFile(new URL("deno.jsonc", root), "{}\n");
-      await Deno.writeTextFile(
+      await writeTextFile(new URL("deno.jsonc", root), "{}\n");
+      await writeTextFile(
         new URL("main.ts", root),
         `export { value } from "${url}";\n`,
       );
       await transition(root, { "deno-cli": true });
       await prepareDenoLock(root);
       const lock = JSON.parse(
-        await Deno.readTextFile(new URL("deno.lock", root)),
+        await readTextFile(new URL("deno.lock", root)),
       );
       assertEquals(typeof lock.remote[url], "string");
-      const check = await new Deno.Command("deno", {
+      const check = await runCommand("deno", {
         args: ["check", "--allow-import", "--frozen", "main.ts"],
         cwd: root,
         stdout: "piped",
         stderr: "piped",
-      }).output();
+      });
       assertEquals(check.code, 0, new TextDecoder().decode(check.stderr));
-      await Deno.writeTextFile(
+      await writeTextFile(
         new URL("main.ts", root),
         'import "./missing.ts";\n',
       );
@@ -209,11 +220,11 @@ Deno.test("lock generation records dependency integrity before frozen checks and
   }
 });
 
-Deno.test("invalid ownership record blocks policy adoption", async () => {
+test("invalid ownership record blocks policy adoption", async () => {
   await repository(async (root) => {
-    await Deno.writeTextFile(new URL("deno.jsonc", root), "{}\n");
-    await Deno.mkdir(new URL(".hj/", root));
-    await Deno.writeTextFile(
+    await writeTextFile(new URL("deno.jsonc", root), "{}\n");
+    await mkdir(new URL(".hj/", root));
+    await writeTextFile(
       new URL(denoLockOwnershipPath, root),
       '{"custom":true}\n',
     );
@@ -222,7 +233,7 @@ Deno.test("invalid ownership record blocks policy adoption", async () => {
       Error,
       "unrecognized",
     );
-    assertEquals(await Deno.readTextFile(new URL("deno.jsonc", root)), "{}\n");
+    assertEquals(await readTextFile(new URL("deno.jsonc", root)), "{}\n");
   });
 });
 
@@ -273,16 +284,16 @@ async function transition(
 }
 async function lockValue(root: URL) {
   return (await new LocalFileReader(root).readJson("deno.jsonc"))!.value &&
-    JSON.parse(await Deno.readTextFile(new URL("deno.jsonc", root))).lock;
+    JSON.parse(await readTextFile(new URL("deno.jsonc", root))).lock;
 }
 async function repository(action: (root: URL) => Promise<void>) {
-  const path = await Deno.makeTempDir({
+  const path = await makeTempDir({
     dir: "/tmp/opencode",
     prefix: "hj-lock-",
   });
   try {
     await action(new URL(`file://${path}/`));
   } finally {
-    await Deno.remove(path, { recursive: true });
+    await remove(path, { recursive: true });
   }
 }
