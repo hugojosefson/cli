@@ -24,23 +24,65 @@ The package must meet these requirements:
 
 The publisher also passes `HJ_RELEASE_VERSION` and `HJ_RELEASE_REPOSITORY` to
 the task. Do not change tracked source files during the build. Ignore `.hj/npm/`
-in Git and keep all output inside that directory. The build must produce the
-same archive when repeated for one release. It must not depend on timestamps or
-unpinned downloaded tools.
+in Git and keep publishable output inside that directory. Ignore separate build
+tool and packing directories too, if the build uses them. The build must produce
+the same archive when repeated for one release. It must not depend on timestamps
+or unpinned downloaded tools.
 
-This repository supplies a local example:
+This repository builds a native ESM CLI for Linux x64 with glibc:
 
 ```bash
 deno task npm-build
-node .hj/npm/bin/hj.js --help
-npm pack ./.hj/npm --ignore-scripts --pack-destination /tmp
+node .hj/npm/esm/src/cli/cli.js --help
+bun .hj/npm/esm/src/cli/cli.js --help
 ```
 
-The example packages the CLI source and a Node.js launcher. Users need Deno on
-`PATH` because the launcher runs that source with full Deno permissions. It
-preserves the caller's working directory. These commands build and inspect a
-package without uploading it. The example does not enable npm publication for
-`@hugojosefson/cli`.
+The build requires Deno, Node.js 24 or later, npm, GNU tar, and gzip. It uses
+separate frozen locks for dnt 0.43.2, npm 11.11.1 and Node type definitions, and
+the complete production dependency graph. The host npm bootstraps the locked
+build tools; the pinned npm performs dependency installation and packing.
+Production dependencies must agree with `deno.lock`. Build-only type definitions
+and npm itself stay outside the package. Builds use fresh staging directories
+and a fresh cache, disable dependency install scripts, and never update locks.
+
+The generated `.hj/npm/package.json` declares the final archive through
+`hjNpmArchive`, for example `hugojosefson-cli-0.8.3.tgz`. Its declared binary is
+`esm/src/cli/cli.js`. The archive includes dependency packages and licenses
+under `esm/node_modules`, including JSR packages, so consumers need no JSR
+registry configuration. Ordinary commands execute in Node or Bun. Commands that
+perform Deno project tasks use an external Deno executable. The caller's working
+directory and arguments are preserved. These build commands do not enable or
+perform npm publication.
+
+Do not run `npm pack .hj/npm` on the finalized output. The
+[native archive contract](npm-runtime-packaging.md) explains the required
+manifest normalization. The publisher recognizes `hjNpmArchive`, rejects unsafe
+or symlinked paths, checks the archived manifest against the staged manifest,
+and inspects the exact archive with
+`npm pack --dry-run --json --ignore-scripts`. The archive's name, version,
+gitHead, and entry points must match the release. It publishes those exact
+bytes, preserving integrity checks and retry behavior. Builds without
+`hjNpmArchive` retain the original directory-packing contract.
+
+Inspect `.hj/npm/artifact.json` for the final archive's integrity and file list.
+For release verification, create two clean builds without changing source or
+`HJ_RELEASE_SHA`, copy each generated archive outside the build tree, and run:
+
+```bash
+node scripts/check-npm-runtime-packaging.mjs --native \
+  /tmp/native-build-a.tgz /tmp/native-build-b.tgz \
+  /path/to/npm11/bin/npm-cli.js /path/to/npm12/bin/npm-cli.js
+```
+
+Repeat with Node 24 and Node 26. The shared package-manager harness compares
+archive bytes, captures real npm publication metadata on a loopback-only
+registry, and verifies clean npx/npm 11/12 and bunx archive/name installations.
+It verifies repeated execution from the same cache as well as fresh
+installation. It exercises help, error propagation, project metadata from a
+directory with spaces, repository inspection without Deno, README output,
+EditorConfig writes, and an external installed-Deno project task. No public
+registry writes occur. The full shared application suite and public package
+installation remain separate release checks.
 
 ## Configure publication
 

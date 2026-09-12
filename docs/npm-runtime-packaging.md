@@ -4,8 +4,8 @@ The native build must ship its production dependency packages inside the
 archive. It must preserve each package's JavaScript modules, metadata, and
 license. It must install through npx and `bunx --bun` without a consumer
 `.npmrc`, an install script, or a Deno subprocess. This document specifies
-packaging for [issue #74](https://github.com/hugojosefson/cli/issues/74). It
-does not replace the current launcher build.
+packaging for [issue #74](https://github.com/hugojosefson/cli/issues/74). The
+build implements this contract through `scripts/npm-build/build.ts`.
 
 ## Bun installer workaround
 
@@ -25,6 +25,13 @@ changes installation metadata. It does not combine JavaScript, rewrite
 dependency source, or fetch packages at runtime. The dependency packages retain
 their own manifests, including transitive requirements.
 
+Also relocate the dependency tree from root `node_modules` to
+`esm/node_modules`, next to the emitted application. npm otherwise prunes the
+undeclared root dependencies when a later npx invocation reuses its cache. A
+fresh install alone does not detect that failure. Normal module resolution finds
+the private tree from the emitted code without changing imports or dependency
+source. The small fixture uses the equivalent `bin/node_modules` location.
+
 Use two stages:
 
 1. Build the ESM application and install its production dependency graph using a
@@ -34,8 +41,9 @@ Use two stages:
 2. Run `npm pack --ignore-scripts` with an explicit file allowlist and an
    archive destination outside the staging directory. Extract that archive, move
    its root `dependencies` map to `hjBundledDependencies`, remove both root
-   `dependencies` and `bundleDependencies`, and repack the same files with
-   deterministic archive headers. Publish that final archive.
+   `dependencies` and `bundleDependencies`, move the package tree to
+   `esm/node_modules`, and repack the same files with deterministic archive
+   headers. Publish that final archive.
 
 For example, the staging manifest contains:
 
@@ -54,18 +62,19 @@ The final manifest contains:
 }
 ```
 
-The archive still includes `node_modules/@jsr/std__path`, its transitive
+The archive still includes `esm/node_modules/@jsr/std__path`, its transitive
 `@jsr/std__internal` package, and both licenses. Normal Node and Bun module
 resolution uses those packages. The root manifest has no runtime `dependencies`,
 `optionalDependencies`, or `peerDependencies` that could cause consumer
 resolution. Reject a build that introduces such an unhandled requirement.
 
 Do not run `npm pack` on the normalized directory. npm omits the dependency tree
-when its root `dependencies` field is absent. The existing publisher in
-`src/release/publish-npm.ts` packs a build directory, so the native build issue
-must integrate finalization into that path. Its file inspection, size checks,
-SHA/integrity calculation, registry comparison, and publication must all use the
-**final** archive. A successful ordinary `npm pack` is insufficient.
+when its root `dependencies` field is absent. The publisher in
+`src/release/publish-npm.ts` recognizes the build manifest's `hjNpmArchive`
+field and inspects that exact archive without directory packing. Its file
+inspection, size checks, SHA/integrity calculation, registry comparison, and
+publication must all use the **final** archive. A successful ordinary `npm pack`
+is insufficient.
 
 The fixture below confirms that npm 11 and npm 12 send the final archive's exact
 bytes through the publish protocol. It uses a loopback registry and fake local
@@ -119,22 +128,24 @@ node scripts/check-npm-runtime-packaging.mjs \
 
 The runner uses the committed fixture lock to install real published JSR
 packages. It writes evidence, logs, and archives to a new temporary directory
-and prints the location. Consumer runs use separate homes, caches, temporary
-directories, and empty npm configuration files. Their `PATH` contains Node, Bun,
-shell, and gzip, with no Deno executable. Bun's temporary directory must also be
-separate: otherwise bunx can reuse an earlier execution installation even with a
-fresh `BUN_INSTALL_CACHE_DIR`.
+and prints the location. Each package-manager/source combination starts with a
+separate cache and temporary directory, then reuses them for later invocations.
+Each invocation has a separate home and empty npm configuration. Their `PATH`
+contains Node, Bun, shell, and gzip, with no Deno executable. Bun's temporary
+directory must also be isolated for a fresh installation: otherwise bunx can
+reuse an earlier execution installation even with a fresh
+`BUN_INSTALL_CACHE_DIR`.
 
 The matrix covers local archive installation and simulated-registry package-name
-installation for npx 11, npx 12, and `bunx --bun`. Each case runs once
-successfully and once with an intentional application error, always from fresh
-state. The fixture imports `@jsr/std__path`, exercises paths and file URLs,
-checks which runtime executed it, and rejects a Deno global. The registry
-rejects every request except the fixture's metadata and archive. Archive
-installs make no registry requests. Named installs request only root metadata
-and the archive, using metadata captured from the actual npm publish protocol.
-The fixture also verifies two clean builds are identical and that npm 11/12
-publish their exact final bytes to the local registry.
+installation for npx 11, npx 12, and `bunx --bun`. Each fresh installation runs
+successfully, then an intentional application error reuses the same cache. The
+fixture imports `@jsr/std__path`, exercises paths and file URLs, checks which
+runtime executed it, and rejects a Deno global. The registry rejects every
+request except the fixture's metadata and archive. Archive installs make no
+registry requests. Named installs request only root metadata and the archive,
+using metadata captured from the actual npm publish protocol. The fixture also
+verifies two clean builds are identical and that npm 11/12 publish their exact
+final bytes to the local registry.
 
 This is an opt-in distribution regression because it requires external package
 manager binaries and build-time network access. The native release integration
@@ -144,10 +155,10 @@ checks, or public registry smoke tests.
 
 ## Verified results
 
-On 2026-09-12 the complete fixture passed on Linux x64 with Node 24.21.0 and
-26.2.0, npm 11.11.1 and 12.0.2, and Bun 1.4.2. Each Node version ran all twelve
-installation/error cases and both local npm publication checks. Both clean
-builds on both Node versions produced the same 118,852-byte archive with 464
-entries, SHA-256
-`cfb6e491e9a01cccde3af637372ef14ae9e86fb18f0d6049baa9592c3ba8a250`. This is the
-small dependency fixture's size, not the eventual CLI archive size.
+On 2026-09-12 the private package-tree fixture passed on Linux x64 with Node
+26.2.0, npm 11.11.1 and 12.0.2, and Bun 1.4.2. All archive/name installations
+start from fresh caches, then repeat execution with those caches. This catches
+the npm pruning failure that the original fresh-only fixture missed. The
+production native matrix additionally exercises Node 24, dynamic imports,
+metadata, repository inspection, file writes, and external Deno tasks; see
+[npm publication](npm-publication.md) for its command.

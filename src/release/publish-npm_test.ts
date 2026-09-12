@@ -200,6 +200,20 @@ Deno.test("npm local build reader requires regular confined files", async () => 
     assertEquals(await reader.read("bin/cli.js"), "example");
     await assertRejects(() => reader.read("../escape"), TypeError, "invalid");
     await assertRejects(() => reader.read("bin"), TypeError, "regular file");
+    const link = await new Deno.Command("deno", {
+      args: [
+        "eval",
+        "await Deno.symlink(Deno.args[0], Deno.args[1]);",
+        `${path}/.hj/npm/bin/cli.js`,
+        `${path}/.hj/npm/final.tgz`,
+      ],
+    }).output();
+    assertEquals(link.code, 0);
+    await assertRejects(
+      () => reader.read("final.tgz"),
+      TypeError,
+      "regular file",
+    );
     await assertRejects(
       () => reader.read("bin/cli.js/subpath"),
       TypeError,
@@ -255,4 +269,81 @@ Deno.test("npm accepts current keyed pack output and rejects unsafe publish conf
     TypeError,
     "public npm registry",
   );
+});
+
+Deno.test("npm inspects and publishes a finalized archive without repacking the directory", async () => {
+  const f = fixture();
+  const finalized = { ...manifest, hjNpmArchive: "final.tgz" };
+  f.input.buildFiles.read = (path: string) =>
+    Promise.resolve(
+      path === "package.json" ? JSON.stringify(finalized) : "archive or entry",
+    );
+  const original = f.input.process.run;
+  f.input.process.run = (command: string, args: readonly string[]) => {
+    if (command === "tar") {
+      return Promise.resolve(ok(JSON.stringify(finalized)));
+    }
+    return original(command, args);
+  };
+  await publishNpm(f.input);
+  assertEquals(
+    f.calls.includes("npm pack --json --ignore-scripts --dry-run final.tgz"),
+    true,
+  );
+  assertEquals(f.calls.includes("npm pack --json --ignore-scripts"), false);
+  assertStringIncludes(f.calls.at(-1)!, "npm publish final.tgz");
+});
+
+Deno.test("npm rejects invalid finalized archive paths and mismatched archived manifests", async () => {
+  for (
+    const archive of [
+      "../escape.tgz",
+      "dir/archive.tgz",
+      "-option.tgz",
+      42,
+      "bad.zip",
+    ]
+  ) {
+    const f = fixture();
+    f.input.buildFiles.read = () =>
+      Promise.resolve(JSON.stringify({ ...manifest, hjNpmArchive: archive }));
+    await assertRejects(
+      () => publishNpm(f.input),
+      TypeError,
+      "archive filename",
+    );
+    assertEquals(f.calls.some((call) => call.startsWith("npm publish")), false);
+  }
+  for (
+    const mismatch of [
+      { gitHead: "b".repeat(40) },
+      { version: "2.0.0" },
+      { name: "@other/package" },
+      { bin: { repo: "other.js" } },
+    ]
+  ) {
+    const f = fixture();
+    const finalized = { ...manifest, hjNpmArchive: "final.tgz" };
+    f.input.buildFiles.read = (path: string) =>
+      Promise.resolve(
+        path === "package.json"
+          ? JSON.stringify(finalized)
+          : "archive or entry",
+      );
+    const original = f.input.process.run;
+    f.input.process.run = (command: string, args: readonly string[]) => {
+      if (command === "tar") {
+        return Promise.resolve(
+          ok(JSON.stringify({ ...finalized, ...mismatch })),
+        );
+      }
+      return original(command, args);
+    };
+    await assertRejects(
+      () => publishNpm(f.input),
+      TypeError,
+      "archive manifest differs",
+    );
+    assertEquals(f.calls.some((call) => call.startsWith("npm publish")), false);
+  }
 });

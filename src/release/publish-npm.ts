@@ -1,5 +1,6 @@
 /** Independent npm publication of a checked, reproducible build artifact. */
 import * as fs from "node:fs/promises";
+import { isDeepStrictEqual } from "node:util";
 import type { ReleaseEnvironment } from "./release-environment.ts";
 import {
   confirmPublication,
@@ -160,11 +161,32 @@ export async function publishNpm(input: {
   const entries = entryPoints(manifest);
   for (const entry of entries) await input.buildFiles.read(entry);
   const cwd = new URL(npmBuildDirectory, input.root);
+  const archive = manifest.hjNpmArchive;
+  if (archive !== undefined) {
+    if (typeof archive !== "string" || !archiveFilename(archive)) {
+      throw new TypeError("npm finalized archive filename is invalid.");
+    }
+    // This checks every parent and the archive itself for symlinks before tools read it.
+    await input.buildFiles.read(archive);
+    const archivedManifest = JSON.parse(
+      await runOrThrow(input.process, "tar", [
+        "-xzOf",
+        archive,
+        "package/package.json",
+      ], { cwd }),
+    );
+    if (!isDeepStrictEqual(archivedManifest, manifest)) {
+      throw new TypeError(
+        "npm finalized archive manifest differs from the checked build.",
+      );
+    }
+  }
   const packed: unknown = JSON.parse(
     await runOrThrow(input.process, "npm", [
       "pack",
       "--json",
       "--ignore-scripts",
+      ...(archive === undefined ? [] : ["--dry-run", archive as string]),
     ], { cwd }),
   );
   const packResults = Array.isArray(packed)
@@ -176,7 +198,7 @@ export async function publishNpm(input: {
   if (
     !pack || pack.name !== config.name || pack.version !== release.version ||
     !integrity(pack.integrity) || typeof pack.filename !== "string" ||
-    !/^[a-zA-Z0-9][a-zA-Z0-9._-]*\.tgz$/.test(pack.filename)
+    !archiveFilename(pack.filename)
   ) {
     throw new TypeError("npm pack returned invalid package metadata.");
   }
@@ -211,7 +233,7 @@ export async function publishNpm(input: {
   try {
     await runOrThrow(input.process, "npm", [
       "publish",
-      pack.filename,
+      archive as string | undefined ?? pack.filename,
       "--ignore-scripts",
       "--access=public",
       `--registry=${registry}/`,
@@ -253,6 +275,9 @@ function entryPoints(manifest: Record<string, unknown>): string[] {
 function safePath(path: string): boolean {
   return /^[A-Za-z0-9_.-]+(?:\/[A-Za-z0-9_.-]+)*$/.test(path) &&
     !path.split("/").some((part) => part === "." || part === "..");
+}
+function archiveFilename(path: string): boolean {
+  return /^[a-zA-Z0-9][a-zA-Z0-9._-]*\.tgz$/.test(path);
 }
 function integrity(value: unknown): value is string {
   return typeof value === "string" &&

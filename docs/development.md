@@ -430,12 +430,15 @@ The EditorConfig feature was applied to this checkout with
 and a second enable produced no changes. Its lifecycle tests cover custom
 sections, edited values, removal, repair, and stale file guards.
 
-## Local npm build example
+## Local native npm build
 
-Run `deno task npm-build` to package this CLI behind a Node.js launcher. Run
-`node .hj/npm/bin/hj.js --help` to inspect its entry point. The build does not
-publish anything and requires Deno on the user's `PATH`. See
-[npm publication](npm-publication.md) for the output contract.
+Run `deno task npm-build` to build the native ESM CLI and its complete
+dependency archive without publishing. Run
+`node .hj/npm/esm/src/cli/cli.js --help` or
+`bun .hj/npm/esm/src/cli/cli.js --help` to inspect it. Node 24+ and Bun 1.4.2+
+run ordinary commands directly. External Deno remains necessary for Deno project
+tasks. See [npm publication](npm-publication.md) for the frozen build toolchain,
+final archive contract, and installation regression commands.
 
 The combined checkout repeated
 `deno task hj repo features --editorconfig --github-repo --yes` without changes.
