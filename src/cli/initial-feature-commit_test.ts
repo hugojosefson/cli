@@ -23,12 +23,19 @@ Deno.test("fresh feature setup commits only generated paths and is safe to repea
     assert(first.success, text(first.stderr));
     assertStringIncludes(
       text(first.stdout),
-      "Initialized Git and created the first commit.",
+      "Initialized Git with an empty base; committed changed features.",
     );
-    assertEquals(await git(root, "rev-list", "--count", "HEAD"), "1");
+    assertEquals(await git(root, "rev-list", "--count", "HEAD"), "6");
     assertEquals(
-      await git(root, "log", "-1", "--format=%s"),
-      "chore: configure repository features",
+      await git(root, "log", "--reverse", "--format=%s"),
+      [
+        "chore: init repo",
+        "chore(deno-fmt): enable feature",
+        "chore(deno-cli): enable feature",
+        "chore(deno-server): enable feature",
+        "chore(readme-static): enable feature",
+        "chore(license-mit): enable feature",
+      ].join("\n"),
     );
     assertEquals(
       await git(root, "ls-tree", "-r", "--name-only", "HEAD"),
@@ -50,7 +57,7 @@ Deno.test("fresh feature setup commits only generated paths and is safe to repea
     const again = await run(root, env, featureFlags);
     assert(again.success, text(again.stderr));
     assertStringIncludes(text(again.stdout), "No changes.");
-    assertEquals(await git(root, "rev-list", "--count", "HEAD"), "1");
+    assertEquals(await git(root, "rev-list", "--count", "HEAD"), "6");
   });
 });
 
@@ -147,7 +154,7 @@ function run(root: URL, env: Record<string, string>, flags: string[]) {
       parseFeatures(["repo", "features", ...Deno.args.slice(1)], registry),
       registry,
       () => [],
-      { githubIdentity: { viewer: async () => undefined } },
+      { githubIdentity: { viewer: async () => undefined }, runFinalTask: async () => undefined },
     ));
   `;
   return new Deno.Command("deno", {

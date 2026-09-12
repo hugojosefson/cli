@@ -58,8 +58,8 @@ export function formatFeatureResult(
     rows.push([
       "Git",
       result.initializedGit
-        ? "Initialized Git and created the first commit."
-        : "Created one commit for planned paths.",
+        ? "Initialized Git with an empty base; committed changed features."
+        : "Committed each changed feature separately.",
     ]);
   }
   if (result.githubChanged) rows.push(["GitHub", "Applied GitHub changes."]);
