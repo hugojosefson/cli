@@ -33,8 +33,13 @@ it with Node.js, Bun, or Deno in the repository you want to manage.
 
 ## Prerequisites
 
-Use Linux x64 with glibc. Choose one of the tested runtimes: Node.js 24 or 26,
-Bun 1.4.2, or Deno 2.9.6.
+Use Linux x64 with glibc.
+
+Choose one of the supported runtimes:
+
+- Node.js 24 or 26.
+- Bun 1.4.2.
+- Deno 2.9.6.
 
 ## Install
 
