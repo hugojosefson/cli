@@ -1,5 +1,12 @@
 /** @module Lifecycle declarations for generated release publication workflows. */
 
+import { inspectLegacyRelease } from "./github-release-legacy.ts";
+import {
+  checkLegacyReleaseMigration,
+  legacyReleaseCompanionPreconditions,
+  legacyReleaseMigrationChanges,
+  legacyReleaseMigrationSummary,
+} from "./github-release-legacy-migration.ts";
 import type { DetectionIssue } from "../api/feature-detection.ts";
 import { jsrPublishCheckArgs } from "./jsr-package-config.ts";
 import type { Feature } from "../api/feature.ts";
@@ -157,6 +164,16 @@ async function detect(
 ) {
   const current = await inspectReleaseArtifact(context, artifact);
   if (!legacy) return artifactDetection(current, artifact.path);
+  const bundle = await inspectLegacyRelease(context);
+  if (bundle.kind !== "absent") {
+    return issue(
+      bundle.kind === "exact" ? "drifted" : "ambiguous",
+      bundle.workflow.schema.path,
+      bundle.kind === "exact"
+        ? legacyReleaseMigrationSummary
+        : "Legacy release workflow or tasks are custom or incomplete.",
+    );
+  }
   const old = await inspectReleaseArtifact(context, jsrReleaseArtifact);
   if (
     isUnknown(current, releaseWorkflowMarker) ||
@@ -239,6 +256,11 @@ async function checkEnable(
       );
     }
   }
+  const migrationBlocker = await checkLegacyReleaseMigration(context);
+  if (migrationBlocker) {
+    return blocked("release-legacy-migration", migrationBlocker);
+  }
+  const bundle = await inspectLegacyRelease(context);
   const current = await inspectReleaseArtifact(context, artifact);
   const legacy = options.legacy
     ? await inspectReleaseArtifact(context, jsrReleaseArtifact)
@@ -287,13 +309,44 @@ async function checkEnable(
       );
     }
   }
-  return current.result === "matches" && legacy?.result !== "matches"
+  return current.result === "matches" && legacy?.result !== "matches" &&
+      !(options.legacy && bundle.kind === "exact")
     ? {
       result: "no-op",
       reason: "Release workflow is already adopted.",
       warnings: [],
     }
-    : { result: "allowed", warnings: [], preconditions: [] };
+    : {
+      result: "allowed",
+      warnings: bundle.kind === "exact"
+        ? [{
+          code: "release-legacy-migration",
+          message: legacyReleaseMigrationSummary,
+          subjects: [],
+        }]
+        : [],
+      preconditions: options.legacy && bundle.kind === "exact"
+        ? [
+          ...await legacyReleaseCompanionPreconditions(context),
+          {
+            kind: "file-digest",
+            path: bundle.workflow.schema.path,
+            digest: bundle.workflow.result === "matches" &&
+                bundle.workflow.observation.kind === "file"
+              ? bundle.workflow.observation.digest
+              : undefined,
+          },
+          ...bundle.entries.map(([name, expected]) => ({
+            kind: "json-value" as const,
+            path: bundle.config.kind === "config"
+              ? bundle.config.path
+              : "deno.jsonc",
+            jsonPath: ["tasks", name],
+            expected,
+          })),
+        ]
+        : [],
+    };
 }
 
 function projectedProtection(
@@ -387,7 +440,27 @@ async function planEnable(
       expectedDigest: old.observation.digest,
     });
   }
-  return featurePlan(id, "enable", operation, changes, "enabled");
+  if (options.legacy) {
+    changes.push(...await legacyReleaseMigrationChanges(context));
+  }
+  const plan = featurePlan(
+    id,
+    "enable",
+    {
+      ...operation,
+      warnings: fresh.warnings,
+      preconditions: fresh.result === "allowed"
+        ? fresh.preconditions
+        : operation.preconditions,
+    },
+    changes,
+    "enabled",
+  );
+  return changes.some((change) =>
+      "path" in change && change.path.endsWith("/release.yaml")
+    )
+    ? { ...plan, summary: legacyReleaseMigrationSummary }
+    : plan;
 }
 
 async function checkDisable(
@@ -395,6 +468,14 @@ async function checkDisable(
   artifact: Artifact,
   options: { readonly tag?: boolean; readonly legacy?: boolean },
 ): Promise<OperationCheck> {
+  if (
+    options.legacy && (await inspectLegacyRelease(context)).kind !== "absent"
+  ) {
+    return blocked(
+      "release-legacy-migration",
+      "Migrate the legacy release bundle before disabling coordinated publication.",
+    );
+  }
   if (
     options.tag &&
     context.resolvedChanges.some((change) =>

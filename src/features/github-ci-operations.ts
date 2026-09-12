@@ -1,5 +1,6 @@
 /** @module Safe operations for exact GitHub CI workflows. */
 
+import { inspectLegacyReleaseWorkflow } from "./github-release-legacy.ts";
 import {
   inspectLegacyGithubCi,
   legacyCiCheckCompatibility,
@@ -56,6 +57,12 @@ export async function checkEnableGithubCi(
       "Generated GitHub workflows differ. Re-run with --repair to restore them.",
     );
   }
+  const releaseNeedsCheck =
+    (await inspectLegacyReleaseWorkflow(context)).result === "matches" &&
+    !artifacts.some((item) =>
+      item.schema.kind === "file" &&
+      item.schema.content.endsWith(legacyCiCheckCompatibility)
+    );
   const permission = await workflowPermission(context);
   if (permission !== true) {
     return blocked(
@@ -66,7 +73,7 @@ export async function checkEnableGithubCi(
     );
   }
   return artifacts.every((item) => item.result === "matches") &&
-      legacy.every((item) => item.result === "absent")
+      legacy.every((item) => item.result === "absent") && !releaseNeedsCheck
     ? noOp("GitHub CI workflows are already adopted.")
     : {
       ...allowed(),
@@ -111,7 +118,8 @@ export async function planEnableGithubCi(
 ): Promise<ChangePlan> {
   const artifacts = await inspectGithubCiArtifacts(context);
   const legacy = await inspectLegacyGithubCi(context);
-  const preserveTest = legacy[0].result === "matches";
+  const preserveTest = legacy[0].result === "matches" ||
+    (await inspectLegacyReleaseWorkflow(context)).result === "matches";
   const changes: PlannedChange[] = [];
   for (const path of [".github", ".github/workflows"]) {
     if ((await context.files.observe(path)).kind === "absent") {

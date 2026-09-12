@@ -240,6 +240,31 @@ or repair can migrate the exact `.github/workflows/hj-release.yaml` template.
 Custom content blocks migration. Legacy template bytes stay fixed for
 recognition.
 
+To migrate a `git-hj-init` release bundle, select the coordinated owners
+together:
+
+```bash
+hj repo features --github-ci --github-release-publish-tag --github-release-publish-jsr
+```
+
+The plan replaces exact `.github/workflows/release.yaml` content and removes its
+`release`, `release:*`, `version`, and `git-is-clean` tasks together. It accepts
+recorded action major versions and exact `fork-version` versions. It preserves
+unrelated tasks, JSONC comments, package versions, and other configuration. The
+replacement publishes through the coordinated tag and JSR workflows.
+
+Migration requires complete legacy tasks and no active legacy workflow runs.
+Unavailable run information also blocks migration. Edited legacy content,
+references from custom tasks, and edited destination workflows block migration,
+even with `--repair`. Resolve those conflicts before retrying. Exact destination
+workflows can already exist.
+
+CI retains the `test` and `check` names and adds the release commit check.
+Migration does not weaken existing protection. Incompatible protection still
+blocks release setup. Review the replacement plan and merge all generated
+feature commits together through the normal source process. Do not push a
+partial migration to the default branch.
+
 | Constraint               | Required behavior                                                                 |
 | ------------------------ | --------------------------------------------------------------------------------- |
 | CI and protection repair | Keep required checks runnable throughout the operation order.                     |

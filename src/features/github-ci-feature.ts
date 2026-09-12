@@ -1,5 +1,7 @@
 /** @module GitHub pull-request CI and dependency-update workflow feature. */
 
+import { inspectLegacyReleaseWorkflow } from "./github-release-legacy.ts";
+import { legacyCiCheckCompatibility } from "./github-ci-legacy.ts";
 import { inspectLegacyGithubCi } from "./github-ci-legacy.ts";
 import type { DetectionIssue } from "../api/feature-detection.ts";
 import type { DetectionContext } from "../api/repository-context.ts";
@@ -51,6 +53,19 @@ async function detectGithubCi(context: DetectionContext) {
     return issue(
       "drifted",
       "A generated GitHub workflow differs or is missing.",
+    );
+  }
+  if (
+    (await inspectLegacyReleaseWorkflow(context)).result === "matches" &&
+    !artifacts.some((item) =>
+      item.schema.kind === "file" &&
+      item.schema.content.endsWith(legacyCiCheckCompatibility)
+    )
+  ) {
+    return issue(
+      "drifted",
+      "Legacy release checks need migration.",
+      "Select --github-ci to retain test and check during release migration.",
     );
   }
   const permission = await workflowPermission(context);

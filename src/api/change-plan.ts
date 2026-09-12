@@ -5,6 +5,7 @@ import type { OperationWarning } from "./feature-operation.ts";
 import type {
   DirectoryStateDigest,
   FileDigest,
+  JsonValue,
   RepositoryPath,
 } from "./json.ts";
 import type { PlannedChange } from "./planned-change.ts";
@@ -15,6 +16,12 @@ export type Precondition =
     readonly kind: "file-digest";
     readonly path: RepositoryPath;
     readonly digest: FileDigest | undefined;
+  }
+  | {
+    readonly kind: "json-value";
+    readonly path: RepositoryPath;
+    readonly jsonPath: readonly (string | number)[];
+    readonly expected: JsonValue | undefined;
   }
   | { readonly kind: "git-repository"; readonly exists: boolean }
   | { readonly kind: "git-head"; readonly commit: string | undefined }
