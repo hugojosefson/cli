@@ -1,6 +1,6 @@
 {
   "name": "@hugojosefson/cli",
-  "version": "0.2.3",
+  "version": "0.2.4",
   "license": "MIT",
   "minimumDependencyAge": {
     "age": 1440,
