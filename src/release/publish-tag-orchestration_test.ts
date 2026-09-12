@@ -35,6 +35,17 @@ Deno.test("prepare and apply publish the exact rebased tree and remove only the 
     const github = await fixture.apply();
     await assertPublished(fixture, github);
     assertEquals(github.events.length, 1);
+    for (const commit of [github.pr!.headSha, github.mergedSha!]) {
+      assertEquals(
+        (await runOrThrow(github.process, "git", [
+          "show",
+          "-s",
+          "--format=%B",
+          commit,
+        ])).trim(),
+        "chore(release): 0.1.0\n\n[skip ci]",
+      );
+    }
     assertEquals(
       (await runOrThrow(github.process, "git", [
         "show",
@@ -90,6 +101,55 @@ Deno.test("apply confirms uncertain branch and PR writes before continuing", asy
       github.mutations.filter((item) => item === "create-pr").length,
       1,
     );
+  });
+});
+
+Deno.test("apply and recovery preserve legacy release commits without a CI skip directive", async () => {
+  await withRelease(async (fixture) => {
+    const github = await fixture.github();
+    github.interruptBeforePr = true;
+    await assertRejects(
+      () => fixture.apply(github),
+      ReleasePullRequestNotFoundError,
+    );
+    const reserved = await github.readReleaseBranch();
+    assert(reserved);
+    await runOrThrow(github.process, "git", [
+      "commit",
+      "--amend",
+      "-m",
+      "chore(release): 0.1.0",
+    ]);
+    const legacy = (await runOrThrow(github.process, "git", [
+      "rev-parse",
+      "HEAD",
+    ])).trim();
+    const ref = `refs/heads/${releaseBranch("0.1.0")}`;
+    await runOrThrow(github.process, "git", [
+      "push",
+      `--force-with-lease=${ref}:${reserved}`,
+      "origin",
+      `HEAD:${ref}`,
+    ]);
+    github.interruptTag = true;
+    await assertRejects(
+      () => fixture.apply(github),
+      Error,
+      "tag was not created",
+    );
+    assertEquals(github.pr!.headSha, legacy);
+    await fixture.recover(github);
+    await assertPublished(fixture, github);
+    assertEquals(
+      (await runOrThrow(github.process, "git", [
+        "show",
+        "-s",
+        "--format=%B",
+        github.mergedSha!,
+      ])).trim(),
+      "chore(release): 0.1.0",
+    );
+    assertEquals(github.events.length, 1);
   });
 });
 
@@ -380,7 +440,11 @@ class Github implements PublishTagApplyGithub {
         "-p",
         parent,
         "-m",
-        this.sourceWins ? "fix: concurrent source" : this.pr.title,
+        this.sourceWins ? "fix: concurrent source" : await runOrThrow(
+          this.process,
+          "git",
+          ["show", "-s", "--format=%B", this.pr.headSha],
+        ),
       ])).trim();
       await runOrThrow(this.process, "git", [
         "push",

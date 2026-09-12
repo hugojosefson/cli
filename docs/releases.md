@@ -155,6 +155,20 @@ The release commit subject is `chore(release): <version>`. Publishers compare
 remote state with the checkout before writing. Matching existing objects can be
 reused. Conflicting objects stop the operation.
 
+New release commits contain `[skip ci]` in the message body. Preparation already
+tests the exact release tree, and application supplies the two required checks.
+The directive prevents a duplicate CI run that requires approval for a
+bot-created PR. GitHub otherwise marks that run as failed when the approval
+expires after the release PR merges. Source PRs still run normal CI.
+
+The directive skips `push` and `pull_request` workflows for the release commit.
+The success event still starts the publishers, and manual recovery remains
+available. Recovery also accepts older release commits without the directive.
+See
+[GitHub's skip instructions](https://docs.github.com/en/actions/how-tos/manage-workflow-runs/skip-workflow-runs)
+and
+[bot PR approval behavior](https://github.blog/changelog/2026-06-11-bot-created-pull-requests-can-run-workflows-if-approved/).
+
 ## Tag policy
 
 | Property                | Rule                                                               |

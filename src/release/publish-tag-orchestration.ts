@@ -265,6 +265,10 @@ async function reserveReleaseCommit(
     "commit",
     "-m",
     releaseCommitSubject(bundle.nextVersion),
+    // Preparation already checked this exact tree; apply supplies the required
+    // checks. Avoid an approval-gated duplicate workflow on the bot's PR.
+    "-m",
+    "[skip ci]",
   ], {
     env: {
       GIT_AUTHOR_NAME: "github-actions[bot]",
