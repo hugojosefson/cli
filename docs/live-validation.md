@@ -425,13 +425,20 @@ entry-point inspection, and a repeated publication command passed. Only the
 upload and the npm registry response were simulated in that check. The repeated
 command did not upload again.
 
-The public npm registry returned 404 for `@hugojosefson/scratchpad`. The local
-environment has no npm token or npm login configuration, and the browser
-redirects to npm sign-in. The scratchpad repository has no `NPM_TOKEN` secret.
-Live publication remains unverified until npm authentication is configured.
-Issue #12 must remain open until that publication succeeds. See
-[npm publication](npm-publication.md) for the exact workflow and authentication
-contract.
+The first live attempt found no existing npm package. A personal npm login now
+authenticates as `hugojosefson`. The publisher built and packed the release,
+then npm required a separate browser approval for the upload. That approval
+remains pending, so live publication is not yet verified and issue #12 remains
+open. The [npm publication guide](npm-publication.md) describes the
+first-publication approval and normal workflow authentication.
+
+The
+[scratchpad test tag](https://github.com/hugojosefson/scratchpad/tree/3.0.20-npm.0)
+points to commit `af092a3a732a322482962c88cafa402202f1bf4f`. The repository's
+existing protection rules remain unchanged. The local development runner now
+grants npm subprocess and registry access specifically for
+`release publish-npm`. The follow-up passed `deno task ci` with 617 tests and 7
+steps.
 
 The
 [scratchpad fixture branch](https://github.com/hugojosefson/scratchpad/tree/test/npm-publisher)
