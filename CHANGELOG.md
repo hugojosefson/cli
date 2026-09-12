@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.10.0
+
+- fix(cli): show setup guidance when commands need it
+- feat(readme): build README with a generated feature example
+- test(readme): preserve tracked read-only generated output
+- fix(readme): avoid repeating custom installation requirements
+- docs(readme): record generation and feature validation
+
 ## 0.9.0
 
 - feat(runtime): run application APIs natively on Node and Bun
