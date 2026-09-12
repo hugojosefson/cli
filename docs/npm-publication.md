@@ -69,6 +69,23 @@ initial authenticated publication before you can configure its trusted
 publisher. See the
 [npm publication instructions](https://docs.npmjs.com/creating-and-publishing-scoped-public-packages/).
 
+## First publication with a personal login
+
+A personal npm login can require a separate browser approval for publication.
+The automated publisher does not prompt for that approval. If npm requires it,
+publish the archive from the failed attempt in a terminal:
+
+```bash
+npm publish .hj/npm/<package-archive>.tgz --ignore-scripts \
+  --access=public --registry=https://registry.npmjs.org/ --tag=next
+```
+
+Replace `<package-archive>` with the archive created by the publisher. Use
+`next` for a prerelease and `latest` for a stable release. Approve npm's browser
+request, then rerun `hj release publish-npm` with the same release environment.
+The rerun compares the published archive with the release build. Keep tokens and
+one-time passwords out of command arguments and chat messages.
+
 ## Retry a release
 
 The publisher requires a clean checkout at the exact lightweight remote tag. It
