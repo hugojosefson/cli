@@ -270,7 +270,7 @@ export async function inspectReleaseArtifact(
   return inspectArtifact(
     schema,
     observation.kind === "file"
-      ? { ...observation, mode: schema.mode }
+      ? { ...observation, mode: schema.mode, access: undefined }
       : observation,
   );
 }

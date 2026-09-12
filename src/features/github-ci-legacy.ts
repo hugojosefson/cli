@@ -76,7 +76,7 @@ export async function inspectLegacyGithubCi(context: DetectionContext) {
     return inspectArtifact(
       { kind: "file", path: artifact.path, content, mode: 0o644 },
       observation.kind === "file"
-        ? { ...observation, mode: 0o644 }
+        ? { ...observation, mode: 0o644, access: undefined }
         : observation,
     );
   }));

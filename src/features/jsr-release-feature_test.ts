@@ -69,7 +69,18 @@ test("jsr-release detects absent, exact, drifted, custom, and mode-insensitive w
   );
   assertEquals(
     (await jsrReleaseFeature.detect(
-      context({ [jsrReleaseArtifact.path]: { ...exact(), mode: 0o664 } }),
+      context({
+        [jsrReleaseArtifact.path]: {
+          ...exact(),
+          mode: 0o440,
+          access: {
+            readable: true,
+            writable: false,
+            executable: false,
+            shift: 6,
+          },
+        },
+      }),
     )).state,
     "enabled",
   );

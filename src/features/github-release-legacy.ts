@@ -92,7 +92,9 @@ export async function inspectLegacyReleaseWorkflow(context: DetectionContext) {
   }
   return inspectArtifact(
     { kind: "file", path: legacyReleaseArtifact.path, content, mode: 0o644 },
-    observation.kind === "file" ? { ...observation, mode: 0o644 } : observation,
+    observation.kind === "file"
+      ? { ...observation, mode: 0o644, access: undefined }
+      : observation,
   );
 }
 
