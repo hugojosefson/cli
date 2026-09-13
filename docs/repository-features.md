@@ -514,10 +514,14 @@ the existing CI badge stays intact.
 | Owner                         | Contribution                                                  |
 | ----------------------------- | ------------------------------------------------------------- |
 | `jsr-package`                 | JSR version and score badges, and `readme/install.sh`.        |
-| `github-ci`                   | CI badge for the linked repository and `hj-ci.yaml`.          |
+| `github-ci`                   | CI badge for the repository workflow.                         |
 | Deno features                 | A requirement for Deno, through the active README provider.   |
 | `deno-cli` with `jsr-package` | Command installation when the package has a `./cli` export.   |
 | `deno-lib` with `jsr-package` | API link, runnable example, its public export, and test link. |
+
+With `github-release-publish-tag` active, the CI badge shows that workflow's
+status for `main`. If that feature is not active, it shows `hj-ci.yaml`. Repair
+updates owned badges and preserves custom badges.
 
 Static READMEs contain the installation commands and example code directly.
 Built READMEs keep standalone include directives in `readme/README.md`. The
