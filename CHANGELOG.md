@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.15.2
+
+### Fixes
+
+#### release
+
+- accept color codes in task prefixes
+  ([67c0502](https://github.com/hugojosefson/cli/commit/67c0502951ec9a7d255cb756ba0836d41906cb81))
+
+### Other
+
+#### ci
+
+- pin the color prefix correction
+  ([f2484af](https://github.com/hugojosefson/cli/commit/f2484af3071aaaaa33b6fbd7a6777a8e77facecd))
+
 ## 0.15.1
 
 ### Fixes
