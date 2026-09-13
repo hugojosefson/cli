@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.15.1
+
+### Fixes
+
+#### release
+
+- print filtered native validation summaries
+  ([f06420b](https://github.com/hugojosefson/cli/commit/f06420b87e02b8ddd06bed8abbc766493096a518))
+
+### Other
+
+#### ci
+
+- pin release summary output source
+  ([e4f5a86](https://github.com/hugojosefson/cli/commit/e4f5a865541b3a53364e92af060a8d7bcacf2f02))
+
 ## 0.15.0
 
 ### Features
