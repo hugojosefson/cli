@@ -25,6 +25,7 @@ import { LocalGitReader } from "../repository/local-git-reader.ts";
 import { reconcileReadmePlans } from "./readme-contribution-plans.ts";
 import { applyLocalChangePlan } from "../operations/local-change-plan.ts";
 import { builtInFeatureRegistry } from "./built-in-feature-registry.ts";
+import type { OperationContext } from "../api/repository-context.ts";
 
 // License transport has separate tests. Keep this complete feature operation
 // offline by supplying an already enabled license provider.
@@ -403,7 +404,7 @@ test("custom examples use the actual library export, retain publication settings
         (id) => [id, { state: "enabled" as const, evidence: [] }],
       ),
     );
-    const plans = await reconcileReadmePlans({
+    const context: OperationContext = {
       repositoryRoot: root,
       files,
       git,
@@ -421,7 +422,8 @@ test("custom examples use the actual library export, retain publication settings
         secretExists: () => Promise.resolve(false),
         resource: () => Promise.resolve(undefined),
       },
-    }, []);
+    };
+    const plans = await reconcileReadmePlans(context, []);
     for (const plan of plans) await applyLocalChangePlan(root, plan);
     assertEquals(JSON.parse(await read(root, "deno.json")).publish, {
       include: ["src", "readme/example-usage.ts"],
@@ -431,6 +433,48 @@ test("custom examples use the actual library export, retain publication settings
       await read(root, "README.md"),
       "https://github.com/different-owner/different-repo/actions/workflows/hj-ci.yaml/badge.svg",
     );
+    const releaseContext: OperationContext = {
+      ...context,
+      resolvedChanges: [{
+        featureId: "github-release-publish-tag",
+        enabled: true,
+        reason: { kind: "explicit-request" },
+      }],
+    };
+    for (const plan of await reconcileReadmePlans(releaseContext, [])) {
+      await applyLocalChangePlan(root, plan);
+    }
+    const releaseReadme = await read(root, "README.md");
+    assertStringIncludes(
+      releaseReadme,
+      "hj-release-publish-tag.yaml/badge.svg?branch=main",
+    );
+    assertStringIncludes(
+      releaseReadme,
+      "hj-release-publish-tag.yaml?query=branch%3Amain",
+    );
+    assert(!releaseReadme.includes("hj-ci.yaml/badge.svg"));
+    const detectedRelease: OperationContext = {
+      ...context,
+      detections: new Map([...detections, ["github-release-publish-tag", {
+        state: "enabled" as const,
+        evidence: [],
+      }]]),
+    };
+    assertEquals(await reconcileReadmePlans(detectedRelease, []), []);
+    const disabledRelease: OperationContext = {
+      ...detectedRelease,
+      resolvedChanges: [{
+        featureId: "github-release-publish-tag",
+        enabled: false,
+        reason: { kind: "explicit-request" },
+      }],
+    };
+    for (const plan of await reconcileReadmePlans(disabledRelease, [])) {
+      await applyLocalChangePlan(root, plan);
+    }
+    assertStringIncludes(await read(root, "README.md"), "hj-ci.yaml/badge.svg");
+    assert(!(await read(root, "README.md")).includes("hj-release-publish-tag"));
     assertStringIncludes(
       await read(root, "README.md"),
       "https://jsr.io/@sample/tool",

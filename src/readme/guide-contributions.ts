@@ -12,6 +12,7 @@ export interface GuideInputs {
   readonly install?: string;
   readonly example?: string;
   readonly github?: { readonly owner: string; readonly name: string };
+  readonly releaseTag?: boolean;
   readonly cliPermissions: string;
 }
 
@@ -31,12 +32,15 @@ export function guideContributions(input: GuideInputs): ReadmeContribution[] {
     });
   }
   if (input.github) {
+    const workflow = input.releaseTag ? "hj-release-publish-tag" : "hj-ci";
     const url =
-      `https://github.com/${input.github.owner}/${input.github.name}/actions/workflows/hj-ci.yaml`;
+      `https://github.com/${input.github.owner}/${input.github.name}/actions/workflows/${workflow}.yaml`;
     result.push({
       id: "github-ci:badge",
       position: "badges",
-      content: `[![CI](${url}/badge.svg)](${url})`,
+      content: input.releaseTag
+        ? `[![CI](${url}/badge.svg?branch=main)](${url}?query=branch%3Amain)`
+        : `[![CI](${url}/badge.svg)](${url})`,
     });
   }
   if (input.deno) {

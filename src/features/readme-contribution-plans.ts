@@ -187,6 +187,7 @@ export async function reconcileReadmePlans(
     install: jsr ? install : undefined,
     example: publicExample ? staticExample : undefined,
     github,
+    releaseTag: active("github-release-publish-tag"),
     cliPermissions,
   });
   const npmName = await npmBadgeIdentity(projected);
