@@ -173,7 +173,9 @@ It does not accept those observations as test results.
 
 CI output also contains a compact `Native input summary` with keys and timing
 data. Release output retains this summary after job cleanup removes report
-files. The summary excludes environment values and file contents.
+files. Release preparation filters captured validation output and reconstructs
+only known summary fields. It omits malformed records and other command output.
+The summary excludes environment values and file contents.
 
 Each proposed key contains the group's resolved emitted imports, source files,
 installed dependency contents, build tools, runtime tools, and group membership.

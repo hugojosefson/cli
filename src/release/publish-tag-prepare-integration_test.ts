@@ -23,6 +23,7 @@ import {
   runOrThrow,
 } from "./release-process.ts";
 import { publishTagPrepare } from "./publish-tag-prepare.ts";
+import { nativeSummaryFixture } from "./native-validation-summary-test-fixtures.ts";
 
 for (const scenario of ["success", "drifted workflow", "failed contribution"]) {
   test(
@@ -94,6 +95,18 @@ for (const scenario of ["success", "drifted workflow", "failed contribution"]) {
                 await readTextFile(new URL("CHANGELOG.md", root)),
                 "### Features\n\n- initial release",
               );
+              const result = await process.run(command, args, options);
+              return {
+                ...result,
+                stdout: new TextEncoder().encode(
+                  "private-validation-output\n [native-tests] Native input summary: " +
+                    JSON.stringify({
+                      ...nativeSummaryFixture(),
+                      extra: "private-field",
+                    }) + "\n",
+                ),
+                stderr: new TextEncoder().encode("private-validation-error"),
+              };
             }
             return command === "deno" &&
                 JSON.stringify(args) ===
@@ -142,6 +155,12 @@ for (const scenario of ["success", "drifted workflow", "failed contribution"]) {
         }
         const result = await prepare();
         assertEquals(result.releaseNeeded, true);
+        assertEquals(
+          result.output,
+          `Native input summary: ${
+            JSON.stringify(nativeSummaryFixture())
+          }\nPrepared release 0.1.0.\n`,
+        );
         const outputs = Object.fromEntries(
           (await readTextFile(outputPath)).trim().split("\n").map((line) => {
             const offset = line.indexOf("=");
