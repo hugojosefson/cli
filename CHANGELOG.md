@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.15.3
+
+### Fixes
+
+#### readme
+
+- select main release workflow for CI badge
+  ([b433306](https://github.com/hugojosefson/cli/commit/b433306577e89216dc559a8b862042812048e7f0))
+
 ## 0.15.2
 
 ### Fixes
