@@ -36,6 +36,7 @@ import { validateSourceCommitRange } from "./source-commit-validation.ts";
 import { updateDenoConfigVersion } from "./version-file.ts";
 import type { ReleaseEnvironment } from "./release-environment.ts";
 import { makeReleaseTempDir } from "./release-temp.ts";
+import { nativeValidationSummary } from "./native-validation-summary.ts";
 
 export type PublishTagPrepareResult = {
   readonly output: string;
@@ -183,7 +184,7 @@ async function prepareUsual(
     formattedChangelog,
     insertion.offset,
   );
-  await runOrThrow(process, "deno", ["task", "all"]);
+  const validationOutput = await runOrThrow(process, "deno", ["task", "all"]);
   if (
     await fs.readFile(new URL(config.path, root), "utf8") !==
       formattedVersion ||
@@ -235,7 +236,8 @@ async function prepareUsual(
     `## Release ${version}\n\nSelected \`${selectedSha}\` for a ${releaseType} release.\n`,
   );
   return {
-    output: `Prepared release ${version}.\n`,
+    output: nativeValidationSummary(validationOutput) +
+      `Prepared release ${version}.\n`,
     releaseNeeded: true,
   };
 }
