@@ -1,7 +1,10 @@
 const groups = ["github-repository", "release-core"];
 const inputs = ["configuration", "packages", "dependencies", "tools"];
 const durations = ["buildMs", "buildObservationMs", "observationMs"];
-const marker = /^\s*(?:\[native-tests\]\s*)?Native input summary: (.*)$/;
+// Deno adds SGR codes to task prefixes. JSON data must stay unchanged.
+const marker =
+  // deno-lint-ignore no-control-regex
+  /^(?:\x1b\[[0-9;]*m|[ \t])*(?:\[native-tests\](?:\x1b\[[0-9;]*m|[ \t])*)?Native input summary: (.*)$/;
 const digest = (value: unknown): value is string =>
   typeof value === "string" && value.length === 64 &&
   /^[0-9a-f]{64}$/.test(value);

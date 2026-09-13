@@ -1,10 +1,14 @@
 import { test as nativeTest } from "node:test";
+import { delimiter, dirname } from "node:path";
 import { pathToFileURL } from "node:url";
 import { assertEquals } from "@std/assert";
 import { trackTests } from "../testing/inventory-test-fixtures.ts";
 import { nativeValidationSummary } from "./native-validation-summary.ts";
-import { nativeSummaryFixture } from "./native-validation-summary-test-fixtures.ts";
-import { localReleaseProcess } from "./release-process.ts";
+import {
+  captureSummaryTask,
+  nativeSummaryFixture,
+} from "./native-validation-summary-test-fixtures.ts";
+import { externalDeno } from "../testing/runtime-test-fixtures.ts";
 import {
   makeTempDir,
   remove,
@@ -25,33 +29,57 @@ test("release summaries survive Deno task capture with color settings", async ()
       new URL("deno.json", root),
       JSON.stringify({
         tasks: {
-          "native-tests": "deno run emit.ts",
-          all: { dependencies: ["native-tests"] },
+          format: "deno run other.ts",
+          coverage: "deno run other.ts",
+          "ci-deno": { dependencies: ["format", "coverage"] },
+          "native-tests": {
+            command: "deno run --allow-env=NO_COLOR emit.ts",
+            dependencies: ["coverage"],
+          },
+          ci: { dependencies: ["ci-deno", "native-tests"] },
+          all: { dependencies: ["ci"] },
         },
       }),
     );
     await writeTextFile(
-      new URL("emit.ts", root),
-      `console.log(${
-        JSON.stringify("private-stdout\n" + line(nativeSummaryFixture()))
-      });\n` +
-        'console.error("private-stderr");\n',
+      new URL("other.ts", root),
+      'await new Promise(resolve => setTimeout(resolve, 20));\nconsole.log("dummy-task");\n',
     );
-    for (
-      const env of [{ NO_COLOR: "1", FORCE_COLOR: "0" }, {
-        NO_COLOR: "",
-        FORCE_COLOR: "1",
-      }]
-    ) {
-      const result = await localReleaseProcess(root).run("deno", [
-        "task",
-        "all",
-      ], {
-        env: { ...env, CI: "true", GITHUB_ACTIONS: "true" },
+    const environments: Record<string, string>[] = [{}, { FORCE_COLOR: "1" }, {
+      NO_COLOR: "",
+      FORCE_COLOR: "1",
+    }, { NO_COLOR: "1" }];
+    for (const env of environments) {
+      await writeTextFile(
+        new URL("emit.ts", root),
+        `if (Deno.env.has("NO_COLOR") !== ${
+          Object.hasOwn(env, "NO_COLOR")
+        }) throw new Error("incorrect fixture environment");\n` +
+          `console.log(${
+            JSON.stringify("private-stdout\n" + line(nativeSummaryFixture()))
+          });\n` +
+          'console.error("private-stderr");\n',
+      );
+      const result = await captureSummaryTask(root, {
+        PATH: `${dirname(externalDeno)}${delimiter}/usr/bin:/bin`,
+        HOME: directory,
+        ...env,
+        CI: "true",
+        GITHUB_ACTIONS: "true",
       });
-      assertEquals(result.success, true);
       assertEquals(
-        nativeValidationSummary(new TextDecoder().decode(result.stdout)),
+        result.success,
+        true,
+        new TextDecoder().decode(result.stderr),
+      );
+      const stdout = new TextDecoder().decode(result.stdout);
+      assertEquals(
+        stdout.includes("\x1b["),
+        env.NO_COLOR !== "1",
+      );
+      assertEquals(stdout.includes("[native-tests]"), true);
+      assertEquals(
+        nativeValidationSummary(stdout),
         line(nativeSummaryFixture()),
       );
       assertEquals(
@@ -62,6 +90,41 @@ test("release summaries survive Deno task capture with color settings", async ()
   } finally {
     await remove(directory, { recursive: true });
   }
+});
+
+test("release summary prefixes accept color codes but reject other terminal controls", () => {
+  const record = line(nativeSummaryFixture());
+  assertEquals(
+    nativeValidationSummary(`\x1b[0m\x1b[33m [native-tests]\x1b[0m ${record}`),
+    record,
+  );
+  assertEquals(
+    nativeValidationSummary(`\x1b[38;5;12m [native-tests]\x1b[0m ${record}`),
+    record,
+  );
+  for (
+    const control of ["\x1b[2J", "\x1b[1A", "\x1b]0;private\x07"]
+  ) {
+    assertEquals(
+      nativeValidationSummary(`${control}[native-tests] ${record}`),
+      "",
+    );
+    assertEquals(
+      nativeValidationSummary(`[native-tests] ${control}${record}`),
+      "",
+    );
+  }
+  assertEquals(
+    nativeValidationSummary(record.replace("summary: ", "summary: \x1b[0m")),
+    "",
+  );
+  assertEquals(nativeValidationSummary(record.trimEnd() + "\x1b[0m\n"), "");
+  assertEquals(
+    nativeValidationSummary(
+      line({ ...nativeSummaryFixture(), context: "\x1b[0m" + "a".repeat(64) }),
+    ),
+    "",
+  );
 });
 
 test("release summaries contain only fixed fields from native observations", () => {
