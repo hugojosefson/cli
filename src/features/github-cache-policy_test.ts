@@ -29,7 +29,6 @@ test("PR jobs have read-only cache access", () => {
     const workflow = parse(content);
     assertEquals(Object.keys(workflow.on), [
       "pull_request",
-      "workflow_dispatch",
     ]);
     assertEquals(workflow["cache-mode"], "read");
     for (const job of Object.values(workflow.jobs) as Job[]) {
