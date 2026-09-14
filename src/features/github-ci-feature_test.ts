@@ -109,7 +109,7 @@ test("github-ci owns deterministic pull-request and dependency workflows", () =>
   assertStringIncludes(ci, "pull_request:");
   assertEquals(parseYaml(ci).concurrency, {
     group:
-      "hj-ci-${{ github.workflow }}-pr-${{ github.event.pull_request.number || inputs.pull_request }}",
+      "hj-ci-${{ github.workflow }}-pr-${{ github.event.pull_request.number }}",
     "cancel-in-progress": true,
   });
   assertEquals(parseYaml(deps).concurrency, {
@@ -123,11 +123,11 @@ test("github-ci owns deterministic pull-request and dependency workflows", () =>
   assertStringIncludes(ci, "HJ_RELEASE_ROUTE: source-validation");
   assertStringIncludes(
     ci,
-    "HJ_SOURCE_BASE_SHA: ${{ github.event.pull_request.base.sha || inputs.base_sha }}",
+    "HJ_SOURCE_BASE_SHA: ${{ github.event.pull_request.base.sha }}",
   );
   assertStringIncludes(
     ci,
-    "HJ_SOURCE_HEAD_SHA: ${{ github.event.pull_request.head.sha || inputs.head_sha }}",
+    "HJ_SOURCE_HEAD_SHA: ${{ github.event.pull_request.head.sha }}",
   );
   assertStringIncludes(ci, "fetch-depth: 0");
   assertStringIncludes(ci, "persist-credentials: false");

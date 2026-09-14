@@ -1,10 +1,6 @@
 /** @module Exact workflows owned by the GitHub CI feature. */
 
-import {
-  githubCiDispatchCommand,
-  githubCiDispatchInputs,
-  githubCiDispatchValidation,
-} from "./github-ci-dispatch.ts";
+import { githubCiDependencySummary } from "./github-ci-dependency-summary.ts";
 import { legacyCiCheckCompatibility } from "./github-ci-legacy.ts";
 import { workflowDenoVersion } from "./workflow-toolchain.ts";
 import { hjPackageReference } from "./hj-package.ts";
@@ -34,22 +30,21 @@ export const githubCiArtifacts = [{
 
 on:
   pull_request:
-${githubCiDispatchInputs}
+
 permissions:
   contents: read
-  pull-requests: read
 
 cache-mode: read
 
 concurrency:
-  group: hj-ci-\${{ github.workflow }}-pr-\${{ github.event.pull_request.number || inputs.pull_request }}
+  group: hj-ci-\${{ github.workflow }}-pr-\${{ github.event.pull_request.number }}
   cancel-in-progress: true
 
 jobs:
   check:
     runs-on: ubuntu-latest
     steps:
-${githubCiDispatchValidation}      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - uses: denoland/setup-deno@22d081ff2d3a40755e97629de92e3bcbfa7cf2ed # v2.0.5
@@ -60,9 +55,8 @@ ${denoCacheInputs}      - run: deno task all
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      pull-requests: read
     steps:
-${githubCiDispatchValidation}      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
           persist-credentials: false
@@ -72,8 +66,8 @@ ${githubCiDispatchValidation}      - uses: actions/checkout@3d3c42e5aac5ba805825
 ${denoCacheInputs}      - name: Validate release commits
         env:
           HJ_RELEASE_ROUTE: source-validation
-          HJ_SOURCE_BASE_SHA: \${{ github.event.pull_request.base.sha || inputs.base_sha }}
-          HJ_SOURCE_HEAD_SHA: \${{ github.event.pull_request.head.sha || inputs.head_sha }}
+          HJ_SOURCE_BASE_SHA: \${{ github.event.pull_request.base.sha }}
+          HJ_SOURCE_HEAD_SHA: \${{ github.event.pull_request.head.sha }}
         run: >-
           deno run --no-lock
           --allow-env=HJ_RELEASE_ROUTE,HJ_SOURCE_BASE_SHA,HJ_SOURCE_HEAD_SHA
@@ -93,7 +87,7 @@ on:
 permissions:
   contents: write
   pull-requests: write
-  actions: write
+  actions: read
 
 cache-mode: write
 
@@ -148,7 +142,7 @@ ${denoCacheInputs}      - name: Update dependencies
               --title "chore: update dependencies" \\
               --body "Updates dependencies to their latest versions."
           fi
-${githubCiDispatchCommand}`,
+${githubCiDependencySummary}`,
 }] as const;
 
 /** Render the same exact CI variant for local adoption and remote protection. */

@@ -221,10 +221,15 @@ locks together. The task derives native JSR versions and npm dependency
 overrides from the Deno lock. It rejects different versions or integrity values.
 The runtime matrix keeps its selected versions.
 
-The updater uses `workflow_dispatch` to start CI for each PR commit. It needs
-`actions: write`. CI keeps read-only permissions and validates the PR number,
-repository, Git ref, and commit values before checkout. The CI workflow must be
-on the default `Git branch` before GitHub accepts this event.
+The updater reports the PR workflow URL after it pushes each dependency commit.
+It needs `actions: read` to find that workflow. GitHub requires user approval
+for workflows from PR events that use `GITHUB_TOKEN`. If approval is necessary,
+the updater summary gives the PR and workflow links. A user with write access
+must select `Approve workflows` on the PR. CI keeps read-only permissions.
+
+`workflow_dispatch` checks cannot satisfy required PR checks. A GitHub App token
+or a personal access token is necessary for automatic runs without user
+approval. This workflow does not use those credentials.
 
 ## Workflow dependency caches
 
