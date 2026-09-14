@@ -26,17 +26,24 @@ test("generated preparation permissions let the real version calculator load", a
       };\nconsole.log(await nextVersion("0.0.0", "patch"));\n`,
     );
     const permission = publishTagArtifact.content.match(/--allow-env=\S+/)![0];
-    const output = await runCommand("deno", {
-      args: [
-        "run",
-        "--frozen",
-        `--config=${sourceFile("deno.json").pathname}`,
-        permission,
-        script,
-      ],
-    });
-    assertEquals(output.success, true, new TextDecoder().decode(output.stderr));
-    assertEquals(new TextDecoder().decode(output.stdout).trim(), "0.0.1");
+    for (const permissions of [[permission], []]) {
+      const output = await runCommand("deno", {
+        args: [
+          "run",
+          "--frozen",
+          "--no-prompt",
+          `--config=${sourceFile("deno.json").pathname}`,
+          ...permissions,
+          script,
+        ],
+      });
+      assertEquals(
+        output.success,
+        true,
+        new TextDecoder().decode(output.stderr),
+      );
+      assertEquals(new TextDecoder().decode(output.stdout).trim(), "0.0.1");
+    }
   } finally {
     await remove(path, { recursive: true });
   }

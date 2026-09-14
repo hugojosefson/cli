@@ -136,7 +136,7 @@ The command does not alter Git tags, published packages, or GitHub Releases.
 The parser and writer use exact Conventional Changelog dependency versions. They
 need no environment permissions. Preparation reads `GITHUB_REPOSITORY` to use
 the canonical Actions repository for links. Its workflow grants that one
-additional variable. Version calculation continues to use `fork-version@5.2.0`.
+additional variable. Version calculation continues to use `fork-version@6.3.1`.
 Recovery accepts either the grouped format or the original flat format only when
 the complete reconstructed release tree matches the committed tree.
 

@@ -2,8 +2,6 @@ import { test as nativeTest } from "node:test";
 import { trackTests } from "../testing/inventory-test-fixtures.ts";
 const test = trackTests(import.meta.url, nativeTest);
 import { assertEquals, assertThrows } from "@std/assert";
-import { getNextVersion, Logger } from "fork-version";
-import type { Config, ForkConfig } from "fork-version";
 import { nextVersion } from "./fork-version.ts";
 import { releaseBranch, releaseCommitSubject } from "./names.ts";
 import { selectPreviousRelease } from "./previous-release.ts";
@@ -123,22 +121,23 @@ test("validated Conventional Commits select the greatest release type", () => {
   );
 });
 
-test("fork-version adapter matches fork-version 5.2.0 for stable, prerelease, and build versions", async () => {
+test("version adapter calculates expected release versions", async () => {
   for (
-    const [currentVersion, releaseAs] of [
-      ["1.2.3", "minor"],
-      ["1.2.3-beta.2", "patch"],
-      ["1.2.3+build.7", "patch"],
+    const [currentVersion, releaseAs, expected] of [
+      ["0.0.0", "patch", "0.0.1"],
+      ["0.0.0", "minor", "0.1.0"],
+      ["0.0.0", "major", "1.0.0"],
+      ["1.2.3", "patch", "1.2.4"],
+      ["1.2.3", "minor", "1.3.0"],
+      ["1.2.3", "major", "2.0.0"],
+      ["1.2.3-beta.2", "patch", "1.2.3"],
+      ["1.2.3-beta.2", "minor", "1.3.0"],
+      ["1.2.3-beta.2", "major", "2.0.0"],
+      ["1.2.3+build.7", "patch", "1.2.4"],
+      ["1.2.3+build.7", "minor", "1.3.0"],
+      ["1.2.3+build.7", "major", "2.0.0"],
     ] as const
   ) {
-    const config: Config = { currentVersion, releaseAs, silent: true };
-    const resolved = config as ForkConfig;
-    const direct = await getNextVersion(
-      resolved,
-      new Logger(resolved),
-      [],
-      currentVersion,
-    );
-    assertEquals(await nextVersion(currentVersion, releaseAs), direct.version);
+    assertEquals(await nextVersion(currentVersion, releaseAs), expected);
   }
 });
