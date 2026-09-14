@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.15.6
+
+### Fixes
+
+#### ci
+
+- report dependency PR workflow approval
+  ([b985bb3](https://github.com/hugojosefson/cli/commit/b985bb38741f09834b4501de25de8a805f52100f))
+
 ## 0.15.5
 
 ### Fixes
