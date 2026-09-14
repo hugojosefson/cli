@@ -5,20 +5,54 @@ name: CI
 
 on:
   pull_request:
+  workflow_dispatch:
+    inputs:
+      pull_request:
+        description: Pull request number
+        required: true
+        type: string
+      base_sha:
+        description: Base commit SHA
+        required: true
+        type: string
+      head_sha:
+        description: Head commit SHA
+        required: true
+        type: string
 
 permissions:
   contents: read
+  pull-requests: read
 
 cache-mode: read
 
 concurrency:
-  group: hj-ci-${{ github.workflow }}-pr-${{ github.event.pull_request.number }}
+  group: hj-ci-${{ github.workflow }}-pr-${{ github.event.pull_request.number || inputs.pull_request }}
   cancel-in-progress: true
 
 jobs:
   deno:
     runs-on: ubuntu-latest
     steps:
+      - name: Validate pull request inputs
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ inputs.pull_request }}
+          BASE_SHA: ${{ inputs.base_sha }}
+          HEAD_SHA: ${{ inputs.head_sha }}
+          RUN_SHA: ${{ github.sha }}
+          RUN_REF: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          [[ "${PR_NUMBER}" =~ ^[1-9][0-9]*$ ]]
+          [[ "${BASE_SHA}" =~ ^[a-f0-9]{40}$ ]]
+          [[ "${HEAD_SHA}" =~ ^[a-f0-9]{40}$ ]]
+          test "${HEAD_SHA}" = "${RUN_SHA}"
+          gh pr view "${PR_NUMBER}" --json state,isCrossRepository,headRefName,headRefOid,baseRefOid \
+            | jq --exit-status --arg head "${HEAD_SHA}" --arg base "${BASE_SHA}" --arg ref "${RUN_REF}" \
+              '.state == "OPEN" and .isCrossRepository == false and .headRefOid == $head and .baseRefOid == $base and .headRefName == $ref'
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
@@ -43,6 +77,25 @@ jobs:
       matrix:
         runtime: [node24, node26, bun]
     steps:
+      - name: Validate pull request inputs
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ inputs.pull_request }}
+          BASE_SHA: ${{ inputs.base_sha }}
+          HEAD_SHA: ${{ inputs.head_sha }}
+          RUN_SHA: ${{ github.sha }}
+          RUN_REF: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          [[ "${PR_NUMBER}" =~ ^[1-9][0-9]*$ ]]
+          [[ "${BASE_SHA}" =~ ^[a-f0-9]{40}$ ]]
+          [[ "${HEAD_SHA}" =~ ^[a-f0-9]{40}$ ]]
+          test "${HEAD_SHA}" = "${RUN_SHA}"
+          gh pr view "${PR_NUMBER}" --json state,isCrossRepository,headRefName,headRefOid,baseRefOid \
+            | jq --exit-status --arg head "${HEAD_SHA}" --arg base "${BASE_SHA}" --arg ref "${RUN_REF}" \
+              '.state == "OPEN" and .isCrossRepository == false and .headRefOid == $head and .baseRefOid == $base and .headRefName == $ref'
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
@@ -78,6 +131,25 @@ jobs:
           DENO_RESULT: ${{ needs.deno.result }}
           NATIVE_RESULT: ${{ needs.native.result }}
         run: test "$DENO_RESULT" = success && test "$NATIVE_RESULT" = success
+      - name: Validate pull request inputs
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ inputs.pull_request }}
+          BASE_SHA: ${{ inputs.base_sha }}
+          HEAD_SHA: ${{ inputs.head_sha }}
+          RUN_SHA: ${{ github.sha }}
+          RUN_REF: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          [[ "${PR_NUMBER}" =~ ^[1-9][0-9]*$ ]]
+          [[ "${BASE_SHA}" =~ ^[a-f0-9]{40}$ ]]
+          [[ "${HEAD_SHA}" =~ ^[a-f0-9]{40}$ ]]
+          test "${HEAD_SHA}" = "${RUN_SHA}"
+          gh pr view "${PR_NUMBER}" --json state,isCrossRepository,headRefName,headRefOid,baseRefOid \
+            | jq --exit-status --arg head "${HEAD_SHA}" --arg base "${BASE_SHA}" --arg ref "${RUN_REF}" \
+              '.state == "OPEN" and .isCrossRepository == false and .headRefOid == $head and .baseRefOid == $base and .headRefName == $ref'
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
@@ -97,7 +169,27 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      pull-requests: read
     steps:
+      - name: Validate pull request inputs
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ inputs.pull_request }}
+          BASE_SHA: ${{ inputs.base_sha }}
+          HEAD_SHA: ${{ inputs.head_sha }}
+          RUN_SHA: ${{ github.sha }}
+          RUN_REF: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          [[ "${PR_NUMBER}" =~ ^[1-9][0-9]*$ ]]
+          [[ "${BASE_SHA}" =~ ^[a-f0-9]{40}$ ]]
+          [[ "${HEAD_SHA}" =~ ^[a-f0-9]{40}$ ]]
+          test "${HEAD_SHA}" = "${RUN_SHA}"
+          gh pr view "${PR_NUMBER}" --json state,isCrossRepository,headRefName,headRefOid,baseRefOid \
+            | jq --exit-status --arg head "${HEAD_SHA}" --arg base "${BASE_SHA}" --arg ref "${RUN_REF}" \
+              '.state == "OPEN" and .isCrossRepository == false and .headRefOid == $head and .baseRefOid == $base and .headRefName == $ref'
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
@@ -110,8 +202,8 @@ jobs:
       - name: Validate release commits
         env:
           HJ_RELEASE_ROUTE: source-validation
-          HJ_SOURCE_BASE_SHA: ${{ github.event.pull_request.base.sha }}
-          HJ_SOURCE_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          HJ_SOURCE_BASE_SHA: ${{ github.event.pull_request.base.sha || inputs.base_sha }}
+          HJ_SOURCE_HEAD_SHA: ${{ github.event.pull_request.head.sha || inputs.head_sha }}
         run: >-
           deno run --no-lock
           --allow-env=HJ_RELEASE_ROUTE,HJ_SOURCE_BASE_SHA,HJ_SOURCE_HEAD_SHA

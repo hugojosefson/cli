@@ -38,6 +38,11 @@ if (!result.success) {
     `Frozen test dependency installation failed (${result.code})`,
   );
 }
+const manifest = JSON.parse(
+  await Deno.readTextFile(
+    new URL("dependencies/package.json", import.meta.url),
+  ),
+);
 const options = nativeBuildOptions(root, output, {
   name: "hj-shared-tests",
   version: "0.0.0",
@@ -55,7 +60,10 @@ await build({
   ],
   mappings: {
     ...options.mappings,
-    "jsr:@std/assert": { name: "@jsr/std__assert", version: "1.0.19" },
+    "jsr:@std/assert": {
+      name: "@jsr/std__assert",
+      version: manifest.dependencies["@jsr/std__assert"],
+    },
   },
 });
 

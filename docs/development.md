@@ -214,6 +214,18 @@ For native CLI project tasks, see
 [local Deno selection and caching](local-deno-runtime.md). The workflow version
 setting remains separate from local runtime selection.
 
+Dependency updates use the `update-dependencies` task if the repository defines
+it. Other repositories use `deno outdated --recursive --update --latest`. This
+repository updates Deno imports, the emitter, and the native npm manifests and
+locks together. The task derives native JSR versions and npm dependency
+overrides from the Deno lock. It rejects different versions or integrity values.
+The runtime matrix keeps its selected versions.
+
+The updater uses `workflow_dispatch` to start CI for each PR commit. It needs
+`actions: write`. CI keeps read-only permissions and validates the PR number,
+repository, Git ref, and commit values before checkout. The CI workflow must be
+on the default `Git branch` before GitHub accepts this event.
+
 ## Workflow dependency caches
 
 Managed CI, dependency updates, and release workflows enable the pinned

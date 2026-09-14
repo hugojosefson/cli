@@ -1,4 +1,6 @@
 /** Assemble and finalize this CLI's native, dependency-complete npm archive. */
+import { packResult } from "./pack-result.ts";
+import { verifyRegistryLock } from "../dependencies/registry-lock.ts";
 import { build } from "@deno/dnt";
 import { createHash } from "node:crypto";
 import { isDeepStrictEqual } from "node:util";
@@ -92,11 +94,29 @@ const npmEnvironment = {
 };
 // The host npm only bootstraps an integrity-locked npm version and type definitions.
 await copyManifest(new URL("./tools/", import.meta.url), tools);
-await command("npm", ["ci", "--ignore-scripts"], tools, npmEnvironment);
+verifyRegistryLock(
+  JSON.parse(await Deno.readTextFile(new URL("package-lock.json", tools)))
+    .packages,
+);
+// npm 12 needs archive access to examine its bundled dependencies.
+await command(
+  "npm",
+  ["ci", "--ignore-scripts", "--allow-remote=all"],
+  tools,
+  npmEnvironment,
+);
 const npmCli = fileURLToPath(new URL("node_modules/npm/bin/npm-cli.js", tools));
 const npm = (args: string[], cwd = output) =>
-  command("node", [npmCli, ...args], cwd, npmEnvironment);
-if ((await npm(["--version"])).trim() !== "11.11.1") {
+  command(
+    "node",
+    [npmCli, "--@jsr:registry=https://npm.jsr.io", ...args],
+    cwd,
+    npmEnvironment,
+  );
+const toolManifest = JSON.parse(
+  await Deno.readTextFile(new URL("tools/package.json", import.meta.url)),
+);
+if ((await npm(["--version"])).trim() !== toolManifest.dependencies.npm) {
   throw new Error("Wrong npm build tool version.");
 }
 await copyManifest(dependencyRoot, output);
@@ -176,7 +196,7 @@ await Deno.writeTextFile(
   new URL("README.md", output),
   "# hj\n\nRepository tools for Linux x64 glibc. Requires Node.js 24+ or Bun 1.4.2+.\n\nRun `npx @hugojosefson/cli --help` or `bunx --bun --package @hugojosefson/cli hj --help`. Ordinary commands run natively. Commands that run Deno project tasks need a compatible Deno executable.\n\nSee https://github.com/hugojosefson/cli for documentation.\n",
 );
-const initial = JSON.parse(
+const initial = packResult(
   await npm([
     "pack",
     "--json",
@@ -184,7 +204,8 @@ const initial = JSON.parse(
     "--pack-destination",
     fileURLToPath(packing),
   ]),
-)[0];
+  config,
+);
 await command("tar", [
   "-xzf",
   fileURLToPath(new URL(initial.filename, packing)),
@@ -223,7 +244,7 @@ await command("tar", [
   fileURLToPath(packing),
   "package",
 ], root);
-const report = JSON.parse(
+const report = packResult(
   await npm([
     "pack",
     "--dry-run",
@@ -231,7 +252,8 @@ const report = JSON.parse(
     "--ignore-scripts",
     fileURLToPath(archive),
   ]),
-)[0];
+  config,
+);
 const bytes = await Deno.readFile(archive);
 const integrity = `sha512-${
   createHash("sha512").update(bytes).digest("base64")

@@ -9,6 +9,7 @@ on:
 permissions:
   contents: write
   pull-requests: write
+  actions: write
 
 cache-mode: write
 
@@ -41,7 +42,11 @@ jobs:
           git fetch origin "${branch}" || true
           remote_branch="$(git rev-parse --verify "refs/remotes/origin/${branch}" 2>/dev/null || true)"
           git switch --force-create "${branch}" "origin/${base}"
-          deno outdated --recursive --update --latest
+          if NO_COLOR=1 deno task 2>&1 | grep --quiet --fixed-strings --line-regexp -- "- update-dependencies"; then
+            deno task update-dependencies
+          else
+            deno outdated --recursive --update --latest
+          fi
           git add --all
           if git diff --cached --quiet; then
             exit 0
@@ -59,5 +64,14 @@ jobs:
           if [ "${open_pr_count}" = "0" ]; then
             gh pr create --base "${base}" --head "${branch}" \
               --title "chore: update dependencies" \
-              --body "Updates all Deno dependencies to their latest versions."
+              --body "Updates dependencies to their latest versions."
           fi
+          pr_json="$(gh pr view "${branch}" --json number,baseRefOid,headRefOid)"
+          pr_number="$(jq --raw-output '.number' <<< "${pr_json}")"
+          base_sha="$(jq --raw-output '.baseRefOid' <<< "${pr_json}")"
+          head_sha="$(jq --raw-output '.headRefOid' <<< "${pr_json}")"
+          test "${head_sha}" = "$(git rev-parse HEAD)"
+          gh workflow run hj-ci.yaml --ref "${branch}" \
+            --field pull_request="${pr_number}" \
+            --field base_sha="${base_sha}" \
+            --field head_sha="${head_sha}"
