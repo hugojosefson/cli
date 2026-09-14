@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.15.4
+
+### Fixes
+
+#### deps
+
+- upgrade fork-version to 6.3.1
+  ([482bec3](https://github.com/hugojosefson/cli/commit/482bec310d228b1b789c9d2feffc2c4c58b31377))
+
 ## 0.15.3
 
 ### Fixes
