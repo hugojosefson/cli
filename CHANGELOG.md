@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.15.5
+
+### Fixes
+
+#### deps
+
+- update native locks and start PR checks
+  ([66cd059](https://github.com/hugojosefson/cli/commit/66cd0594018d4e568b3d4d7bf980582d6a57afe4))
+
 ## 0.15.4
 
 ### Fixes

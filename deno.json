@@ -1,6 +1,6 @@
 {
   "name": "@hugojosefson/cli",
-  "version": "0.15.4",
+  "version": "0.15.5",
   "license": "MIT",
   "hj": {
     "commandName": "hj"
