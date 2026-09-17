@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.15.8
+
+### Other
+
+- update dependencies
+  ([0b56491](https://github.com/hugojosefson/cli/commit/0b56491e845a4589b542265eee3a3b560ef19011))
+
 ## 0.15.7
 
 ### Fixes
