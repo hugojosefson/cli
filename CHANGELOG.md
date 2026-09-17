@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.15.7
+
+### Fixes
+
+#### ci
+
+- validate dependency PRs with owned checks
+  ([c0d3850](https://github.com/hugojosefson/cli/commit/c0d38503b6714107a9db6e569163e847caa0ef64))
+
+#### deps
+
+- select transitive Deno versions for native manifests
+  ([f8d25a7](https://github.com/hugojosefson/cli/commit/f8d25a7ed0343dacfb3e12c8741276984c1e33e7))
+
 ## 0.15.6
 
 ### Fixes
