@@ -18,37 +18,6 @@ export function npmIdentity(key: string): [string, string] {
   return [key.slice(0, index), key.slice(index + 1).split("_")[0]];
 }
 
-export function mappedDependencies(
-  dependencies: Record<string, string>,
-  imports: Record<string, string>,
-  lock: DenoLock,
-): Record<string, string> {
-  return Object.fromEntries(
-    Object.entries(dependencies).map(([name, version]) => {
-      const specifier = Object.values(imports).find((value) => {
-        const identity = value.match(/^(npm|jsr):(@[^/]+\/[^@/]+|[^@/]+)@/);
-        if (!identity) {
-          return false;
-        }
-        const mapped = identity[1] === "jsr"
-          ? "@jsr/" + identity[2].slice(1).replace("/", "__")
-          : identity[2];
-        return mapped === name;
-      }) ?? Object.keys(lock.specifiers).find((value) =>
-        value.startsWith(`npm:${name}@`)
-      );
-      if (!specifier) {
-        return [name, version];
-      }
-      const selected = lock.specifiers[specifier]?.split("_")[0];
-      if (!selected) {
-        throw new Error(`No locked version for ${specifier}.`);
-      }
-      return [name, selected];
-    }),
-  );
-}
-
 export function dependencyOverrides(
   dependencies: Record<string, string>,
   lock: DenoLock,

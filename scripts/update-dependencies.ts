@@ -1,9 +1,9 @@
+import { mappedDependencies } from "./dependencies/mapped-dependencies.ts";
 import { readFile, writeFile } from "node:fs/promises";
 import {
   type DenoLock,
   dependencyOverrides,
   type Manifest,
-  mappedDependencies,
 } from "./dependencies/manifest.ts";
 import { verifyRegistryLock } from "./dependencies/registry-lock.ts";
 import { latestVersion } from "./dependencies/latest-version.ts";
@@ -53,16 +53,7 @@ for (
     ? mappedDependencies(manifest.dependencies, config.imports, source)
     : {};
   for (const name of Object.keys(manifest.dependencies)) {
-    const locked = native &&
-      (Object.values(config.imports as Record<string, string>).some((
-        specifier,
-      ) =>
-        specifier.startsWith(`npm:${name}@`) ||
-        specifier.startsWith(`jsr:@${name.slice(5).replace("__", "/")}@`)
-      ) || Object.keys(source.specifiers).some((specifier) =>
-        specifier.startsWith(`npm:${name}@`)
-      ));
-    manifest.dependencies[name] = locked ? mapped[name] : latestVersion(
+    manifest.dependencies[name] = mapped[name] ?? latestVersion(
       command("npm", ["view", `${name}@latest`, "version", "--json"]),
     );
   }
