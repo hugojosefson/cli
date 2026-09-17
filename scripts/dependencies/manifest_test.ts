@@ -1,13 +1,9 @@
+import { mappedDependencies } from "./mapped-dependencies.ts";
 import { test as nativeTest } from "node:test";
 import { trackTests } from "../../src/testing/inventory-test-fixtures.ts";
 const test = trackTests(import.meta.url, nativeTest);
 import { assertEquals, assertThrows } from "@std/assert";
-import {
-  type DenoLock,
-  dependencyOverrides,
-  mappedDependencies,
-  npmIdentity,
-} from "./manifest.ts";
+import { type DenoLock, dependencyOverrides, npmIdentity } from "./manifest.ts";
 import { verifyNativeLock } from "./verify-lock.ts";
 
 const source: DenoLock = {
@@ -28,7 +24,7 @@ test("native dependencies use selected Deno versions", () => {
       { library: "npm:library@3.0.0", "@std/path": "jsr:@std/path@^2.0.0" },
       source,
     ),
-    { library: "3.0.0", "@jsr/std__path": "2.1.0", tool: "1.0.0" },
+    { library: "3.0.0", "@jsr/std__path": "2.1.0" },
   );
   assertThrows(
     () =>
@@ -135,4 +131,63 @@ test("npm identities keep underscores in package names", () => {
     "@scope/with_under",
     "1.2.3",
   ]);
+});
+
+test("native dependencies use transitive Deno locks before registry versions", () => {
+  const lock = {
+    ...source,
+    npm: { ...source.npm, "@types/node@26.5.1": { integrity: "node26" } },
+  };
+  const selected = mappedDependencies(
+    { "@types/node": "22.20.3", tool: "1.0.0" },
+    {},
+    lock,
+  );
+  assertEquals(selected, { "@types/node": "26.5.1" });
+  verifyNativeLock(lock, {
+    "node_modules/@types/node": {
+      version: selected["@types/node"],
+      integrity: "node26",
+    },
+  }, false);
+});
+
+test("native transitive dependencies select the highest locked SemVer", () => {
+  for (
+    const keys of [["child@2.0.0", "child@10.0.0", "child@10.0.0-beta.1"], [
+      "child@10.0.0",
+      "child@2.0.0",
+      "child@10.0.0-beta.1",
+    ]]
+  ) {
+    const lock = {
+      specifiers: {},
+      npm: Object.fromEntries(keys.map((key) => [key, { integrity: key }])),
+    };
+    assertEquals(mappedDependencies({ child: "1.0.0" }, {}, lock), {
+      child: "10.0.0",
+    });
+    assertEquals(
+      mappedDependencies({ child: "1.0.0" }, { child: "npm:child@2.0.0" }, {
+        ...lock,
+        specifiers: { "npm:child@2.0.0": "2.0.0" },
+      }),
+      { child: "2.0.0" },
+    );
+  }
+});
+
+test("native dependency selection rejects ambiguous SemVer metadata", () => {
+  assertThrows(
+    () =>
+      mappedDependencies({ child: "1.0.0" }, {}, {
+        specifiers: {},
+        npm: {
+          "child@2.0.0+first": { integrity: "one" },
+          "child@2.0.0+second": { integrity: "two" },
+        },
+      }),
+    Error,
+    "ambiguous SemVer precedence",
+  );
 });
