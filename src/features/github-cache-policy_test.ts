@@ -55,10 +55,10 @@ test("PR jobs have read-only cache access", () => {
 test("cache writers use the default Git branch", () => {
   const update = parse(githubCiArtifacts[1].content);
   assertEquals(Object.keys(update.on), ["schedule", "workflow_dispatch"]);
-  assertEquals(update["cache-mode"], "write");
+  assertEquals(update["cache-mode"], "read");
   assertEquals(
     update.jobs.update.steps[0].with.ref,
-    "${{ github.event.repository.default_branch }}",
+    "${{ github.sha }}",
   );
   const tag = parse(publishTagArtifact.content);
   assertEquals(Object.keys(tag.on), ["push", "workflow_dispatch"]);
