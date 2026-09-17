@@ -9,9 +9,70 @@
     "conventional-commits-parser": "7.1.2",
     "fork-version": "6.3.1",
     "jsonc-parser": "3.3.1",
-    "yaml": "2.8.3"
+    "yaml": "2.9.1"
   },
   "overrides": {
-    "undici": "7.29.0"
+    "@inquirer/core@12.0.3": {
+      "@inquirer/ansi": "2.0.8",
+      "@inquirer/figures": "2.0.9",
+      "@inquirer/type": "4.1.1",
+      "cli-width": "4.1.0",
+      "fast-wrap-ansi": "0.2.2",
+      "mute-stream": "3.0.0",
+      "signal-exit": "4.1.0"
+    },
+    "conventional-changelog-writer@9.2.1": {
+      "@conventional-changelog/template": "1.4.0",
+      "@simple-libs/stream-utils": "2.0.0",
+      "argue-cli": "3.2.0",
+      "conventional-commits-filter": "6.0.1",
+      "semver": "7.8.5"
+    },
+    "conventional-commits-parser@7.1.2": {
+      "@simple-libs/stream-utils": "2.0.0",
+      "argue-cli": "3.2.0"
+    },
+    "dom-serializer@3.1.1": {
+      "domelementtype": "3.0.0",
+      "domhandler": "6.0.1",
+      "entities": "8.1.0"
+    },
+    "domhandler@6.0.1": {
+      "domelementtype": "3.0.0"
+    },
+    "domutils@4.0.2": {
+      "dom-serializer": "3.1.1",
+      "domelementtype": "3.0.0",
+      "domhandler": "6.0.1"
+    },
+    "fast-string-width@3.0.2": {
+      "fast-string-truncated-width": "3.0.3"
+    },
+    "fast-wrap-ansi@0.2.2": {
+      "fast-string-width": "3.0.2"
+    },
+    "fork-version@6.3.1": {
+      "domhandler": "6.0.1",
+      "handlebars": "4.7.9",
+      "htmlparser2": "12.0.0",
+      "jiti": "2.7.0",
+      "jsonc-parser": "3.3.1",
+      "semver": "7.8.5",
+      "yaml": "2.9.0",
+      "zod": "4.4.3"
+    },
+    "handlebars@4.7.9": {
+      "minimist": "1.2.8",
+      "neo-async": "2.6.2",
+      "source-map": "0.6.1",
+      "wordwrap": "1.0.0",
+      "uglify-js": "3.19.3"
+    },
+    "htmlparser2@12.0.0": {
+      "domelementtype": "3.0.0",
+      "domhandler": "6.0.1",
+      "domutils": "4.0.2",
+      "entities": "8.1.0"
+    }
   }
 }
