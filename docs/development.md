@@ -219,17 +219,34 @@ it. Other repositories use `deno outdated --recursive --update --latest`. This
 repository updates Deno imports, the emitter, and the native npm manifests and
 locks together. The task derives native JSR versions and npm dependency
 overrides from the Deno lock. It rejects different versions or integrity values.
-The runtime matrix keeps its selected versions.
 
-The updater reports the PR workflow URL after it pushes each dependency commit.
-It needs `actions: read` to find that workflow. GitHub requires user approval
-for workflows from PR events that use `GITHUB_TOKEN`. If approval is necessary,
-the updater summary gives the PR and workflow links. A user with write access
-must select `Approve workflows` on the PR. CI keeps read-only permissions.
+The runtime matrix keeps its selected versions. Deno import selections have
+priority. Other shared npm dependencies use the highest locked SemVer. This rule
+includes transitive dependencies. Equal precedence with different build metadata
+stops the update.
 
-`workflow_dispatch` checks cannot satisfy required PR checks. A GitHub App token
-or a personal access token is necessary for automatic runs without user
-approval. This workflow does not use those credentials.
+If Deno has no locked package, the updater uses the npm registry version.
+
+The updater tests dependency PRs in its trusted default workflow. It selects
+immutable head and base commits. Read-only jobs use `deno task all` and source
+commit validation. Here, `all` includes coverage and the full runtime matrix.
+
+Isolated jobs use `github.token` with `checks: write` to report required Checks
+API results. These jobs use no checkout or dependency PR code. Before success,
+they examine the PR, commits, workflow source, current attempt, and expected
+GitHub jobs and steps. Validation must complete with success. Missing, skipped,
+or cancelled validation cannot give success.
+
+Changed commits make new validation necessary. Each check has an external ID for
+its PR, commits, workflow, and attempt. Only owned checks can change.
+
+The updater supplies required checks after actual validation. It uses no stored
+credentials or manual workflow approval. The duplicate PR workflow can wait for
+approval while the updater reports its results. Dependency commits keep the
+usual CI triggers. Merger starts release publication.
+
+Rerun all jobs for a new validation attempt. A rerun of only jobs with failures
+cannot use results from an earlier attempt.
 
 ## Workflow dependency caches
 
@@ -259,10 +276,10 @@ installation and compilation previously took about 20 seconds; these download
 caches do not remove the minutes spent executing tests.
 
 Managed PR jobs have `cache-mode: read`. Native jobs use
-`actions/cache/restore`. Dependency updates and tag preparation can write caches
-from the default branch or `main`. Publication jobs have read access. GitHub
-enforces access through scoped cache tokens. Caches from PR merge refs cannot
-supply data to `main`. See the
+`actions/cache/restore`. Dependency updates also have read-only cache access.
+Tag preparation can write caches from `main`. Publication jobs have read access.
+GitHub enforces access through scoped cache tokens. Caches from PR merge refs
+cannot supply data to `main`. See the
 [GitHub cache rules](https://docs.github.com/en/actions/reference/workflows-and-actions/dependency-caching).
 
 A changed PR workflow cannot grant its cache access to `main`. Do not build PR

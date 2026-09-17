@@ -1,6 +1,6 @@
 /** @module Exact workflows owned by the GitHub CI feature. */
 
-import { githubCiDependencySummary } from "./github-ci-dependency-summary.ts";
+import { githubDependencyJobs } from "./github-dependency-jobs.ts";
 import { legacyCiCheckCompatibility } from "./github-ci-legacy.ts";
 import { workflowDenoVersion } from "./workflow-toolchain.ts";
 import { hjPackageReference } from "./hj-package.ts";
@@ -85,11 +85,9 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
-  pull-requests: write
-  actions: read
+  contents: read
 
-cache-mode: write
+cache-mode: read
 
 concurrency:
   group: hj-deps-\${{ github.repository }}
@@ -97,17 +95,25 @@ concurrency:
 
 jobs:
   update:
+    if: github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    outputs:
+      head: \${{ steps.update.outputs.head }}
+      base: \${{ steps.update.outputs.base }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: \${{ github.event.repository.default_branch }}
+          ref: \${{ github.sha }}
           fetch-depth: 0
           persist-credentials: false
       - uses: denoland/setup-deno@22d081ff2d3a40755e97629de92e3bcbfa7cf2ed # v2.0.5
         with:
           deno-version: ${workflowDenoVersion}
 ${denoCacheInputs}      - name: Update dependencies
+        id: update
         env:
           GH_TOKEN: \${{ github.token }}
         run: |
@@ -117,7 +123,7 @@ ${denoCacheInputs}      - name: Update dependencies
           base="\${{ github.event.repository.default_branch }}"
           git fetch origin "\${branch}" || true
           remote_branch="\$(git rev-parse --verify "refs/remotes/origin/\${branch}" 2>/dev/null || true)"
-          git switch --force-create "\${branch}" "origin/\${base}"
+          git switch --force-create "\${branch}" "\${GITHUB_SHA}"
           if NO_COLOR=1 deno task 2>&1 | grep --quiet --fixed-strings --line-regexp -- "- update-dependencies"; then
             deno task update-dependencies
           else
@@ -142,7 +148,8 @@ ${denoCacheInputs}      - name: Update dependencies
               --title "chore: update dependencies" \\
               --body "Updates dependencies to their latest versions."
           fi
-${githubCiDependencySummary}`,
+          printf 'head=%s\\nbase=%s\\n' "$(git rev-parse HEAD)" "\${GITHUB_SHA}" >> "\${GITHUB_OUTPUT}"
+${githubDependencyJobs}`,
 }] as const;
 
 /** Render the same exact CI variant for local adoption and remote protection. */

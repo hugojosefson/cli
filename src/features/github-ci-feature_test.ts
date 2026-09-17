@@ -418,7 +418,7 @@ test("CI bootstrap source is pinned, detected, repaired, and removable", async (
     fixed.changes.filter((change) => change.kind === "write-file").map((
       change,
     ) => change.content),
-    [githubCiArtifacts[0].content],
+    githubCiArtifacts.map((artifact) => artifact.content),
   );
   observations[githubCiArtifacts[0].path] = {
     ...ci,

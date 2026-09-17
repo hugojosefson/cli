@@ -593,9 +593,10 @@ preserve this explicit variant. Newly generated projects keep `deno task all`;
 the marker requires the CLI repository's tasks and scripts.
 
 `github-ci` also requires the Actions setting that allows PR creation and
-approval. PR workflow runs created by its dependency updater need approval from
-a user with write access. `github-main-protection` requires `github-ci` and
-resolved review threads.
+approval. The dependency updater uses isolated Checks API jobs to report actual
+validation without manual workflow approval. Read-only jobs use `deno task all`
+and source commit validation. Only the isolated reporters can write checks.
+`github-main-protection` requires `github-ci` and resolved review threads.
 
 PR CI cancels superseded runs for the same workflow and pull request. Different
 PRs run independently. Dependency updates and release workflows retain separate
