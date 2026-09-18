@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.15.11
+
+### Fixes
+
+#### release
+
+- wait for delayed npm registry publication
+  ([096c441](https://github.com/hugojosefson/cli/commit/096c441d825423cc1013aa095792b440f6ecc01b))
+
+### Other
+
+#### ci
+
+- use extended npm confirmation
+  ([a47116f](https://github.com/hugojosefson/cli/commit/a47116f7140b43a6655ef9df038252a6bfb0d269))
+
 ## 0.15.10
 
 ### Fixes
