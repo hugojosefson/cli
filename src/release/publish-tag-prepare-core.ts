@@ -347,6 +347,16 @@ async function requireNoUntaggedRelease(
     );
     const match = /^chore\(release\): (.+)$/.exec(subject);
     if (!match || !parseSemver(match[1])) continue;
+    const named = tags.filter((tag) => tag.name === match[1]);
+    if (named.some((tag) => !tag.lightweight || tag.target !== commit)) {
+      throw new Error(
+        "Reserved release tag data conflicts with a release commit.",
+      );
+    }
+    // Published history can use a different release tool and changelog format.
+    if (named.some((tag) => tag.lightweight && tag.target === commit)) {
+      continue;
+    }
     const parentLine = singleLine(
       await runOrThrow(process, "git", [
         "rev-list",
@@ -373,15 +383,7 @@ async function requireNoUntaggedRelease(
       await restoreRecoveryWorktree(process, selectedSha, changelogPath);
     }
     if (bundle.nextVersion !== match[1]) continue;
-    const named = tags.filter((tag) => tag.name === match[1]);
-    if (named.some((tag) => !tag.lightweight || tag.target !== commit)) {
-      throw new Error(
-        "Reserved release tag data conflicts with a release commit.",
-      );
-    }
-    if (!named.some((tag) => tag.lightweight && tag.target === commit)) {
-      found.push({ commit, version: match[1] });
-    }
+    found.push({ commit, version: match[1] });
   }
   if (found.length > 1) {
     throw new Error("More than one untagged release commit was found.");
