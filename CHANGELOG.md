@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.15.9
+
+### Fixes
+
+#### release
+
+- accept tagged history from other release tools
+  ([23216c2](https://github.com/hugojosefson/cli/commit/23216c290aa3cb1d76af8e79c1f77a1c8e4839be))
+
 ## 0.15.8
 
 ### Other
