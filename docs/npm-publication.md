@@ -194,9 +194,14 @@ mismatch stops publication because npm versions cannot be overwritten.
 For a missing version, the publisher uploads the packed archive once. It
 disables npm lifecycle scripts during packing and publication because
 `npm-build` owns the build. Stable versions use `latest`; prerelease versions
-use `next`. The publisher waits up to one minute for confirmation after an
-upload, including an uncertain upload result. Registry authentication failures
-and unavailable metadata do not count as an absent version.
+use `next`. After npm reports success, confirmation uses a ten-minute polling
+period. An active registry lookup can finish after this period. Each npm lookup
+has a 15-second timeout.
+
+A registry delay can be more than five minutes. Other upload results keep the
+one-minute polling period. Each publication command uploads at most one time.
+Registry authentication failures and unavailable metadata do not count as a
+missing version.
 
 If confirmation fails, the publisher reports the process exit code and any known
 npm error code. It does not print captured output or unknown error codes. A

@@ -240,12 +240,16 @@ export async function publishNpm(input: {
     `--registry=${registry}/`,
     `--tag=${tag}`,
   ], { cwd }).catch(() => undefined);
-  const confirmed = await confirmPublication(async () => {
-    const actual = await input.api.version(expected.name, expected.version);
-    if (!actual) return false;
-    verify(actual);
-    return true;
-  }, input.clock);
+  const confirmed = await confirmPublication(
+    async () => {
+      const actual = await input.api.version(expected.name, expected.version);
+      if (!actual) return false;
+      verify(actual);
+      return true;
+    },
+    input.clock,
+    publication?.success ? 600_000 : 60_000,
+  );
   if (!confirmed) {
     throw new Error(
       `npm publication was not confirmed. ${
