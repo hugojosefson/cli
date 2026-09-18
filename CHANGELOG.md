@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.15.10
+
+### Fixes
+
+#### release
+
+- report npm publication error codes
+  ([7606b04](https://github.com/hugojosefson/cli/commit/7606b040ce8151a7ac08f8780bae1ff3ba6e6f36))
+- accept mapped imports in unexported JSR files
+  ([0df1612](https://github.com/hugojosefson/cli/commit/0df1612578aedd2c82ba487cc39e1baa6dffaa26))
+
+### Other
+
+#### ci
+
+- use npm publication diagnostics
+  ([08665e6](https://github.com/hugojosefson/cli/commit/08665e60f8b8714889a91fd5761a5ce08f460b05))
+
 ## 0.15.9
 
 ### Fixes
