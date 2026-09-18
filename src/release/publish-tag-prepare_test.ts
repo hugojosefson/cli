@@ -204,6 +204,76 @@ test("recovery rejects annotated and wrong-target same-name tags", async () => {
   }
 });
 
+test("usual preparation accepts tagged releases from other release tools", async () => {
+  await withReleaseSource(async (root, process, parent) => {
+    const config = new URL("deno.json", root);
+    const value = JSON.parse(await readTextFile(config));
+    await writeTextFile(config, JSON.stringify({ ...value, version: "0.1.0" }));
+    const history = "Version 0.1.0: First publication.\n";
+    await writeTextFile(
+      new URL("CHANGELOG.md", root),
+      "# Release history\n\n" + history,
+    );
+    await runOrThrow(process, "git", ["add", "deno.json", "CHANGELOG.md"]);
+    await runOrThrow(process, "git", ["commit", "-m", "chore(release): 0.1.0"]);
+    await runOrThrow(process, "git", ["tag", "0.1.0"]);
+    await writeTextFile(new URL("feature.txt", root), "next\n");
+    await runOrThrow(process, "git", ["add", "feature.txt"]);
+    await runOrThrow(process, "git", ["commit", "-m", "feat: next"]);
+    await runOrThrow(process, "git", ["push", "origin", "HEAD:main", "0.1.0"]);
+    const output = `${parent}/migration-output`;
+    const values = new Map([
+      ["HJ_RELEASE_ROUTE", "usual"],
+      ["GITHUB_REPOSITORY", "owner/repo"],
+      ["GITHUB_OUTPUT", output],
+    ]);
+    const result = await publishTagPrepare(root, {
+      get: (name) => values.get(name),
+    }, process);
+    assertEquals(result.releaseNeeded, true);
+    const entries = Object.fromEntries(
+      (await readTextFile(output)).trim().split("\n").map((line) => {
+        const offset = line.indexOf("=");
+        return [line.slice(0, offset), line.slice(offset + 1)];
+      }),
+    );
+    const bundle = await decodeReleaseBundle(
+      entries["release-bundle"],
+      entries["bundle-digest"],
+    );
+    assertEquals(bundle.previousTag, "0.1.0");
+    assertEquals(bundle.nextVersion, "0.2.0");
+    assertEquals(
+      (await readTextFile(new URL("CHANGELOG.md", root))).includes(history),
+      true,
+    );
+  });
+});
+
+test("usual preparation rejects annotated and wrong-target release tags", async () => {
+  for (const kind of ["annotated", "wrong-target"] as const) {
+    await withPreparedRelease(async (root, process) => {
+      await runOrThrow(
+        process,
+        "git",
+        kind === "annotated"
+          ? ["tag", "-a", "0.1.0", "-m", "test"]
+          : ["tag", "0.1.0", "HEAD^"],
+      );
+      await runOrThrow(process, "git", ["push", "origin", "0.1.0"]);
+      await assertRejects(
+        () =>
+          publishTagPrepare(root, {
+            get: (name) =>
+              name === "GITHUB_REPOSITORY" ? "owner/repo" : "usual",
+          }, process),
+        Error,
+        "Reserved release tag data conflicts with a release commit.",
+      );
+    });
+  }
+});
+
 test("usual history scan restores between tagged and untagged releases", async () => {
   await withPreparedRelease(async (root, process) => {
     await runOrThrow(process, "git", ["tag", "0.1.0"]);
