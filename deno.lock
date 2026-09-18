@@ -10,6 +10,7 @@
     "npm:@types/ws@8.18.1": "8.18.1",
     "npm:conventional-changelog-writer@9.2.1": "9.2.1",
     "npm:conventional-commits-parser@7.1.2": "7.1.2",
+    "npm:es-module-lexer@3.0.2": "3.0.2",
     "npm:fork-version@6.3.1": "6.3.1",
     "npm:jsonc-parser@3.3.1": "3.3.1",
     "npm:ws@8.21.3": "8.21.3",
@@ -311,6 +312,9 @@
     },
     "entities@8.1.0": {
       "integrity": "sha512-kxL7msIffSuh9aaFAMD7rxAIuTRMAHMeBtgHW2yUdWw732ZNh4MehkF2gdjvtdmikkaIP9bFDDJOPlsvm7avrA=="
+    },
+    "es-module-lexer@3.0.2": {
+      "integrity": "sha512-BuIB67FngDSyQ/dpQNOZybwdEBDUGJQvOqwWr4ha/ufYiqzuEwPkKO2zLhRAgay28tStRIHUeWmszZAJo3GCOg=="
     },
     "execa@9.6.1": {
       "integrity": "sha512-9Be3ZoN4LmYR90tUoVu2te2BsbzHfhJyfEiAVfz7N5/zv+jduIfLrV2xdQXOHbaD6KgpGdO9PRPM1Y4Q9QkPkA==",
@@ -633,6 +637,7 @@
       "npm:@inquirer/core@12.0.3",
       "npm:conventional-changelog-writer@9.2.1",
       "npm:conventional-commits-parser@7.1.2",
+      "npm:es-module-lexer@3.0.2",
       "npm:fork-version@6.3.1",
       "npm:jsonc-parser@3.3.1",
       "npm:ws@8.21.3",
