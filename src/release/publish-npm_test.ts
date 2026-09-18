@@ -102,7 +102,7 @@ test("npm publishes one packed archive after release and build checks", async ()
   );
   assertStringIncludes(
     f.calls.at(-1)!,
-    "npm publish owner-repo-1.2.3.tgz --ignore-scripts --access=public --registry=https://registry.npmjs.org/ --tag=latest",
+    "npm publish owner-repo-1.2.3.tgz --ignore-scripts --json --access=public --registry=https://registry.npmjs.org/ --tag=latest",
   );
   assertEquals(
     f.calls.indexOf("deno task npm-build") <
@@ -144,6 +144,69 @@ test("npm confirms uncertain writes and bounds failed publication without re-upl
     missing.calls.filter((call) => call.startsWith("npm publish")).length,
     1,
   );
+});
+test("npm publication reports known error codes without process output", async () => {
+  for (
+    const code of ["E403", "E429", "ENEEDAUTH", "ETIMEDOUT", "private-code"]
+  ) {
+    const f = fixture();
+    const base = f.input.process;
+    f.input.process = {
+      async run(command, args) {
+        if (command !== "npm" || args[0] !== "publish") {
+          return await base.run(command, args);
+        }
+        f.calls.push(`${command} ${args.join(" ")}`);
+        return {
+          success: false,
+          code: 1,
+          stdout: new TextEncoder().encode(JSON.stringify({
+            error: {
+              code,
+              summary: "dummy-private-value",
+              detail: "dummy-detail",
+            },
+          })),
+          stderr: new TextEncoder().encode("dummy-private-stderr"),
+        };
+      },
+    };
+    const error = await assertRejects(() => publishNpm(f.input), Error);
+    assertEquals(
+      error.message,
+      "npm publication was not confirmed. npm publish exit code: 1." +
+        (code === "private-code" ? "" : ` npm error code: ${code}.`) +
+        " Retry this workflow with the same release tag.",
+    );
+    assertEquals(
+      f.calls.filter((call) => call.startsWith("npm publish")).length,
+      1,
+    );
+  }
+});
+test("npm publication retains confirmation after a process exception", async () => {
+  for (const confirmed of [true, false]) {
+    const f = fixture();
+    const base = f.input.process;
+    f.input.process = {
+      async run(command, args) {
+        if (command !== "npm" || args[0] !== "publish") {
+          return await base.run(command, args);
+        }
+        if (confirmed) f.existing(expected);
+        throw new Error("dummy-private-exception");
+      },
+    };
+    if (confirmed) {
+      await publishNpm(f.input);
+    } else {
+      const error = await assertRejects(() => publishNpm(f.input), Error);
+      assertEquals(
+        error.message,
+        "npm publication was not confirmed. npm publish process result is unavailable. Retry this workflow with the same release tag.",
+      );
+    }
+  }
 });
 test("npm rejects mismatched builds and missing packed entry points", async () => {
   for (
