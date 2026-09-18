@@ -81,7 +81,7 @@ function fixture() {
       },
     },
     api: { version: () => Promise.resolve(remote) },
-    clock: { sleep: () => Promise.resolve() },
+    clock: { sleep: (_milliseconds: number) => Promise.resolve() },
   };
   return {
     input,
@@ -207,6 +207,49 @@ test("npm publication retains confirmation after a process exception", async () 
       );
     }
   }
+});
+test("npm confirms a delayed successful upload through the ten-minute deadline", async () => {
+  for (const visibleAt of [330_000, 600_000, 605_000]) {
+    const f = fixture();
+    f.unconfirmed();
+    let waited = 0;
+    f.input.clock = {
+      sleep: (milliseconds: number) => {
+        waited += milliseconds;
+        if (waited >= visibleAt) f.existing(expected);
+        return Promise.resolve();
+      },
+    };
+    if (visibleAt <= 600_000) {
+      await publishNpm(f.input);
+      assertEquals(waited, visibleAt);
+    } else {
+      await assertRejects(() => publishNpm(f.input), Error, "exit code: 0");
+      assertEquals(waited, 600_000);
+    }
+    assertEquals(
+      f.calls.filter((call) => call.startsWith("npm publish")).length,
+      1,
+    );
+  }
+});
+test("npm keeps the one-minute limit after an unsuccessful upload", async () => {
+  const f = fixture();
+  f.fail();
+  f.unconfirmed();
+  let waited = 0;
+  f.input.clock = {
+    sleep: (milliseconds: number) => {
+      waited += milliseconds;
+      return Promise.resolve();
+    },
+  };
+  await assertRejects(() => publishNpm(f.input), Error, "exit code: 1");
+  assertEquals(waited, 60_000);
+  assertEquals(
+    f.calls.filter((call) => call.startsWith("npm publish")).length,
+    1,
+  );
 });
 test("npm rejects mismatched builds and missing packed entry points", async () => {
   for (
