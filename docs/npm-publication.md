@@ -198,8 +198,10 @@ use `next`. The publisher waits up to one minute for confirmation after an
 upload, including an uncertain upload result. Registry authentication failures
 and unavailable metadata do not count as an absent version.
 
-If confirmation fails, resolve the reported build or npm access problem and
-retry the same tag:
+If confirmation fails, the publisher reports the process exit code and any known
+npm error code. It does not print captured output or unknown error codes. A
+missing process result means that the command did not return its status. Examine
+the reported error, then retry the same tag:
 
 ```bash
 gh workflow run hj-release-publish-npm.yaml \

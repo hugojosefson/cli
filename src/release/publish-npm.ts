@@ -14,6 +14,7 @@ import {
 } from "./publisher-input.ts";
 import { type ReleaseProcess, runOrThrow } from "./release-process.ts";
 import { parseSemver } from "./semver.ts";
+import { npmPublicationDiagnostic } from "./npm-publication-diagnostic.ts";
 
 export const npmBuildDirectory = ".hj/npm/";
 const registry = "https://registry.npmjs.org";
@@ -230,18 +231,15 @@ export async function publishNpm(input: {
   const tag = parseSemver(release.version)!.prerelease.length
     ? "next"
     : "latest";
-  try {
-    await runOrThrow(input.process, "npm", [
-      "publish",
-      archive as string | undefined ?? pack.filename,
-      "--ignore-scripts",
-      "--access=public",
-      `--registry=${registry}/`,
-      `--tag=${tag}`,
-    ], { cwd });
-  } catch {
-    /* Confirm uncertain publication; do not upload twice in one run. */
-  }
+  const publication = await input.process.run("npm", [
+    "publish",
+    archive as string | undefined ?? pack.filename,
+    "--ignore-scripts",
+    "--json",
+    "--access=public",
+    `--registry=${registry}/`,
+    `--tag=${tag}`,
+  ], { cwd }).catch(() => undefined);
   const confirmed = await confirmPublication(async () => {
     const actual = await input.api.version(expected.name, expected.version);
     if (!actual) return false;
@@ -250,7 +248,9 @@ export async function publishNpm(input: {
   }, input.clock);
   if (!confirmed) {
     throw new Error(
-      "npm publication was not confirmed. Check npm authentication and retry this workflow with the same release tag.",
+      `npm publication was not confirmed. ${
+        npmPublicationDiagnostic(publication)
+      } Retry this workflow with the same release tag.`,
     );
   }
 }
