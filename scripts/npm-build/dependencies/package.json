@@ -7,6 +7,7 @@
     "@jsr/std__path": "1.1.6",
     "conventional-changelog-writer": "9.2.1",
     "conventional-commits-parser": "7.1.2",
+    "es-module-lexer": "3.0.2",
     "fork-version": "6.3.1",
     "jsonc-parser": "3.3.1",
     "yaml": "2.9.1"

@@ -4,6 +4,8 @@ import type { ReleaseEnvironment } from "./release-environment.ts";
 import type { ReleaseProcess } from "./release-process.ts";
 import { runOrThrow } from "./release-process.ts";
 import { digestBytes } from "../repository/digest-bytes.ts";
+import { jsrImportBytes } from "./jsr-import-bytes.ts";
+import { jsrImportMap } from "./jsr-import-map.ts";
 import {
   confirmPublication,
   type ReleaseClock,
@@ -167,6 +169,7 @@ export async function publishJsr(input: {
       input.api,
       release,
       packageName,
+      config,
     );
   const before = await input.api.version(packageName, release.version);
   if (before) return await verify(before);
@@ -230,6 +233,7 @@ async function verifyVersion(
   api: JsrApi,
   release: PublisherInput,
   name: string,
+  config: Record<string, unknown>,
 ): Promise<void> {
   if (!sameRecord(remote.exports, exports)) {
     throw new TypeError("JSR exports differ from Deno config.");
@@ -256,10 +260,19 @@ async function verifyVersion(
     }
     // Deno rewrites module imports before upload. The signed manifest digest
     // binds those transformed bytes to the exact release commit instead.
-    if (
-      !remote.moduleGraph2[path] && (bytes.length !== expected.size ||
-        await checksum(bytes) !== expected.checksum)
-    ) throw new TypeError("JSR module content differs.");
+    if (remote.moduleGraph2[path] || await matches(bytes, expected)) {
+      continue;
+    }
+    // Unexported modules can also contain imports that Deno changes.
+    // Accept only the exact bytes from the local import map transformation.
+    const transformed = await jsrImportBytes(
+      bytes,
+      path.slice(1),
+      await jsrImportMap(config, files),
+    );
+    if (!await matches(transformed, expected)) {
+      throw new TypeError(`JSR module content differs: ${path}.`);
+    }
   }
   await api.verifyProvenance({
     packageName: name,
@@ -273,6 +286,12 @@ async function verifyVersion(
 
 async function checksum(bytes: Uint8Array): Promise<string> {
   return `sha256-${await digestBytes(bytes)}`;
+}
+async function matches(
+  bytes: Uint8Array,
+  file: ManifestFile,
+): Promise<boolean> {
+  return bytes.length === file.size && await checksum(bytes) === file.checksum;
 }
 function parsePackageName(name: string): [string, string] {
   const match = /^@([a-z0-9][a-z0-9._-]*)\/([a-z0-9][a-z0-9._-]*)$/.exec(name);
