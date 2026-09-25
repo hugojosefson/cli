@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.16.1
+
+### Fixes
+
+#### readme
+
+- replace read-only output without confirmation
+  ([d03f226](https://github.com/hugojosefson/cli/commit/d03f2263f7bc511bd3794f36a6ddf847da91e447))
+
 ## 0.16.0
 
 ### Features
