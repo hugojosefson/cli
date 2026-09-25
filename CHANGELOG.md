@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.15.12
+
+### Fixes
+
+#### deno-fmt
+
+- keep formatting exclusions in configuration
+  ([87b634a](https://github.com/hugojosefson/cli/commit/87b634ae681d7beefe96078cd1676b94175939fe))
+
 ## 0.15.11
 
 ### Fixes
