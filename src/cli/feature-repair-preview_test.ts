@@ -213,7 +213,8 @@ test("status previews the real formatting repair and shared files without changi
     assert(!status.includes("Repair: Repair"));
     assert(!status.includes("Repair (--repair"));
     assertStringIncludes(status, "tasks.fmt.command");
-    assertStringIncludes(status, '"deno fmt --ignore=coverage"');
+    assertStringIncludes(status, '"deno fmt"');
+    assertStringIncludes(status, "fmt.exclude");
     assertStringIncludes(status, "replace existing value");
     assertStringIncludes(status, ".gitignore");
     assertStringIncludes(status, ".hj/deno-lock.json");
@@ -231,6 +232,7 @@ test("status previews the real formatting repair and shared files without changi
     assert(!repaired.includes("Repair:"));
     const final = JSON.parse((await context.files.readText("deno.json"))!);
     assertEquals(final.tasks.fmt, denoTaskDefinitions().fmt);
+    assertEquals(final.fmt.exclude, ["coverage"]);
     assertEquals(final.tasks.custom, custom);
     assertStringIncludes(
       (await context.files.readText(".gitignore"))!,

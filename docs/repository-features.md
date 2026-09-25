@@ -240,6 +240,17 @@ then retry. `hj` does not lower that policy.
 | `deno-server`         | A `deno serve` module with `serve` and `dev` tasks.                        | `deno-fmt`; integrates with an enabled CLI.    |
 | `deno-config-version` | A release version from one Deno configuration.                             | An exact SemVer version, such as `1.2.3`.      |
 
+Generated formatting tasks use `deno fmt` and `deno fmt --check`. The
+configuration adds `coverage` to `fmt.exclude` and keeps existing exclusions.
+`--deno-fmt --repair` moves previous generated `--ignore=coverage` arguments
+into the configuration. Inspection lists the task changes and the required
+exclusion. Custom `--ignore` commands have no automatic repair. Manual changes
+must keep their intended shell behavior.
+
+Disabling formatting keeps exclusions in an existing configuration. Other tasks
+and Deno commands can use those exclusions. `hj` removes a standalone
+configuration file only if its content matches the generated configuration.
+
 A lockfile records resolved dependency versions. The shared `deno-fmt`
 configuration sets `lock: false` for libraries and other projects without a
 lockfile requirement. Enabling `deno-cli` or `deno-server` sets the managed
