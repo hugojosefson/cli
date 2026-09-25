@@ -65,6 +65,7 @@ test("JSR aggregate remains exact for Deno formatting and leaf tasks", async () 
       name: "@owner/repository",
       version: "1.0.0",
       exports: { ".": "./mod.ts" },
+      fmt: { exclude: ["coverage"] },
       tasks: {
         ...denoTaskDefinitions(["deno-lint"], false, true),
         lint: leafTaskDefinitions["deno-lint"],

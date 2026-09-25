@@ -250,6 +250,39 @@ test("legacy README replaces its task when formatting is already configured", as
   });
 });
 
+test("legacy README migration keeps existing formatting exclusions", async () => {
+  await fixture(async (root, context) => {
+    const registry: FeatureRegistry = {
+      features: [denoFmtFeature, readmeBuildFeature],
+      capabilities: [{
+        id: "readme",
+        providerPolicy: "exclusive",
+        defaultProvider: "readme-build",
+      }],
+    };
+    const configPath = new URL("deno.json", root);
+    const config = JSON.parse(await readTextFile(configPath));
+    config.fmt = { exclude: ["coverage"] };
+    config.tasks = { ...denoTaskDefinitions(), readme: legacyReadmeTask };
+    await writeTextFile(configPath, JSON.stringify(config));
+    await runFeatureOperation(
+      root,
+      parseFeatures([
+        "repo",
+        "features",
+        "--readme-build",
+        "--deno-fmt",
+        "--repair",
+        "--yes",
+      ], registry),
+      registry,
+      undefined,
+      { runFinalTask: () => Promise.resolve(undefined) },
+    );
+    assertEquals((await readmeBuildFeature.detect(context)).state, "enabled");
+  });
+});
+
 async function fixture(
   run: (root: URL, context: DetectionContext) => Promise<void>,
 ) {

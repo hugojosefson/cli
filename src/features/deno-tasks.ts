@@ -82,11 +82,11 @@ export function denoTaskDefinitions(
   return {
     fmt: {
       description: "Fix formatting.",
-      command: "deno fmt --ignore=coverage",
+      command: "deno fmt",
     },
     format: {
       description: "Check formatting.",
-      command: "deno fmt --check --ignore=coverage",
+      command: "deno fmt --check",
     },
     check: { description: "Run project checks.", dependencies },
     ...(readmeBuild
@@ -221,7 +221,10 @@ export function isObject(value: JsonValue): value is JsonObject {
 
 /** Returns canonical Deno configuration text for the supplied definitions. */
 export function denoFmtConfigText(
-  config: JsonObject = { tasks: denoTaskDefinitions() },
+  config: JsonObject = {
+    fmt: { exclude: ["coverage"] },
+    tasks: denoTaskDefinitions(),
+  },
 ): string {
   return `${JSON.stringify(config, null, 2)}\n`;
 }

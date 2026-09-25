@@ -1,5 +1,6 @@
 /** @module Declarative additions to an initially created Deno configuration. */
 
+import { withFormatExclusions } from "./deno-fmt-exclusions.ts";
 import type { JsonObject, JsonValue } from "../api/json.ts";
 import type { OperationContext } from "../api/repository-context.ts";
 import { denoCliInitialConfigContribution } from "./deno-cli-artifacts.ts";
@@ -62,7 +63,7 @@ export async function initialDenoConfig(
       context.resolvedChanges.some((change) =>
         change.featureId === denoFmtFeatureId && change.enabled
       )
-    ? mergeObjects(result, {
+    ? mergeObjects(withFormatExclusions(result), {
       tasks: {
         ...denoTaskDefinitions(
           enabled,

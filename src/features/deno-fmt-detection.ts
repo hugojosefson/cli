@@ -1,10 +1,18 @@
 /** @module Detection for Deno formatting configuration. */
+import { customFormatIgnores, legacyFormatTasks } from "./deno-fmt-commands.ts";
 
+import {
+  formatExclusionError,
+  hasCoverageExclusion,
+  missingFormatExclusion,
+} from "./deno-fmt-exclusions.ts";
+import { configuredDenoTask } from "./configured-deno-task.ts";
 import { valueDifference } from "./detection-differences.ts";
 import type { DetectionIssue } from "../api/feature-detection.ts";
 import type { DetectionContext } from "../api/repository-context.ts";
 import {
   configuredDenoFmt,
+  configuredFormatTasks,
   denoFmtSubject,
   inspectDenoFmt,
 } from "./deno-fmt-inspection.ts";
@@ -26,7 +34,58 @@ export async function detectDenoFmt(context: DetectionContext) {
     return ambiguous(state.config.observation);
   }
   const config = state.config;
+  const exclusionError = formatExclusionError(config.value);
+  if (exclusionError) {
+    return ambiguous(`${config.path}: ${exclusionError}`);
+  }
   const tasks = state.tasks!;
+  if (tasks.kind === "tasks") {
+    const custom = customFormatIgnores(tasks.values);
+    if (custom.length > 0) {
+      return ambiguous(
+        custom.map((name) =>
+          `${config.path}: move tasks.${name} --ignore paths to fmt.exclude manually. Automatic command repair is unsupported.`
+        ).join("\n"),
+      );
+    }
+    const legacy = legacyFormatTasks(tasks.values);
+    if (legacy.length > 0) {
+      for (const name of ["fmt", "format"]) {
+        if (
+          tasks.values[name] !== undefined &&
+          !await configuredDenoTask(context, tasks.values, name, "fmt")
+        ) {
+          return ambiguous(
+            `${config.path}: correct tasks.${name} manually before moving formatting exclusions.`,
+          );
+        }
+      }
+      const details = legacy.map((name) =>
+        `${config.path}: tasks.${name} uses --ignore=coverage, which overrides fmt.exclude.`
+      );
+      for (const name of ["fmt", "format"]) {
+        if (tasks.values[name] === undefined) {
+          details.push(
+            `${config.path}: tasks.${name} is missing.`,
+          );
+        }
+      }
+      if (!hasCoverageExclusion(config.value)) {
+        details.push(
+          `${config.path}: configuration has no formatting exclusion for coverage.`,
+        );
+      }
+      return drifted(details.join("\n"));
+    }
+  }
+  if (
+    tasks.kind === "tasks" && missingFormatExclusion(config.value) &&
+    await configuredFormatTasks(context, tasks.values)
+  ) {
+    return drifted(
+      `${config.path}: configuration has no formatting exclusion for coverage.`,
+    );
+  }
   if (tasks.kind === "missing-tasks") {
     return simple("disabled", "Deno tasks are absent.");
   }
@@ -78,7 +137,7 @@ function drifted(observation: string) {
     "drifted",
     "deno-fmt-drifted",
     observation,
-    "Use --repair to restore contributed task definitions.",
+    "Apply the listed Deno configuration changes.",
   );
 }
 

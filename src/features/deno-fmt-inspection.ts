@@ -1,4 +1,5 @@
 /** @module Shared inspection for Deno formatting configuration. */
+import { customFormatIgnores, legacyFormatTasks } from "./deno-fmt-commands.ts";
 
 import {
   inspectLegacyReadme,
@@ -6,12 +7,17 @@ import {
   legacyAllTask,
   legacyDefaultTask,
 } from "./legacy-readme.ts";
+import {
+  formatExclusionError,
+  missingFormatExclusion,
+} from "./deno-fmt-exclusions.ts";
 import { configuredDenoTask } from "./configured-deno-task.ts";
 import { isObject } from "./deno-tasks.ts";
 import type { DenoConfigInspection } from "./deno-config.ts";
 import { inspectDenoConfig } from "./deno-config.ts";
 import type { DenoTaskInspection } from "./deno-tasks.ts";
 import { inspectDenoTasks } from "./deno-tasks.ts";
+import type { JsonObject } from "../api/json.ts";
 import type { DetectionContext } from "../api/repository-context.ts";
 
 export const denoFmtFeatureId = "deno-fmt";
@@ -74,6 +80,19 @@ export async function configuredDenoFmt(
     return false;
   }
   const tasks = state.config.value.tasks;
+  if (
+    legacyFormatTasks(tasks).length > 0 ||
+    customFormatIgnores(tasks).length > 0 ||
+    formatExclusionError(state.config.value) ||
+    missingFormatExclusion(state.config.value)
+  ) return false;
+  return await configuredFormatTasks(context, tasks);
+}
+
+export async function configuredFormatTasks(
+  context: DetectionContext,
+  tasks: JsonObject,
+): Promise<boolean> {
   return await configuredDenoTask(context, tasks, "fmt", "fmt") &&
     await configuredDenoTask(context, tasks, "format", "fmt");
 }

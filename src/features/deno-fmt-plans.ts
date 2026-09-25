@@ -1,11 +1,18 @@
 /** @module Guarded plans for Deno formatting configuration. */
+import { legacyFormatChanges, legacyFormatTasks } from "./deno-fmt-commands.ts";
 
+import { formatExclusionChanges } from "./deno-fmt-exclusions.ts";
 import type { ChangePlan } from "../api/change-plan.ts";
 import type { AllowedOperation } from "../api/feature-operation.ts";
 import type { PlannedChange } from "../api/planned-change.ts";
 import type { OperationContext } from "../api/repository-context.ts";
 import { sameJson } from "../operations/local-plan-state.ts";
-import { denoFmtFeatureId, inspectDenoFmt } from "./deno-fmt-inspection.ts";
+import {
+  configuredDenoFmt,
+  configuredFormatTasks,
+  denoFmtFeatureId,
+  inspectDenoFmt,
+} from "./deno-fmt-inspection.ts";
 import {
   denoFmtConfigText,
   denoTaskDefinitions,
@@ -44,6 +51,11 @@ export async function planEnableDenoFmt(
     });
   } else if (state.config.kind === "config") {
     const tasks = state.tasks!;
+    if (!await configuredDenoFmt(context, state)) {
+      changes.push(
+        ...formatExclusionChanges(state.config.path, state.config.value),
+      );
+    }
     if (tasks.kind === "missing-tasks") {
       changes.push({
         kind: "set-json",
@@ -57,12 +69,31 @@ export async function planEnableDenoFmt(
         expected: undefined,
       });
     } else if (tasks.kind === "tasks") {
+      const formattingRepair = legacyFormatTasks(tasks.values).length > 0 ||
+        await configuredFormatTasks(context, tasks.values);
+      if (formattingRepair) {
+        changes.push(...legacyFormatChanges(state.config.path, tasks.values));
+        for (const name of ["fmt", "format"]) {
+          if (tasks.values[name] === undefined) {
+            changes.push({
+              kind: "set-json",
+              path: state.config.path,
+              jsonPath: ["tasks", name],
+              value: denoTaskDefinitions()[name],
+              expected: undefined,
+            });
+          }
+        }
+      }
+
       const definitions = denoTaskDefinitions(
         desiredTaskIds(context, tasks.values),
         desiredReadmeBuild(context, tasks.values),
         desiredPublishCheck(context, tasks.values),
       );
-      const aggregateChanges = [...tasks.missing, ...tasks.drifted].sort();
+      const aggregateChanges = formattingRepair
+        ? []
+        : [...tasks.missing, ...tasks.drifted].sort();
       for (const name of aggregateChanges) {
         changes.push({
           kind: "set-json",
@@ -109,7 +140,22 @@ export async function planEnableDenoFmt(
   }
   return plan(
     "enable",
-    allowed,
+    {
+      ...allowed,
+      preconditions: [
+        ...allowed.preconditions,
+        ...changes.flatMap((change) =>
+          change.kind === "set-json" || change.kind === "remove-json"
+            ? [{
+              kind: "json-value" as const,
+              path: change.path,
+              jsonPath: change.jsonPath,
+              expected: change.expected,
+            }]
+            : []
+        ),
+      ],
+    },
     changes,
     "Configure Deno formatting tasks.",
     "enabled",

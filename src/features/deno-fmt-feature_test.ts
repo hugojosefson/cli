@@ -8,7 +8,7 @@ import {
   remove,
   writeTextFile,
 } from "../testing/files-test-fixtures.ts";
-import { assert, assertEquals } from "@std/assert";
+import { assert, assertEquals, assertRejects } from "@std/assert";
 import type { OperationContext } from "../api/repository-context.ts";
 import { applyLocalChangePlan } from "../operations/local-change-plan.ts";
 import { LocalFileReader } from "../repository/local-file-reader.ts";
@@ -104,7 +104,7 @@ test("deno-fmt edits a selected JSONC config and preserves unrelated content", a
     const disabled = (await text(root, "deno.jsonc"))!;
     assert(disabled.includes("// keep this comment"));
     assert(disabled.includes('"custom": "deno test"'));
-    assert(!disabled.includes('"fmt"'));
+    assert(!disabled.includes('"Fix formatting."'));
     assertEquals(
       (await denoFmtFeature.detect(context(root))).state,
       "disabled",
@@ -174,6 +174,31 @@ test("deno-fmt blocks ambiguous configs and repairs selected task drift", async 
       await denoFmtFeature.planEnable(repair, enable),
     );
     assertEquals((await denoFmtFeature.detect(context(root))).state, "enabled");
+  });
+});
+
+test("deno-fmt rejects stale migration before changing exclusions", async () => {
+  await withRepository(async (root) => {
+    const config = {
+      fmt: { exclude: ["generated"] },
+      tasks: {
+        fmt: "deno fmt --ignore=coverage",
+        format: "deno fmt --check --ignore=coverage",
+      },
+    };
+    await writeTextFile(new URL("deno.json", root), JSON.stringify(config));
+    const repair = context(root, {
+      kind: "features",
+      featureIds: ["deno-fmt"],
+    });
+    const allowed = await denoFmtFeature.checkEnable(repair);
+    assert(allowed.result === "allowed");
+    const plan = await denoFmtFeature.planEnable(repair, allowed);
+    config.tasks.format = "deno fmt --check src";
+    const changed = JSON.stringify(config);
+    await writeTextFile(new URL("deno.json", root), changed);
+    await assertRejects(() => applyLocalChangePlan(root, plan));
+    assertEquals(await text(root, "deno.json"), changed);
   });
 });
 

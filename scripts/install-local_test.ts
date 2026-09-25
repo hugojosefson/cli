@@ -53,7 +53,8 @@ test("installed hj keeps the caller directory and works outside the checkout", a
     assertStringIncludes(await run(["--help"]), "hj repo features");
     await run(["repo", "features", "--deno-fmt", "--yes"]);
     const config = JSON.parse(await readTextFile(`${root}/deno.jsonc`));
-    assertEquals(config.tasks.fmt.command, "deno fmt --ignore=coverage");
+    assertEquals(config.tasks.fmt.command, "deno fmt");
+    assertEquals(config.fmt.exclude, ["coverage"]);
   } finally {
     await remove(root, { recursive: true });
   }
