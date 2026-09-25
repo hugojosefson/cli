@@ -19,6 +19,7 @@ export interface DesiredFeatureState {
 /** Internal state for one resolution pass. */
 export interface ResolutionState {
   readonly registry: FeatureRegistry;
+  readonly overwrite?: boolean;
   readonly detections: Readonly<Record<FeatureId, FeatureDetection>>;
   readonly features: ReadonlyMap<FeatureId, Feature>;
   readonly capabilities: ReadonlyMap<CapabilityId, CapabilityDefinition>;
@@ -52,7 +53,7 @@ export function selectFeature(
   enabled: boolean,
   reason: ResolvedChangeReason,
 ): void {
-  if (state.detections[id]?.state === "ambiguous") {
+  if (!state.overwrite && state.detections[id]?.state === "ambiguous") {
     state.issues.push({ code: "ambiguous-feature", featureId: id });
     return;
   }
@@ -75,8 +76,10 @@ export function providerIds(
 /** Returns only selected states that differ from detected state. */
 export function changedFeatures(
   state: ResolutionState,
+  includeSelected = false,
 ): readonly ResolvedFeatureChange[] {
   return [...state.desired].filter(([id, value]) =>
-    value.enabled !== isFeaturePresent(state, id)
+    value.enabled !== isFeaturePresent(state, id) ||
+    includeSelected && value.enabled
   ).map(([featureId, value]) => ({ featureId, ...value }));
 }

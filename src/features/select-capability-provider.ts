@@ -52,7 +52,11 @@ export function selectCapabilityProvider(
     });
     return;
   }
-  if (!isFeatureSelected(state, provider)) {
+  if (
+    !isFeatureSelected(state, provider) ||
+    state.overwrite && !state.desired.has(provider) &&
+      state.detections[provider]?.state !== "enabled"
+  ) {
     selectFeature(
       state,
       provider,

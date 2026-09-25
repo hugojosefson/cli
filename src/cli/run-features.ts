@@ -1,4 +1,5 @@
 /** @module Repository detection, resolution, planning, and local application. */
+import { runOverwriteFeatures } from "./run-overwrite-features.ts";
 import {
   AuthenticatedJsrScopeReader,
   type JsrScopeReader,
@@ -75,6 +76,7 @@ export interface FeatureOperationServices {
   /** Supplied by the CLI; isolated operation tests can keep GitHub offline. */
   readonly ensureGithubAuthentication?: (root: URL) => Promise<void>;
   readonly colors?: OutputColors;
+  readonly reportOverwrite?: (message: string) => void;
   readonly githubRepositorySetup?: GithubRepositorySetup;
   readonly promptGithubVisibility?: VisibilityPrompt;
   readonly reportGithubPlan?: (plan: string) => void;
@@ -111,6 +113,9 @@ export async function runFeatureOperation(
   selectActions: FeatureSelector = promptFeatureActions,
   services: FeatureOperationServices = {},
 ): Promise<string> {
+  if (args.kind === "change" && args.request.overwrite) {
+    return await runOverwriteFeatures(root, args, registry, services);
+  }
   const files = new LocalFileReader(root);
   const git = new LocalGitReader(root);
   const githubIdentity = services.githubIdentity ??

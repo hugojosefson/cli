@@ -59,6 +59,7 @@ export function parseFeatures(
   const selectedPresets = new Set<string>();
   let applyDefaults = false;
   let repair = false;
+  let overwrite = false;
   let interactive = false;
   let confirmation = false;
   let githubOwner: string | undefined;
@@ -114,6 +115,11 @@ export function parseFeatures(
       applyDefaults = true;
       continue;
     }
+    if (arg === "--overwrite") {
+      if (overwrite) throw new Error("duplicate `--overwrite`");
+      overwrite = true;
+      continue;
+    }
     if (arg === "--repair") {
       if (repair) throw new Error("duplicate `--repair`");
       repair = true;
@@ -154,6 +160,17 @@ export function parseFeatures(
       addRequest(requested, capability.defaultProvider, true);
     } else throw new Error(`capability has no default provider: ${id}`);
   }
+  if (overwrite && repair) {
+    throw new Error("`--overwrite` and `--repair` are mutually exclusive.");
+  }
+  if (
+    overwrite && !applyDefaults && selectedPresets.size === 0 &&
+    ![...requested.values()].includes(true)
+  ) {
+    throw new Error(
+      "`--overwrite` needs a positive feature flag, a preset, or `--defaults`.",
+    );
+  }
   const configuredDefaults = defaults.features?.map((id) =>
     featureIds.has(id)
       ? { kind: "feature" as const, featureId: id }
@@ -161,7 +178,7 @@ export function parseFeatures(
   );
   if (interactive) {
     if (
-      applyDefaults || repair || requested.size > 0 ||
+      applyDefaults || repair || overwrite || requested.size > 0 ||
       selectedPresets.size > 0 || workflowCli !== undefined ||
       jsrScope !== undefined || denoVersion !== undefined ||
       githubOwner !== undefined || githubName !== undefined
@@ -189,6 +206,7 @@ export function parseFeatures(
     applyDefaults,
     defaults: configuredDefaults ?? featureDefaults,
     ...(repair ? { repair: repairSelection(requested) } : {}),
+    ...(overwrite ? { overwrite: true } : {}),
   };
   if (
     (workflowCli !== undefined || denoVersion !== undefined) &&

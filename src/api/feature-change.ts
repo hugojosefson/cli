@@ -59,4 +59,5 @@ export interface FeatureChangeRequest {
   readonly defaults: readonly DefaultSelection[];
   /** Artifact repair intent; state resolution still treats drifted as present. */
   readonly repair?: RepairSelection;
+  readonly overwrite?: boolean;
 }
