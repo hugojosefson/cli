@@ -47,7 +47,7 @@ export const readmeTaskDefinition: JsonObject = {
   command:
     'sh -c \'temp=$(mktemp README.md.XXXXXX) && trap "rm -f \\"$temp\\"" EXIT && deno run --allow-read=. ' +
     hjPackageReference +
-    ' readme build > "$temp" && chmod 444 "$temp" && mv "$temp" README.md\'',
+    ' readme build > "$temp" && chmod a-w "$temp" && mv -f "$temp" README.md\'',
 };
 
 /** Keep an exact generated task valid across later hj releases. */

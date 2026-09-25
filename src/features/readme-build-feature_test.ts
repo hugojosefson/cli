@@ -46,7 +46,7 @@ test("readme-build retains an exact older CLI pin across releases", async () => 
       oldTask.command.replace("@0.1.0", "@^0.1.0"),
       oldTask.command.replace("@0.1.0", "@latest"),
       oldTask.command.replace("@hugojosefson/cli", "@other/cli"),
-      oldTask.command.replace("chmod 444", "chmod 644"),
+      oldTask.command.replace("chmod a-w", "chmod u+w"),
       `${oldTask.command} && echo changed`,
     ]
   ) assert(!isReadmeTask({ ...oldTask, command }));
@@ -73,6 +73,46 @@ test("readme-build retains an exact older CLI pin across releases", async () => 
       JSON.parse(await read(root, "deno.jsonc")).tasks.readme,
       undefined,
     );
+  });
+});
+
+test("readme-build repairs the previous task without changing source content", async () => {
+  await withRepository(async (root) => {
+    await runCli(root, ["repo", "features", "--readme-build"]);
+    const config = JSON.parse(await read(root, "deno.jsonc"));
+    const oldCommand = (readmeTaskDefinition.command as string)
+      .replace("chmod a-w", "chmod 444")
+      .replace('mv -f "$temp"', 'mv "$temp"')
+      .replace(hjPackageReference, "jsr:@hugojosefson/cli@0.16.0");
+    config.tasks.readme.command = oldCommand;
+    const before = JSON.stringify(config);
+    await write(root, "deno.jsonc", before);
+    const source = await read(root, "readme/README.md");
+    const output = await read(root, "README.md");
+    const status = (await runCli(root, ["repo", "features"])).output;
+    assertStringIncludes(status.replace(/ +/g, " "), "readme-build drifted");
+    assertStringIncludes(status, "tasks.readme.command");
+    assertStringIncludes(status, "chmod a-w");
+    assertStringIncludes(status, "mv -f");
+    assertEquals(await read(root, "deno.jsonc"), before);
+    await assertRejects(() =>
+      runCli(root, ["repo", "features", "--readme-build"])
+    );
+    await runCli(root, ["repo", "features", "--readme-build", "--repair"]);
+    assertEquals(
+      JSON.parse(await read(root, "deno.jsonc")).tasks.readme,
+      readmeTaskDefinition,
+    );
+    assertEquals(await read(root, "readme/README.md"), source);
+    assertEquals(await read(root, "README.md"), output);
+    await assertReadOnly(root);
+    const repeated = await runCli(root, [
+      "repo",
+      "features",
+      "--readme-build",
+      "--repair",
+    ]);
+    assertStringIncludes(repeated.output, "No changes.");
   });
 });
 
