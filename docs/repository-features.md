@@ -169,21 +169,56 @@ therefore be enabled while its custom files remain protected from automatic
 removal. For this repository's results, read the
 [self-check record](development.md#self-check-and-readme-choice).
 
+## Local overwrite
+
+Use `hj repo features --overwrite --<feature>` when conflicting local artifacts
+prevent repair. Select positive feature flags, a preset, or `--defaults`.
+`--overwrite` and `--repair` are mutually exclusive.
+
+Overwrite can replace files, remove directories at conflicting file paths, and
+replace invalid configuration. It keeps unrelated paths and configuration keys.
+Managed keys can change. It replaces a conflicting parent file or symlink
+without changing the symlink target. It does not remove Git metadata.
+
+Overwrite changes local files only. It rejects necessary GitHub mutations before
+local writes. Existing GitHub metadata can supply local workflow configuration.
+Configure missing GitHub settings with a usual feature command first.
+
+The command prints a warning and the planned paths before writes. Replacement
+and removal can permanently remove uncommitted or untracked content. Git cannot
+put that content back. With two Deno configuration files, overwrite keeps
+`deno.json` when it is a regular file and removes `deno.jsonc`. Invalid JSONC
+becomes a new configuration object.
+
+Overwrite does not make automatic feature commits. It accepts dirty and staged
+files without a commit identity. It runs the resulting project's `default` task.
+Use project tasks that change local files. Custom scripts keep their own
+behavior and can make necessary Git commits. Overwrite does not isolate project
+code or give that code permission to change GitHub settings.
+
+After the command, examine `git status --short`, `git diff`, untracked files,
+and `git diff --cached`. Use `git restore --source=HEAD -- <path>` for necessary
+tracked content. This command removes uncommitted changes from that path.
+Examine `git log -5 --oneline` for commits from project tasks. Resolve the
+differences, validate, and commit manually. Task failures keep the changed files
+available and print these instructions.
+
 ## Select changes
 
-| Input                   | Effect                                                      |
-| ----------------------- | ----------------------------------------------------------- |
-| No feature flags        | Report the current state.                                   |
-| `--<feature>`           | Enable one feature and its required dependencies.           |
-| `--no-<feature>`        | Disable one feature, if no enabled feature depends on it.   |
-| `--interactive` or `-i` | Select actions in a terminal checklist.                     |
-| `--defaults`            | Select configured features, or Git and README.              |
-| `--github`              | Apply common GitHub settings, including private visibility. |
-| `--github-protection`   | Select default-branch protection and protected tags.        |
-| `--github-public`       | Select public visibility; overrides `--github` visibility.  |
-| `--repair`              | Repair every drifted feature.                               |
-| `--repair --<feature>`  | Repair only the selected positive features.                 |
-| `--yes`                 | Accept plan warnings that require confirmation.             |
+| Input                     | Effect                                                                 |
+| ------------------------- | ---------------------------------------------------------------------- |
+| No feature flags          | Report the current state.                                              |
+| `--<feature>`             | Enable one feature and its required dependencies.                      |
+| `--no-<feature>`          | Disable one feature, if no enabled feature depends on it.              |
+| `--interactive` or `-i`   | Select actions in a terminal checklist.                                |
+| `--defaults`              | Select configured features, or Git and README.                         |
+| `--github`                | Apply common GitHub settings, including private visibility.            |
+| `--github-protection`     | Select default-branch protection and protected tags.                   |
+| `--github-public`         | Select public visibility; overrides `--github` visibility.             |
+| `--overwrite --<feature>` | Replace conflicting local artifacts without automatic feature commits. |
+| `--repair`                | Repair every drifted feature.                                          |
+| `--repair --<feature>`    | Repair only the selected positive features.                            |
+| `--yes`                   | Accept plan warnings that require confirmation.                        |
 
 A capability is a function provided by a feature. The `readme` capability uses
 its enabled provider, or `readme-static` by default. Required capabilities can

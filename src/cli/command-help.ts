@@ -32,6 +32,10 @@ export const commandDefinitions = {
       ],
       ["--<feature>", "Enable a feature."],
       ["--no-<feature>", "Disable a feature."],
+      [
+        "--overwrite",
+        "Replace conflicting local artifacts without automatic feature commits. Excludes --repair.",
+      ],
       ["--repair", "Repair drifted managed configuration."],
       ["--interactive, -i", "Select actions in a terminal checklist."],
       ["--yes", "Accept plan warnings that need confirmation."],

@@ -9,6 +9,10 @@ import { LocalFileReader } from "../repository/local-file-reader.ts";
 
 const component = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
+export function validCommandName(name: string): boolean {
+  return component.test(name);
+}
+
 /** Public JSR syntax; registry permission and availability are separate checks. */
 export function validPackageComponent(name: string): boolean {
   return name.length >= 2 && name.length <= 58 && component.test(name);
@@ -56,7 +60,7 @@ export async function readPackageMetadata(
     : undefined;
   if (
     commandOverride !== undefined &&
-    (typeof commandOverride !== "string" || !component.test(commandOverride))
+    (typeof commandOverride !== "string" || !validCommandName(commandOverride))
   ) throw new Error("hj.commandName must be a lowercase command name.");
   return {
     name,

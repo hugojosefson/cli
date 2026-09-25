@@ -18,6 +18,7 @@ export function createResolutionState(
   const explicit = new Map<FeatureId, boolean>();
   const state: ResolutionState = {
     registry,
+    overwrite: request.overwrite,
     detections,
     features,
     capabilities: new Map(

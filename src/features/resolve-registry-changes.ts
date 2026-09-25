@@ -42,7 +42,10 @@ export function resolveRegistryChanges(
     return { changes: [], issues };
   }
   return {
-    changes: orderFeatureChanges(registry, changedFeatures(state)),
+    changes: orderFeatureChanges(
+      registry,
+      changedFeatures(state, request.overwrite),
+    ),
     issues: [],
   };
 }

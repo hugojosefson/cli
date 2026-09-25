@@ -65,7 +65,11 @@ export function resolveFeatureEnables(state: ResolutionState): void {
             featureId: id,
             relatedId: dependency.featureId,
           });
-        } else if (!isFeatureSelected(state, dependency.featureId)) {
+        } else if (
+          !isFeatureSelected(state, dependency.featureId) ||
+          state.overwrite && !state.desired.has(dependency.featureId) &&
+            state.detections[dependency.featureId]?.state !== "enabled"
+        ) {
           selectFeature(state, dependency.featureId, true, {
             kind: "direct-feature-dependency",
             requiredBy: id,
