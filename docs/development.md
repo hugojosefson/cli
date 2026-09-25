@@ -467,16 +467,17 @@ build imports a generated Markdown fragment that links to a colored SVG example.
 The example uses this checkout's local feature detectors and terminal formatter.
 It shows four representative rows and needs no GitHub access.
 
-Keep the generated root `README.md` tracked in Git. The build sets its file
-permissions to `0444` (read-only) and leaves it tracked. Feature detection
-accepts any permissions that give the current user the required access. Editable
-sources must be writable, and generated README output must be read-only.
-Detection includes group membership and access control lists (ACLs), which
-assign permissions to specific users or groups. Node and Bun use `node:fs`
-access checks. Deno uses read-only `sh` tests because its compatibility
-implementation omits supplementary groups and ACLs. The local runners grant
-`--allow-sys=uid,gid` and subprocess access to `sh` for inspection.
-Metadata-only reads, including `readme build`, need only read access.
+Keep the generated root `README.md` tracked in Git. The build uses `chmod a-w`
+to remove all write permissions. It uses `mv -f` to replace the previous output
+without terminal confirmation. Feature detection accepts any permissions that
+give the current user the required access. Editable sources must be writable,
+and generated README output must be read-only. Detection includes group
+membership and access control lists (ACLs), which assign permissions to specific
+users or groups. Node and Bun use `node:fs` access checks. Deno uses read-only
+`sh` tests because its compatibility implementation omits supplementary groups
+and ACLs. The local runners grant `--allow-sys=uid,gid` and subprocess access to
+`sh` for inspection. Metadata-only reads, including `readme build`, need only
+read access.
 
 Git records the executable flag but does not record write permissions. After a
 checkout, run `deno task readme` to restore read-only permissions.
