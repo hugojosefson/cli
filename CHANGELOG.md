@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.16.0
+
+### Features
+
+#### repo
+
+- add local feature overwrite without automatic commits
+  ([e683b31](https://github.com/hugojosefson/cli/commit/e683b315d86d6b17e1f8485843f0ccc7723deeb9))
+
 ## 0.15.12
 
 ### Fixes
