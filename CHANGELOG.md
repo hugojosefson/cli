@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.16.2
+
+### Other
+
+- update dependencies
+  ([b6b49e9](https://github.com/hugojosefson/cli/commit/b6b49e96481110b8ff5635656f2c2f88dc4be93d))
+
 ## 0.16.1
 
 ### Fixes
