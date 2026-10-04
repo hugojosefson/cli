@@ -158,6 +158,79 @@ test("every provider recognizes reflowed terms and preserves raw attribution val
   }
 });
 
+test("all attributed providers accept years and names and reject placeholders", async () => {
+  for (const provider of licenseCatalog) {
+    if (
+      !provider.definition.placeholders.some(({ kind }) => kind === "holder")
+    ) {
+      continue;
+    }
+    const text = `fixture-${provider.definition.name}\n` +
+      provider.definition.placeholders.map(({ marker }) => marker).join(" | ") +
+      "\nterms\n";
+    const feature = createSpdxLicenseFeature({
+      ...provider,
+      text: source(text),
+      alternates: [],
+    });
+    for (const year of ["0000", "0001", "1999", "2024", "9999"]) {
+      for (
+        const holder of ["Hugo Josefson", "AC/DC", "李明 <li@example.org>"]
+      ) {
+        const content = provider.definition.placeholders.reduce(
+          (result, { kind, marker }) =>
+            result.replace(marker, { year, holder, project: "repo" }[kind]),
+          text,
+        );
+        const current = context(file(content), {
+          licenseHolder: "Different Person",
+          licenseYear: "2026",
+        }, { kind: "all-drifted" });
+        assertEquals(
+          (await feature.detect(current)).state,
+          "enabled",
+          provider.id,
+        );
+        assertEquals((await feature.checkEnable(current)).result, "no-op");
+      }
+    }
+    for (
+      const holder of [
+        "<copyright holders>",
+        "[fullname]",
+        "[name of copyright owner]",
+        "<name of author>",
+        "{{ organization }}",
+        "Your Name",
+      ]
+    ) {
+      const options = { licenseHolder: holder, licenseYear: "2024" };
+      assertEquals(
+        (await feature.checkEnable(context({ kind: "absent" }, options)))
+          .result,
+        "blocked",
+        provider.id,
+      );
+      const content = provider.definition.placeholders.reduce(
+        (result, { kind, marker }) =>
+          result.replace(
+            marker,
+            { year: "2024", holder, project: "repo" }[kind],
+          ),
+        text,
+      );
+      const current = context(file(content), options, { kind: "all-drifted" });
+      assertEquals(
+        (await feature.detect(current)).state,
+        "ambiguous",
+        provider.id,
+      );
+      assertEquals((await feature.checkEnable(current)).result, "blocked");
+      assertEquals((await feature.checkDisable(current)).result, "blocked");
+    }
+  }
+});
+
 test("catalog providers recognize every exact alternate and only new replacements write", async () => {
   for (
     const [oldId, newId] of [

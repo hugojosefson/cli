@@ -42,3 +42,27 @@ test("license attribution prefers Github, then Git, then prompt", async () => {
     "License attribution is required",
   );
 });
+
+test("license attribution rejects a placeholder from each identity source", async () => {
+  for (const holder of ["[fullname]", "<copyright holders>", "Your Name"]) {
+    for (const source of ["github", "git", "prompt"]) {
+      await assertRejects(
+        () =>
+          resolveLicenseAttribution({
+            githubIdentity: {
+              viewer: () =>
+                Promise.resolve(
+                  source === "github" ? { name: holder } : undefined,
+                ),
+            },
+            git: {
+              userName: () =>
+                Promise.resolve(source === "git" ? holder : undefined),
+            },
+          }, () => holder),
+        Error,
+        "License attribution is required",
+      );
+    }
+  }
+});

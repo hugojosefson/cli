@@ -241,6 +241,11 @@ test("MIT recognizes equivalent copyright markers and line formatting without re
       `\n${reportedMit.replaceAll("\n\n", "\n\n\n")}\n`,
     ],
     ["single line", canonical.replaceAll(/\s+/g, " ").trim()],
+    ["original year", reportedMit.replace("2025", "2024")],
+    ["past year", reportedMit.replace("2025", "0001")],
+    ["future year", reportedMit.replace("2025", "9999")],
+    ["name with slash", reportedMit.replace("Hugo Josefson", "AC/DC")],
+    ["name with backslash", reportedMit.replace("Hugo Josefson", "AC\\DC")],
   ]);
   for (const [name, content] of cases) {
     await testStep(t, name, async () => {
@@ -311,11 +316,6 @@ test("MIT rejects substantive edits and unsafe attribution despite equivalent fo
       reportedMit.replace("Hugo Josefson", "Hugo\nJosefson"),
     ],
     ["CRLF holder", reportedMit.replace("Hugo Josefson", "Hugo\r\nJosefson")],
-    ["slash in holder", reportedMit.replace("Hugo Josefson", "Hugo/Josefson")],
-    [
-      "backslash in holder",
-      reportedMit.replace("Hugo Josefson", "Hugo\\Josefson"),
-    ],
     ["NUL in holder", reportedMit.replace("Hugo Josefson", "Hugo\0Josefson")],
     ["dot holder", reportedMit.replace("Hugo Josefson", ".")],
     ["parent holder", reportedMit.replace("Hugo Josefson", "..")],

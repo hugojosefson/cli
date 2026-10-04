@@ -33,6 +33,7 @@ import {
   replaceLicenseSection,
 } from "../readme/license-section.ts";
 import { buildReadmeText } from "../readme/build-readme.ts";
+import { validLicenseHolder } from "./license-holder.ts";
 
 const path = "LICENSE";
 type Values = Partial<Record<LicensePlaceholderKind, string>>;
@@ -488,7 +489,10 @@ function values(
 ): Values | undefined {
   const { licenseHolder: holder, licenseYear: year } = context.options;
   const required = new Set(definition.placeholders.map(({ kind }) => kind));
-  if (required.has("holder") && (typeof holder !== "string" || !safe(holder))) {
+  if (
+    required.has("holder") &&
+    (typeof holder !== "string" || !validLicenseHolder(holder))
+  ) {
     return undefined;
   }
   if (
@@ -505,6 +509,9 @@ function values(
   };
 }
 function valid(kind: LicensePlaceholderKind, value: string): boolean {
+  if (kind === "holder") {
+    return validLicenseHolder(value);
+  }
   return kind === "year" ? /^\d{4}$/.test(value) : safe(value);
 }
 function safe(value: string): boolean {
