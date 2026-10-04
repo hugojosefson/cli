@@ -116,5 +116,5 @@ jobs:
           deno run --no-lock
           --allow-env=HJ_RELEASE_ROUTE,HJ_SOURCE_BASE_SHA,HJ_SOURCE_HEAD_SHA
           --allow-run=git
-          --no-config --min-dep-age=0 --reload=jsr:@hugojosefson/cli jsr:@hugojosefson/cli
+          --no-config --min-dep-age=0 --reload=https://jsr.io/@hugojosefson/cli jsr:@hugojosefson/cli
           release publish-tag-prepare

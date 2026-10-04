@@ -78,8 +78,10 @@ function workflowCommand(source: string): string {
       0,
       hjPackageReference.lastIndexOf("@"),
     );
-    // Ignore local workspace resolution and refresh restored registry metadata.
-    return `--no-config --min-dep-age=0 --reload=${reference} ${reference}`;
+    // Deno matches HTTP cache entries by URL, not by the jsr: specifier.
+    return `--no-config --min-dep-age=0 --reload=https://jsr.io/${
+      reference.slice(4)
+    } ${reference}`;
   }
   const [repository, revision] = source.slice("github:".length).split("@");
   const base = `https://raw.githubusercontent.com/${repository}/${revision}`;

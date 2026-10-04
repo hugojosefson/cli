@@ -169,7 +169,7 @@ test("latest JSR workflows preserve selection and detect missing refresh flags",
       assertStringIncludes(command, "--no-lock");
       assertStringIncludes(
         command,
-        "--no-config --min-dep-age=0 --reload=jsr:@hugojosefson/cli jsr:@hugojosefson/cli",
+        "--no-config --min-dep-age=0 --reload=https://jsr.io/@hugojosefson/cli jsr:@hugojosefson/cli",
       );
       assertEquals(command.includes(hjPackageReference), false);
     }
@@ -186,7 +186,7 @@ test("latest JSR workflows preserve selection and detect missing refresh flags",
         "--no-lock",
         "--no-config",
         "--min-dep-age=0",
-        "--reload=jsr:@hugojosefson/cli",
+        "--reload=https://jsr.io/@hugojosefson/cli",
       ]
     ) {
       assertEquals(
