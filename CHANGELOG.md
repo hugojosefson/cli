@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.17.1
+
+### Fixes
+
+#### readme
+
+- exclude generated output from formatting
+  ([89c23c9](https://github.com/hugojosefson/cli/commit/89c23c9a735cbea68ddc9d2ee935ae60e28f0a54))
+
+#### release
+
+- check publisher compatibility before validation
+  ([8cffbca](https://github.com/hugojosefson/cli/commit/8cffbca959d0cd71dd223b8bd562606cdc6c4214))
+
+### Other
+
+- update dependencies
+  ([c585e81](https://github.com/hugojosefson/cli/commit/c585e81b7d3a91ca69888ecfee6914e1caf4e009))
+
 ## 0.17.0
 
 ### Features
