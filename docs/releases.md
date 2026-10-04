@@ -209,6 +209,11 @@ is validated data describing the exact proposed changes.
 | Publish GitHub Release | Send `hj-release-publish-tag-success` to start the GitHub Release publisher.                      |
 | Publish JSR package    | The same success event starts the JSR publisher automatically.                                    |
 
+Preparation checks the workflows and options for publisher contributions before
+changing candidate files or running project checks. An incompatible workflow or
+invalid JSR option stops preparation at this stage. Package dry runs still
+follow the project checks and use the candidate version.
+
 Preparation runs `deno task all` once, after updating and formatting the
 candidate version and changelog. It does not repeat the full suite on the
 selected source tree first. Clean-state, source-commit, changed-path, tree,

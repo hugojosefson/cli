@@ -1,5 +1,6 @@
 /** @module Read-only-token preparation routes for tag publication. */
 import * as fs from "node:fs/promises";
+import type { ReleaseContribution } from "../api/feature.ts";
 
 import { commitMessages, releaseTags } from "./release-history.ts";
 import { formatChangelogInsertion } from "./format-changelog.ts";
@@ -45,17 +46,16 @@ export type PublishTagPrepareResult = {
 
 const sha = /^[0-9a-f]{40}(?:[0-9a-f]{24})?$/;
 
-export type ReleaseContributions = (
+export type PlanReleaseContributions = (
   root: URL,
   files: LocalFileReader,
-  process: ReleaseProcess,
-) => Promise<void>;
+) => Promise<readonly ReleaseContribution[]>;
 
 export async function prepareRelease(
   root: URL,
   environment: ReleaseEnvironment,
   process: ReleaseProcess,
-  runReleaseContributions: ReleaseContributions,
+  planReleaseContributions: PlanReleaseContributions,
 ): Promise<PublishTagPrepareResult> {
   const route = environment.get("HJ_RELEASE_ROUTE");
   if (route === "source-validation") {
@@ -82,7 +82,7 @@ export async function prepareRelease(
     environment,
     process,
     releaseRepository(environment),
-    runReleaseContributions,
+    planReleaseContributions,
   );
 }
 
@@ -91,7 +91,7 @@ async function prepareUsual(
   environment: ReleaseEnvironment,
   process: ReleaseProcess,
   repository: string,
-  runReleaseContributions: ReleaseContributions,
+  planReleaseContributions: PlanReleaseContributions,
 ): Promise<PublishTagPrepareResult> {
   await requireClean(process);
   await runOrThrow(process, "git", [
@@ -146,6 +146,7 @@ async function prepareUsual(
   const releaseType = selectReleaseType(conventional);
   if (!releaseType) throw new Error("The release range is empty.");
   const version = await nextVersion(previousVersion, releaseType);
+  const contributions = await planReleaseContributions(root, files);
 
   await requireClean(process);
   const previousVersionText = config.text;
@@ -191,7 +192,9 @@ async function prepareUsual(
     await fs.readFile(new URL(changelogPath, root), "utf8") !==
       formattedChangelog
   ) throw new Error("Candidate validation changed release data.");
-  await runReleaseContributions(root, files, process);
+  for (const contribution of contributions) {
+    await runOrThrow(process, contribution.command, contribution.args);
+  }
   const changedPaths = await worktreeChangedPaths(process);
   const expectedPaths = [config.path, changelogPath];
   if (

@@ -1,11 +1,12 @@
 /** @module Production publisher contributions for release preparation. */
+import type { ReleaseContribution } from "../api/feature.ts";
 import { githubReleasePublisherFeatures } from "../features/github-release-publish-feature.ts";
 import { LocalGitReader } from "../repository/local-git-reader.ts";
 import type { LocalFileReader } from "../repository/local-file-reader.ts";
 import { readDenoConfig } from "../repository/read-deno-config.ts";
 import { jsrPublishOptions } from "./jsr-publish-options.ts";
 import type { ReleaseEnvironment } from "./release-environment.ts";
-import { type ReleaseProcess, runOrThrow } from "./release-process.ts";
+import type { ReleaseProcess } from "./release-process.ts";
 import {
   prepareRelease,
   type PublishTagPrepareResult,
@@ -17,15 +18,15 @@ export function publishTagPrepare(
   environment: ReleaseEnvironment,
   process: ReleaseProcess,
 ): Promise<PublishTagPrepareResult> {
-  return prepareRelease(root, environment, process, runReleaseContributions);
+  return prepareRelease(root, environment, process, planReleaseContributions);
 }
 
-/** Runs only contributions whose generated publisher workflow is exact. */
-async function runReleaseContributions(
+/** Checks publishers before candidate edits or project validation starts. */
+async function planReleaseContributions(
   root: URL,
   files: LocalFileReader,
-  process: ReleaseProcess,
-): Promise<void> {
+): Promise<readonly ReleaseContribution[]> {
+  const commands: ReleaseContribution[] = [];
   const context = {
     repositoryRoot: root,
     files,
@@ -45,13 +46,13 @@ async function runReleaseContributions(
       ? await jsrOptions(files)
       : [];
     for (const contribution of contributions) {
-      await runOrThrow(
-        process,
-        contribution.command,
-        [...contribution.args, ...options],
-      );
+      commands.push({
+        command: contribution.command,
+        args: [...contribution.args, ...options],
+      });
     }
   }
+  return commands;
 }
 
 async function jsrOptions(files: LocalFileReader): Promise<string[]> {
