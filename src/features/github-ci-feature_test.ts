@@ -483,7 +483,7 @@ test("workflow source migration reaches enabled features through the CLI operati
       assertStringIncludes(content, "--no-lock");
       assertStringIncludes(
         content,
-        "--no-config --min-dep-age=0 --reload=jsr:@hugojosefson/cli jsr:@hugojosefson/cli",
+        "--no-config --min-dep-age=0 --reload=https://jsr.io/@hugojosefson/cli jsr:@hugojosefson/cli",
       );
       assertEquals(content.includes("raw.githubusercontent.com"), false);
     }

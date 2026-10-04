@@ -62,5 +62,5 @@ jobs:
           --allow-read=.
           --allow-net=registry.npmjs.org
           --allow-run=deno,git,npm,tar
-          --no-config --min-dep-age=0 --reload=jsr:@hugojosefson/cli jsr:@hugojosefson/cli
+          --no-config --min-dep-age=0 --reload=https://jsr.io/@hugojosefson/cli jsr:@hugojosefson/cli
           release publish-npm
