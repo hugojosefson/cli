@@ -222,10 +222,11 @@ the package's `deno.json` or `deno.jsonc`:
 }
 ```
 
-`hj release publish-jsr` reads this value from the release checkout. A value of
-`true` adds `--allow-slow-types` to the dry run and publication. A value of
-`false`, or a missing value, keeps strict type validation. Other values cause a
-configuration error before registry access or publication.
+Release preparation and `hj release publish-jsr` read this value from the
+release checkout. A value of `true` adds `--allow-slow-types` to both dry runs
+and publication. A value of `false`, or a missing value, keeps strict type
+validation. Other values cause a configuration error before registry access or
+publication.
 
 The generated JSR workflow uses this configuration without changes to the
 workflow. Existing workflows must use an `hj` version that supports this

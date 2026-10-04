@@ -25,10 +25,28 @@ import {
 import { publishTagPrepare } from "./publish-tag-prepare.ts";
 import { nativeSummaryFixture } from "./native-validation-summary-test-fixtures.ts";
 
-for (const scenario of ["success", "drifted workflow", "failed contribution"]) {
+for (
+  const scenario of [
+    "success",
+    "slow types",
+    "strict types",
+    "invalid slow types",
+    "drifted workflow",
+    "failed contribution",
+  ]
+) {
+  const succeeds = ["success", "slow types", "strict types"].includes(scenario);
+  const publishArgs = [
+    "publish",
+    "--dry-run",
+    "--allow-dirty",
+    "--check=all",
+    ...(scenario === "slow types" ? ["--allow-slow-types"] : []),
+  ];
+  const publishCommand = `deno ${publishArgs.join(" ")}`;
   test(
-    scenario === "success"
-      ? "usual preparation creates and outputs a validated candidate bundle"
+    succeeds
+      ? `usual preparation creates a validated candidate bundle: ${scenario}`
       : `production preparation rejects ${scenario} without a bundle`,
     async () => {
       const parent = await makeTempDir({
@@ -50,7 +68,23 @@ for (const scenario of ["success", "drifted workflow", "failed contribution"]) {
         ]);
         await writeTextFile(
           new URL("deno.json", root),
-          '{\n  "version": "0.0.0",\n  "tasks": {\n    "all": "deno eval \'Deno.exit(0)\'"\n  }\n}\n',
+          JSON.stringify(
+            {
+              version: "0.0.0",
+              tasks: { all: "deno eval 'Deno.exit(0)'" },
+              hj: scenario.includes("types")
+                ? {
+                  jsr: {
+                    allowSlowTypes: scenario === "invalid slow types"
+                      ? "true"
+                      : scenario === "slow types",
+                  },
+                }
+                : undefined,
+            },
+            null,
+            2,
+          ) + "\n",
         );
         await mkdir(new URL(".github/workflows/", root), { recursive: true });
         await writeTextFile(
@@ -110,12 +144,7 @@ for (const scenario of ["success", "drifted workflow", "failed contribution"]) {
             }
             return command === "deno" &&
                 JSON.stringify(args) ===
-                  JSON.stringify([
-                    "publish",
-                    "--dry-run",
-                    "--allow-dirty",
-                    "--check=all",
-                  ])
+                  JSON.stringify(publishArgs)
               ? Promise.resolve({
                 success: scenario !== "failed contribution",
                 code: scenario === "failed contribution" ? 23 : 0,
@@ -137,18 +166,20 @@ for (const scenario of ["success", "drifted workflow", "failed contribution"]) {
             },
             recordingProcess,
           );
-        if (scenario !== "success") {
+        if (!succeeds) {
           await assertRejects(
             prepare,
             Error,
             scenario === "drifted workflow"
               ? "must be exact before release preparation"
+              : scenario === "invalid slow types"
+              ? "hj.jsr.allowSlowTypes must be a boolean."
               : "Release command failed: deno publish (exit 23)",
           );
           await assertRejects(() => readTextFile(outputPath));
           assertEquals(calls.includes("git diff --name-only -z"), false);
           assertEquals(
-            calls.includes("deno publish --dry-run --allow-dirty --check=all"),
+            calls.includes(publishCommand),
             scenario === "failed contribution",
           );
           return;
@@ -181,9 +212,7 @@ for (const scenario of ["success", "drifted workflow", "failed contribution"]) {
         const all = calls.flatMap((call, index) =>
           call === "deno task all" ? [index] : []
         );
-        const contribution = calls.indexOf(
-          "deno publish --dry-run --allow-dirty --check=all",
-        );
+        const contribution = calls.indexOf(publishCommand);
         assertEquals(all.length, 1);
         assert(all[0] > calls.indexOf("deno fmt deno.json"));
         assert(contribution > all[0]);

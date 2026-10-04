@@ -2,6 +2,8 @@
 import { githubReleasePublisherFeatures } from "../features/github-release-publish-feature.ts";
 import { LocalGitReader } from "../repository/local-git-reader.ts";
 import type { LocalFileReader } from "../repository/local-file-reader.ts";
+import { readDenoConfig } from "../repository/read-deno-config.ts";
+import { jsrPublishOptions } from "./jsr-publish-options.ts";
 import type { ReleaseEnvironment } from "./release-environment.ts";
 import { type ReleaseProcess, runOrThrow } from "./release-process.ts";
 import {
@@ -39,12 +41,25 @@ async function runReleaseContributions(
         `${feature.metadata.id} must be exact before release preparation.`,
       );
     }
+    const options = feature.metadata.id === "github-release-publish-jsr"
+      ? await jsrOptions(files)
+      : [];
     for (const contribution of contributions) {
       await runOrThrow(
         process,
         contribution.command,
-        [...contribution.args],
+        [...contribution.args, ...options],
       );
     }
   }
+}
+
+async function jsrOptions(files: LocalFileReader): Promise<string[]> {
+  const config = await readDenoConfig({ files });
+  if (config.kind !== "config") {
+    throw new TypeError(
+      "JSR release preparation requires one Deno configuration.",
+    );
+  }
+  return jsrPublishOptions(config.value);
 }
