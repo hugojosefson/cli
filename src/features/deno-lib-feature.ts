@@ -2,14 +2,18 @@
 
 import {
   artifactDifference,
+  fileDifference,
+  modulePathDifference,
   valueDifference,
 } from "./detection-differences.ts";
-import { denoCliExport } from "./deno-cli-artifacts.ts";
+import { localModulePath } from "./configured-deno-export.ts";
+import { isDenoLibCliExport } from "./deno-lib-export.ts";
 import type { DetectionIssue } from "../api/feature-detection.ts";
 import type { DetectionContext } from "../api/repository-context.ts";
 import type { Feature } from "../api/feature.ts";
 import { inspectDenoConfig } from "./deno-config.ts";
 import {
+  denoLibArtifacts,
   denoLibExport,
   denoLibFeatureId,
   denoLibSubject,
@@ -49,19 +53,38 @@ async function detectDenoLib(context: DetectionContext) {
       ),
     );
   }
-  if (
-    exports["."] === denoCliExport ||
-    exports["./cli"] !== undefined && exports["."] === exports["./cli"]
-  ) {
+  if (isDenoLibCliExport(exports)) {
     return simple(
       "disabled",
       "The default export is the CLI entry point, not a library.",
     );
   }
-  if (exports["."] !== denoLibExport) {
+  const path = localModulePath(exports["."]);
+  if (path === undefined) {
     return issue(
-      "drifted",
-      "The default export differs from the generated library entry point.",
+      "ambiguous",
+      modulePathDifference(config.path, exports["."], "."),
+    );
+  }
+  const file = await context.files.observe(path);
+  if (file.kind !== "file" || file.content.trim().length === 0) {
+    return issue(
+      file.kind === "file" || file.kind === "absent" ? "drifted" : "ambiguous",
+      file.kind === "file"
+        ? `${path}: expected a nonempty library entry point. Found an empty file.`
+        : fileDifference(path, file),
+      file.kind === "absent" && exports["."] === denoLibExport
+        ? `Repair adds ${path} with the placeholder export.`
+        : `Automatic repair cannot replace library source. Supply a readable, nonempty library file at ${path}.`,
+    );
+  }
+  if (
+    exports["."] !== denoLibExport ||
+    file.content !== denoLibArtifacts[0].content
+  ) {
+    return simple(
+      "enabled",
+      `The default export points to the local library file ${path}.`,
     );
   }
   if (
@@ -76,6 +99,7 @@ async function detectDenoLib(context: DetectionContext) {
   }
   const artifacts = await inspectDenoLibArtifacts(context);
   const invalid = artifacts.find((item) =>
+    item.schema.path === "test/lib_test.ts" &&
     item.result !== "matches" && !isPreservedDenoLibTest(item)
   );
   if (!invalid) {
@@ -101,15 +125,18 @@ function simple(state: "enabled" | "disabled", observation: string) {
   };
 }
 
-function issue(state: "drifted" | "ambiguous", observation: string) {
+function issue(
+  state: "drifted" | "ambiguous",
+  observation: string,
+  resolution =
+    "Correct the named configuration entry or file. Preserve custom source files.",
+) {
   const item: DetectionIssue = {
     code: `deno-lib-${state}`,
     kind: "deno-lib",
     subject: denoLibSubject(),
     observation,
-    resolution: state === "drifted"
-      ? "Use --repair to restore exact contributed content."
-      : "Correct the named configuration entry or file type. Preserve custom source files.",
+    resolution,
   };
   return {
     state,

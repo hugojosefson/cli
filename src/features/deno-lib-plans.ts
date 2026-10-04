@@ -1,9 +1,5 @@
 /** @module Ordered Deno library change plans. */
 
-import {
-  matchesFileAccess,
-  repairFileMode,
-} from "../repository/file-access.ts";
 import type { ChangePlan } from "../api/change-plan.ts";
 import type { AllowedOperation } from "../api/feature-operation.ts";
 import type { PlannedChange } from "../api/planned-change.ts";
@@ -18,8 +14,6 @@ import {
   denoLibAssertImport,
   denoLibExport,
   denoLibFeatureId,
-  inspectDenoLibArtifacts,
-  isPreservedDenoLibTest,
   needsDenoLibAssert,
 } from "./deno-lib-artifacts.ts";
 import { isObject } from "./deno-tasks.ts";
@@ -29,7 +23,22 @@ export async function planEnableDenoLib(
   allowed: AllowedOperation,
 ): Promise<ChangePlan> {
   const config = await inspectDenoConfig(context);
-  const artifacts = await inspectDenoLibArtifacts(context);
+  const source = await context.files.observe("src/lib/mod.ts");
+  const starter = source.kind === "absent" ||
+    source.kind === "file" && source.content === denoLibArtifacts[0].content;
+  const existingExport =
+    config.kind === "config" && isObject(config.value.exports)
+      ? config.value.exports["."]
+      : undefined;
+  if (existingExport !== undefined && existingExport !== denoLibExport) {
+    return plan(
+      "enable",
+      allowed,
+      [],
+      "Preserve the configured library export.",
+      "enabled",
+    );
+  }
   const changes: PlannedChange[] = [];
   if (
     config.kind === "absent" &&
@@ -76,39 +85,19 @@ export async function planEnableDenoLib(
       expected: undefined,
     });
   }
-  for (const path of ["src", "src/lib", "test"]) {
+  for (const path of starter ? ["src", "src/lib", "test"] : []) {
     if ((await context.files.observe(path)).kind === "absent") {
       changes.push({ kind: "create-directory", path });
     }
   }
-  for (const [index, item] of artifacts.entries()) {
-    if (item.result === "matches" || isPreservedDenoLibTest(item)) continue;
-    const needsWrite = item.result === "absent" ||
-      item.result === "differs" && item.observation.kind === "file" &&
-        item.differences.some((difference) => difference.kind === "content");
-    const expectedDigest =
-      item.result === "differs" && item.observation.kind === "file"
-        ? item.observation.digest
-        : undefined;
-    if (needsWrite) {
+  for (const artifact of starter ? denoLibArtifacts : []) {
+    if ((await context.files.observe(artifact.path)).kind === "absent") {
       changes.push({
         kind: "write-file",
-        path: denoLibArtifacts[index].path,
-        content: denoLibArtifacts[index].content,
+        path: artifact.path,
+        content: artifact.content,
         mode: 0o644,
-        expectedDigest,
-      });
-    }
-    if (
-      item.result === "differs" && item.schema.kind === "file" &&
-      item.observation.kind === "file" &&
-      !matchesFileAccess(item.observation, item.schema.mode)
-    ) {
-      changes.push({
-        kind: "set-file-mode",
-        path: denoLibArtifacts[index].path,
-        mode: repairFileMode(item.observation, item.schema.mode),
-        expectedMode: item.observation.mode,
+        expectedDigest: undefined,
       });
     }
   }
@@ -128,19 +117,19 @@ export async function planDisableDenoLib(
   const config = await inspectDenoConfig(context);
   const changes: PlannedChange[] =
     config.kind === "config" && isObject(config.value.exports) &&
-      config.value.exports["."] === denoLibExport
+      config.value.exports["."] !== undefined
       ? [{
         kind: "remove-json",
         path: config.path,
         jsonPath: ["exports", "."],
-        expected: denoLibExport,
+        expected: config.value.exports["."],
       }]
       : [];
   return plan(
     "disable",
     allowed,
     changes,
-    "Remove the contributed Deno library export.",
+    "Remove the default library export. Preserve source and tests.",
     "disabled",
   );
 }

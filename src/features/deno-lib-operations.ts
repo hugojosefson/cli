@@ -2,15 +2,20 @@
 
 import type { OperationCheck } from "../api/feature-operation.ts";
 import type { OperationContext } from "../api/repository-context.ts";
+import { localModulePath } from "./configured-deno-export.ts";
+import {
+  fileDifference,
+  modulePathDifference,
+} from "./detection-differences.ts";
 import { inspectDenoConfig } from "./deno-config.ts";
 import {
+  denoLibArtifacts,
   denoLibExport,
-  denoLibFeatureId,
   denoLibSubject,
   inspectDenoLibArtifacts,
-  isPreservedDenoLibTest,
   needsDenoLibAssert,
 } from "./deno-lib-artifacts.ts";
+import { configuredDenoLib, isDenoLibCliExport } from "./deno-lib-export.ts";
 import { isObject } from "./deno-tasks.ts";
 
 export async function checkEnableDenoLib(
@@ -22,14 +27,46 @@ export async function checkEnableDenoLib(
     config.kind === "config" && config.value.exports !== undefined &&
     !isObject(config.value.exports)
   ) return blocked("The Deno exports entry is not an object.");
-  if (
-    config.kind === "config" && isObject(config.value.exports) &&
-    config.value.exports["."] !== undefined &&
-    config.value.exports["."] !== denoLibExport && !repair(context)
-  ) {
+  const exports = config.kind === "config" && isObject(config.value.exports)
+    ? config.value.exports
+    : {};
+  if (isDenoLibCliExport(exports)) {
     return blocked(
-      "The library export differs. Re-run with --repair to replace it.",
+      "The default export belongs to the CLI. Preserve the CLI export.",
     );
+  }
+  const target = exports["."];
+  if (target !== undefined && target !== denoLibExport) {
+    if (await configuredDenoLib(context, exports)) {
+      return adopted();
+    }
+    const path = localModulePath(target);
+    if (path === undefined) {
+      return blocked(
+        modulePathDifference(
+          config.kind === "config" ? config.path : "deno.jsonc",
+          target,
+          ".",
+        ),
+      );
+    }
+    const file = await context.files.observe(path);
+    return blocked(
+      file.kind === "file"
+        ? `${path} is empty. Repair the library source manually.`
+        : fileDifference(path, file),
+    );
+  }
+  const source = await context.files.observe("src/lib/mod.ts");
+  if (source.kind === "file" && source.content.trim().length === 0) {
+    return blocked(
+      "src/lib/mod.ts is empty. Repair the library source manually.",
+    );
+  }
+  if (
+    source.kind === "file" && source.content !== denoLibArtifacts[0].content
+  ) {
+    return target === denoLibExport ? adopted() : allowed();
   }
   const needsAssert = await needsDenoLibAssert(context);
   if (
@@ -60,29 +97,15 @@ export async function checkEnableDenoLib(
       `Starter path ${conflict.schema.path} is not a regular file.`,
     );
   }
-  if (
-    artifacts.some((item) =>
-      item.result === "differs" && !isPreservedDenoLibTest(item)
-    ) && !repair(context)
-  ) {
-    return blocked(
-      "Starter files differ. Re-run with --repair to replace them.",
-    );
-  }
-  const adopted = config.kind === "config" && isObject(config.value.exports) &&
-    config.value.exports["."] === denoLibExport &&
-    artifacts.every((item) =>
-      item.result === "matches" || isPreservedDenoLibTest(item)
-    ) &&
-    (!needsAssert ||
-      isObject(config.value.imports) &&
-        typeof config.value.imports["@std/assert"] === "string");
-  return adopted
-    ? {
-      result: "no-op",
-      reason: "Deno library is already adopted.",
-      warnings: [],
-    }
+  return target === denoLibExport &&
+      artifacts.every((item) =>
+        item.result === "matches" ||
+        item.result === "differs" && item.observation.kind === "file"
+      ) &&
+      (!needsAssert ||
+        config.kind === "config" && isObject(config.value.imports) &&
+          typeof config.value.imports["@std/assert"] === "string")
+    ? adopted()
     : allowed();
 }
 
@@ -97,8 +120,14 @@ export async function checkDisableDenoLib(
       ? absent()
       : blocked("The Deno exports entry is not an object.");
   }
-  if (config.value.exports["."] === undefined) return absent();
-  return config.value.exports["."] === denoLibExport
+  if (
+    config.value.exports["."] === undefined ||
+    isDenoLibCliExport(config.value.exports)
+  ) {
+    return absent();
+  }
+  return config.value.exports["."] === denoLibExport ||
+      await configuredDenoLib(context, config.value.exports)
     ? allowed()
     : blocked("The library export differs and cannot be removed.");
 }
@@ -121,13 +150,15 @@ function blocked(message: string): OperationCheck {
       message,
       subjects: [denoLibSubject()],
       resolution:
-        "Resolve the conflict or use --repair for exact contributed content.",
+        "Correct the named configuration entry or file manually. Preserve library source and tests.",
     }],
     warnings: [],
   };
 }
-function repair(context: OperationContext): boolean {
-  return context.repair?.kind === "all-drifted" ||
-    context.repair?.kind === "features" &&
-      context.repair.featureIds.includes(denoLibFeatureId);
+function adopted(): OperationCheck {
+  return {
+    result: "no-op",
+    reason: "The library export is configured.",
+    warnings: [],
+  };
 }

@@ -322,6 +322,18 @@ operations preserve existing library tests and their file modes, including
 `--repair` and disable. Disabling the library keeps the assertion dependency
 because the tests remain.
 
+The library feature accepts a nonempty local file at the default export path.
+The path can be different from `src/lib/mod.ts`. A default export shared with
+`./cli` does not count as a library. Inspection checks the path and reads the
+file. It does not check library syntax or types.
+
+The `enable` and `repair` operations preserve existing library source, tests,
+and file modes. The placeholder and starter tests are not necessary for existing
+source. Disable removes only the default library export and keeps other exports.
+For an empty, unreadable, or invalid target, correct the named path or source
+file manually. Repair can add missing starter files at the generated paths. It
+cannot replace existing source with a placeholder.
+
 When the CLI and server coexist, the server contributes a `serve` command to the
 CLI registry. Neither feature patches the other's custom source.
 

@@ -10,8 +10,8 @@ import {
   remove,
   writeTextFile,
 } from "../testing/files-test-fixtures.ts";
+import { runCliProcess } from "../testing/runtime-test-fixtures.ts";
 import { runRawCommand as runCommand } from "../runtime/command.ts";
-import { matchesFileAccess } from "../repository/file-access.ts";
 import { assert, assertEquals } from "@std/assert";
 import type { OperationContext } from "../api/repository-context.ts";
 import { applyLocalChangePlan } from "../operations/local-change-plan.ts";
@@ -40,42 +40,26 @@ test("deno-lib resolution enables deno-fmt first", () => {
   );
 });
 
-test("deno-lib creates starter files, repairs drift, and preserves them on disable", async () => {
+test("deno-lib creates starter files and preserves source changes on disable", async () => {
   await withRepository(async (root) => {
     await apply(root);
     assertEquals((await denoLibFeature.detect(context(root))).state, "enabled");
-    await writeTextFile(new URL("src/lib/mod.ts", root), "edited\n");
+    const source = "export const actor = 42;\n";
+    await writeTextFile(new URL("src/lib/mod.ts", root), source);
     await chmod(new URL("src/lib/mod.ts", root), 0o755);
-    assertEquals((await denoLibFeature.detect(context(root))).state, "drifted");
-    assertEquals(
-      (await denoLibFeature.checkEnable(context(root))).result,
-      "blocked",
-    );
-    const repair = await repairPlan(root);
-    assert(repair.changes.some((change) => change.kind === "write-file"));
-    assert(
-      repair.changes.some((change) =>
-        change.kind === "set-file-mode" && change.expectedMode === 0o755
-      ),
-    );
-    await applyLocalChangePlan(root, repair);
-    assertEquals(
-      await readTextFile(new URL("src/lib/mod.ts", root)),
-      "export function placeholder(): void {}\n",
-    );
-    await chmod(new URL("src/lib/mod.ts", root), 0o755);
-    const modeRepair = await repairPlan(root);
-    assertEquals(modeRepair.changes.map((change) => change.kind), [
-      "set-file-mode",
-    ]);
-    await applyLocalChangePlan(root, modeRepair);
-    const observed = await new LocalFileReader(root).observe("src/lib/mod.ts");
-    assert(observed.kind === "file");
-    assert(matchesFileAccess(observed, 0o644));
-    const disable = await denoLibFeature.checkDisable(context(root));
-    if (disable.result !== "allowed") {
-      throw new Error("test setup requires disable");
+    assertEquals((await denoLibFeature.detect(context(root))).state, "enabled");
+    for (const repair of [undefined, { kind: "all-drifted" as const }]) {
+      const current = context(root, repair);
+      assertEquals((await denoLibFeature.checkEnable(current)).result, "no-op");
+      const plan = await denoLibFeature.planEnable(current, {
+        result: "allowed",
+        warnings: [],
+        preconditions: [],
+      });
+      assertEquals(plan.changes, []);
     }
+    const disable = await denoLibFeature.checkDisable(context(root));
+    assert(disable.result === "allowed");
     await applyLocalChangePlan(
       root,
       await denoLibFeature.planDisable(context(root), disable),
@@ -84,7 +68,12 @@ test("deno-lib creates starter files, repairs drift, and preserves them on disab
       (await denoLibFeature.detect(context(root))).state,
       "disabled",
     );
-    assert((await fixtureStat(new URL("src/lib/mod.ts", root))).isFile);
+    await apply(root);
+    assertEquals(await readTextFile(new URL("src/lib/mod.ts", root)), source);
+    assertEquals(
+      (await fixtureStat(new URL("src/lib/mod.ts", root))).mode! & 0o777,
+      0o755,
+    );
     assert((await fixtureStat(new URL("test/lib_test.ts", root))).isFile);
   });
 });
@@ -191,7 +180,10 @@ test("deno-lib preserves customized tests through repair, disable, and re-enable
       new URL("src/lib/mod.ts", root),
       "custom source\n",
     );
-    const repair = await repairPlan(root);
+    const repair = await denoLibFeature.planEnable(
+      context(root, { kind: "all-drifted" }),
+      { result: "allowed", warnings: [], preconditions: [] },
+    );
     assert(
       !repair.changes.some((change) =>
         "path" in change && change.path === "test/lib_test.ts"
@@ -272,6 +264,259 @@ test("deno-lib repairs missing assertion mappings and blocks ambiguous imports b
   }
 });
 
+test("deno-lib accepts custom source with no starter tests at either local path", async () => {
+  for (const target of ["./src/lib/mod.ts", "./lib/api.ts"]) {
+    await withRepository(async (root) => {
+      const path = target.slice(2);
+      await mkdir(new URL(path.substring(0, path.lastIndexOf("/")), root), {
+        recursive: true,
+      });
+      const source = 'export { actor } from "./actor.ts";\n';
+      await writeTextFile(new URL(path, root), source);
+      await chmod(new URL(path, root), 0o444);
+      const config = JSON.stringify({
+        exports: { ".": target, "./extra": "./extra.ts" },
+      });
+      await writeTextFile(new URL("deno.json", root), config);
+      assertEquals(
+        (await denoLibFeature.detect(context(root))).state,
+        "enabled",
+      );
+      for (
+        const repair of [undefined, { kind: "all-drifted" as const }, {
+          kind: "features" as const,
+          featureIds: ["deno-lib"],
+        }]
+      ) {
+        const current = context(root, repair);
+        assertEquals(
+          (await denoLibFeature.checkEnable(current)).result,
+          "no-op",
+        );
+        const plan = await denoLibFeature.planEnable(current, {
+          result: "allowed",
+          warnings: [],
+          preconditions: [],
+        });
+        assertEquals(plan.changes, []);
+      }
+      const disable = await denoLibFeature.checkDisable(context(root));
+      assert(disable.result === "allowed");
+      const plan = await denoLibFeature.planDisable(context(root), disable);
+      assertEquals(plan.changes, [{
+        kind: "remove-json",
+        path: "deno.json",
+        jsonPath: ["exports", "."],
+        expected: target,
+      }]);
+      await applyLocalChangePlan(root, plan);
+      assertEquals(await readTextFile(new URL(path, root)), source);
+      assertEquals(
+        (await fixtureStat(new URL(path, root))).mode! & 0o777,
+        0o444,
+      );
+      assertEquals(
+        (await context(root).files.observe("test/lib_test.ts")).kind,
+        "absent",
+      );
+      assertEquals(
+        parse(await readTextFile(new URL("deno.json", root)))
+          .exports["./extra"],
+        "./extra.ts",
+      );
+    });
+  }
+});
+
+test("deno-lib adopts existing source without adding placeholder tests or imports", async () => {
+  for (const existingConfig of [false, true]) {
+    await withRepository(async (root) => {
+      await mkdir(new URL("src/lib", root), { recursive: true });
+      const source = "export const actor = 42;\n";
+      await writeTextFile(new URL("src/lib/mod.ts", root), source);
+      if (existingConfig) {
+        await writeTextFile(new URL("deno.jsonc", root), "{}");
+      }
+      await apply(root);
+      assertEquals(
+        (await denoLibFeature.detect(context(root))).state,
+        "enabled",
+      );
+      assertEquals(await readTextFile(new URL("src/lib/mod.ts", root)), source);
+      assertEquals(
+        (await context(root).files.observe("test/lib_test.ts")).kind,
+        "absent",
+      );
+      assertEquals(
+        parse(await readTextFile(new URL("deno.jsonc", root))).imports,
+        undefined,
+      );
+    });
+  }
+});
+
+test("deno-lib excludes default exports shared with the CLI", async () => {
+  for (
+    const exports of [{ ".": "./src/cli/cli.ts" }, {
+      ".": "./main.ts",
+      "./cli": "./main.ts",
+    }]
+  ) {
+    await withRepository(async (root) => {
+      await writeTextFile(
+        new URL("deno.json", root),
+        JSON.stringify({ exports }),
+      );
+      const before = await readTextFile(new URL("deno.json", root));
+      assertEquals(
+        (await denoLibFeature.detect(context(root))).state,
+        "disabled",
+      );
+      assertEquals(
+        (await denoLibFeature.checkEnable(
+          context(root, { kind: "all-drifted" }),
+        )).result,
+        "blocked",
+      );
+      assertEquals(
+        (await denoLibFeature.checkDisable(context(root))).result,
+        "no-op",
+      );
+      assertEquals(await readTextFile(new URL("deno.json", root)), before);
+    });
+  }
+});
+
+test("deno-lib names invalid, missing, empty, and unreadable export targets", async () => {
+  for (
+    const target of [
+      7,
+      null,
+      "https://example.com/mod.ts",
+      "./../mod.ts",
+      "./src//mod.ts",
+    ]
+  ) {
+    await withRepository(async (root) => {
+      await writeTextFile(
+        new URL("deno.json", root),
+        JSON.stringify({ exports: { ".": target } }),
+      );
+      const detection = await denoLibFeature.detect(context(root));
+      assertEquals(detection.state, "ambiguous");
+      assert("issues" in detection);
+      assert(
+        detection.issues?.[0].observation.includes('deno.json exports["."]'),
+      );
+      assertEquals(
+        (await denoLibFeature.checkEnable(
+          context(root, { kind: "all-drifted" }),
+        )).result,
+        "blocked",
+      );
+    });
+  }
+  for (const kind of ["absent", "empty", "directory", "unreadable"] as const) {
+    await withRepository(async (root) => {
+      await writeTextFile(
+        new URL("deno.json", root),
+        JSON.stringify({ exports: { ".": "./api.ts" } }),
+      );
+      if (kind === "empty") await writeTextFile(new URL("api.ts", root), " \n");
+      if (kind === "directory") await mkdir(new URL("api.ts", root));
+      const current = context(root, { kind: "all-drifted" });
+      const observed = kind === "unreadable"
+        ? {
+          ...current,
+          files: Object.assign(new LocalFileReader(root), {
+            observe: (path: string) =>
+              path === "api.ts"
+                ? Promise.resolve({
+                  kind: "unreadable" as const,
+                  observation: "Read access denied.",
+                })
+                : current.files.observe(path),
+          }),
+        }
+        : current;
+      const detection = await denoLibFeature.detect(observed);
+      assertEquals(
+        detection.state,
+        kind === "absent" || kind === "empty" ? "drifted" : "ambiguous",
+      );
+      assert("issues" in detection);
+      assert(detection.issues?.[0].observation.startsWith("api.ts:"));
+      assert(detection.issues?.[0].resolution?.includes("api.ts"));
+      assertEquals(
+        (await denoLibFeature.checkEnable(observed)).result,
+        "blocked",
+      );
+    });
+  }
+});
+
+test("deno-lib repairs missing starter files but preserves an empty source file", async () => {
+  await withRepository(async (root) => {
+    await apply(root);
+    await remove(new URL("test/lib_test.ts", root));
+    assertEquals((await denoLibFeature.detect(context(root))).state, "drifted");
+    const current = context(root, { kind: "all-drifted" });
+    const check = await denoLibFeature.checkEnable(current);
+    assert(check.result === "allowed");
+    const plan = await denoLibFeature.planEnable(current, check);
+    assertEquals(
+      plan.changes.map((change) =>
+        "path" in change ? change.path : change.kind
+      ),
+      ["test/lib_test.ts"],
+    );
+    await applyLocalChangePlan(root, plan);
+    await writeTextFile(new URL("src/lib/mod.ts", root), "");
+    assertEquals((await denoLibFeature.detect(current)).state, "drifted");
+    assertEquals((await denoLibFeature.checkEnable(current)).result, "blocked");
+    assertEquals(await readTextFile(new URL("src/lib/mod.ts", root)), "");
+    await remove(new URL("src/lib/mod.ts", root));
+    const restore = await denoLibFeature.checkEnable(current);
+    assert(restore.result === "allowed");
+    await applyLocalChangePlan(
+      root,
+      await denoLibFeature.planEnable(current, restore),
+    );
+    assertEquals((await denoLibFeature.detect(current)).state, "enabled");
+  });
+});
+
+test("deno-lib CLI repair preview preserves a custom public API", async () => {
+  await withRepository(async (root) => {
+    await mkdir(new URL("src/lib", root), { recursive: true });
+    const source = "export const actor = 42;\n";
+    await writeTextFile(new URL("src/lib/mod.ts", root), source);
+    await writeTextFile(
+      new URL("deno.json", root),
+      JSON.stringify({ exports: { ".": "./src/lib/mod.ts" } }),
+    );
+    for (
+      const args of [["repo", "features"], [
+        "repo",
+        "features",
+        "--deno-lib",
+        "--repair",
+      ]]
+    ) {
+      const result = await runCliProcess(args, { cwd: root });
+      const output = new TextDecoder().decode(result.stdout);
+      assert(result.success, new TextDecoder().decode(result.stderr));
+      assert(/deno-lib +enabled/.test(output), output);
+      assert(!output.includes("placeholder"), output);
+      assertEquals(await readTextFile(new URL("src/lib/mod.ts", root)), source);
+      assertEquals(
+        (await context(root).files.observe("test/lib_test.ts")).kind,
+        "absent",
+      );
+    }
+  });
+});
+
 async function apply(
   root: URL,
   repair: OperationContext["repair"] = undefined,
@@ -283,13 +528,6 @@ async function apply(
     root,
     await denoLibFeature.planEnable(current, check),
   );
-}
-
-async function repairPlan(root: URL) {
-  const current = context(root, { kind: "features", featureIds: ["deno-lib"] });
-  const check = await denoLibFeature.checkEnable(current);
-  if (check.result !== "allowed") throw new Error("test setup requires repair");
-  return await denoLibFeature.planEnable(current, check);
 }
 
 function context(
