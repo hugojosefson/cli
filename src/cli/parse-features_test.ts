@@ -334,7 +334,9 @@ test("JSR preset selects package, version, and release dependencies through the 
 });
 
 test("workflow CLI source accepts exact GitHub commits and explicit registry migration", () => {
-  for (const source of ["jsr", `github:owner/hj@${"a".repeat(40)}`]) {
+  for (
+    const source of ["jsr", "jsr-latest", `github:owner/hj@${"a".repeat(40)}`]
+  ) {
     const parsed = parseFeatures([
       "repo",
       "features",

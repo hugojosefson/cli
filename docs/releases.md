@@ -87,6 +87,23 @@ hj repo features --github-ci --jsr --github-release-publish-github \
   --repair --workflow-cli=jsr
 ```
 
+To use the latest stable JSR version on every run, select `jsr-latest`:
+
+```bash
+hj repo features --github-ci --github-release-publish-tag \
+  --github-release-publish-jsr --github-release-publish-github \
+  --github-release-publish-npm --repair --workflow-cli=jsr-latest
+```
+
+Select only the publishers that your repository uses. This mode has no CLI
+version pin. It refreshes the CLI's JSR metadata and ignores the local Deno
+configuration and lockfile when loading the CLI. It disables the minimum
+dependency age so newly published versions are eligible immediately. Restored
+caches and a local package with the same name cannot select an older CLI. New
+releases can change workflow behavior without a repository change. Ordinary
+repairs preserve this mode. Use `--repair --workflow-cli=jsr` to return to a
+fixed version.
+
 The source option changes selected workflows and their selected dependencies. It
 does not change README build tasks or fetch the source during generation. Before
 merging generated workflows, make sure that the pinned source is public and

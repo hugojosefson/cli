@@ -5,6 +5,7 @@ import type { FeatureRegistry } from "../features/feature-registry.ts";
 import { reconcileDenoLockPlans } from "../features/deno-lock-policy.ts";
 import { reconcileGitIgnorePlans } from "../features/git-ignore-feature.ts";
 import { reconcileReadmePlans } from "../features/readme-contribution-plans.ts";
+import { isWorkflowSourceOnlyChange } from "./workflow-cli-changes.ts";
 
 /** Includes shared artifacts which a feature's own planner does not own. */
 export async function reconcileFeaturePlans(
@@ -15,7 +16,9 @@ export async function reconcileFeaturePlans(
   if (registry.features.some((feature) => feature.metadata.id === "deno-fmt")) {
     plans = await reconcileDenoLockPlans(context, plans);
   }
-  plans = await reconcileReadmePlans(context, plans);
+  if (!isWorkflowSourceOnlyChange(context)) {
+    plans = await reconcileReadmePlans(context, plans);
+  }
   if (
     registry.features.some((feature) => feature.metadata.id === "git-ignore")
   ) {

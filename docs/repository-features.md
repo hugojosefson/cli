@@ -151,7 +151,9 @@ every feature and its expected state.
 Managed workflows can retain an earlier exact JSR CLI version. That pin alone
 does not mean drift. Other workflow content must still match the managed
 template. Use `--repair --workflow-cli=jsr` with the selected workflow features
-to update their CLI pin explicitly.
+to update their CLI pin explicitly. Use `--repair --workflow-cli=jsr-latest` to
+use the latest stable JSR version on every run. Detection and repair preserve
+that choice.
 
 Deno tasks can use strings or objects, custom descriptions, and file selections.
 Detection follows simple task aliases and dependencies. It also recognizes local
