@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.18.0
+
+### Features
+
+#### cli
+
+- add version commands
+  ([d9ab103](https://github.com/hugojosefson/cli/commit/d9ab103ad07c25338b3efa65b1f08cd1ad08e648))
+
 ## 0.17.2
 
 ### Fixes
