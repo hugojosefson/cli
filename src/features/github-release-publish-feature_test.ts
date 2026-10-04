@@ -3,6 +3,7 @@ import { trackTests } from "../testing/inventory-test-fixtures.ts";
 const test = trackTests(import.meta.url, nativeTest);
 import { npmBadge } from "./npm-readme-badge.ts";
 import { reconcileBlocks } from "../readme/contribution-blocks.ts";
+import { workflowCliArtifact } from "./workflow-cli.ts";
 import { hjPackageReference } from "./hj-package.ts";
 import { assertEquals, assertRejects, assertStringIncludes } from "@std/assert";
 import type { ArtifactObservation } from "../api/artifact-inspection.ts";
@@ -142,6 +143,67 @@ test("workflow detection preserves exact registry pins and rejects other drift",
       (await githubReleasePublishJsrFeature.detect(ctx)).state,
       "drifted",
     );
+  }
+});
+
+test("latest JSR workflows preserve selection and detect missing refresh flags", async () => {
+  for (
+    const artifact of [
+      publishTagArtifact,
+      publishJsrArtifact,
+      publishGithubArtifact,
+      publishNpmArtifact,
+    ]
+  ) {
+    const selected = { ...context({}), options: { workflowCli: "jsr-latest" } };
+    const latest = workflowCliArtifact(artifact, selected, { kind: "absent" });
+    assertStringIncludes(latest.content, "# hj-workflow-cli: jsr-latest\n");
+    const workflow = parse(latest.content);
+    const commands = Object.values(workflow.jobs).flatMap((job) =>
+      (job as { steps: { run?: string }[] }).steps.flatMap((step) =>
+        step.run?.includes("jsr:@hugojosefson/cli") ? [step.run] : []
+      )
+    );
+    assertEquals(commands.length, artifact === publishTagArtifact ? 2 : 1);
+    for (const command of commands) {
+      assertStringIncludes(command, "--no-lock");
+      assertStringIncludes(
+        command,
+        "--no-config --min-dep-age=0 --reload=jsr:@hugojosefson/cli jsr:@hugojosefson/cli",
+      );
+      assertEquals(command.includes(hjPackageReference), false);
+    }
+    const inspect = (content: string) =>
+      inspectReleaseArtifact(
+        context({
+          [artifact.path]: exact(content),
+        }),
+        artifact,
+      );
+    assertEquals((await inspect(latest.content)).result, "matches");
+    for (
+      const flag of [
+        "--no-lock",
+        "--no-config",
+        "--min-dep-age=0",
+        "--reload=jsr:@hugojosefson/cli",
+      ]
+    ) {
+      assertEquals(
+        (await inspect(latest.content.replaceAll(flag, ""))).result,
+        "differs",
+      );
+    }
+    const fixed: OperationContext = {
+      ...selected,
+      options: { workflowCli: "jsr" },
+    };
+    const restored = workflowCliArtifact(
+      artifact,
+      fixed,
+      exact(latest.content),
+    );
+    assertEquals(restored.content, artifact.content);
   }
 });
 

@@ -3,7 +3,10 @@ import { trackTests } from "../testing/inventory-test-fixtures.ts";
 const test = trackTests(import.meta.url, nativeTest);
 import { assertEquals } from "@std/assert";
 import { builtInFeatureRegistry } from "../features/built-in-feature-registry.ts";
-import { workflowCliChanges } from "./workflow-cli-changes.ts";
+import {
+  isWorkflowSourceOnlyChange,
+  workflowCliChanges,
+} from "./workflow-cli-changes.ts";
 
 test("workflow source selection expands presets and dependencies without duplicate or disabled changes", () => {
   const request = {
@@ -33,4 +36,55 @@ test("workflow source selection expands presets and dependencies without duplica
     ),
     [],
   );
+});
+
+test("source-only repair preserves README only for already enabled workflows", () => {
+  const context = {
+    options: { workflowCli: "jsr-latest" },
+    resolvedChanges: [{
+      featureId: "github-ci",
+      enabled: true,
+      reason: { kind: "explicit-request" as const },
+    }],
+    detections: new Map([["github-ci", {
+      state: "enabled" as const,
+      evidence: [],
+    }]]),
+  };
+  assertEquals(isWorkflowSourceOnlyChange(context), true);
+  assertEquals(isWorkflowSourceOnlyChange({ ...context, options: {} }), false);
+  assertEquals(
+    isWorkflowSourceOnlyChange({ ...context, resolvedChanges: [] }),
+    false,
+  );
+  assertEquals(
+    isWorkflowSourceOnlyChange({
+      ...context,
+      resolvedChanges: [{ ...context.resolvedChanges[0], enabled: false }],
+    }),
+    false,
+  );
+  assertEquals(
+    isWorkflowSourceOnlyChange({
+      ...context,
+      resolvedChanges: [...context.resolvedChanges, {
+        ...context.resolvedChanges[0],
+        featureId: "readme-build",
+      }],
+    }),
+    false,
+  );
+  for (const state of ["disabled", "drifted", "ambiguous"] as const) {
+    assertEquals(
+      isWorkflowSourceOnlyChange({
+        ...context,
+        detections: new Map([["github-ci", {
+          state,
+          evidence: [],
+          issues: [],
+        }]]),
+      }),
+      false,
+    );
+  }
 });

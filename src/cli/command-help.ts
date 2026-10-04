@@ -16,7 +16,7 @@ export const commandDefinitions = {
       ["--jsr", "Set up a JSR package and publication from GitHub Actions."],
       [
         "--workflow-cli=<source>",
-        "Use jsr or github:owner/repository@<commit SHA> in selected workflows.",
+        "Use jsr (fixed), jsr-latest, or github:owner/repository@<commit SHA> in selected workflows.",
       ],
       [
         "--deno-version=<version>",

@@ -191,12 +191,14 @@ The same toolchain file supplies the fallback Deno version for newly generated
 CI and release workflows. [Global configuration](configuration.md) and
 `--deno-version` can select another version. Generated workflows and README
 build tasks use the exact `hj` package reference from `name` and `version` in
-`deno.json`, so a version change also updates new workflow output. The legacy
-release template stays unchanged because migration recognizes its exact bytes.
-To update Deno, edit the toolchain file, install that version, and run
-`deno task ci`. Existing exact workflows keep their recorded Deno version. To
-change that version, select the workflow feature with `--deno-version` and
-`--repair`.
+`deno.json`, so a version change also updates new workflow output. This
+repository selects `--workflow-cli=jsr-latest` for CI, dependency checks, and
+release workflows. Each CLI invocation refreshes its JSR metadata and ignores
+local package resolution and lockfiles. The legacy release template stays
+unchanged because migration recognizes its exact bytes. To update Deno, edit the
+toolchain file, install that version, and run `deno task ci`. Existing exact
+workflows keep their recorded Deno version. To change that version, select the
+workflow feature with `--deno-version` and `--repair`.
 
 To run this repository's workflow locally with Docker and `act`, use:
 

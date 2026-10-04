@@ -1,4 +1,4 @@
-/** @module Pinned CLI sources for generated workflows, including first publication. */
+/** @module CLI sources for generated workflows, including first publication. */
 
 import type { ArtifactObservation } from "../api/artifact-inspection.ts";
 import type {
@@ -11,10 +11,10 @@ import { parseSemver } from "../release/semver.ts";
 
 const marker = "# hj-workflow-cli: ";
 
-/** Accepts the normal registry source or a GitHub repository at an exact commit. */
+/** Accepts fixed or latest registry versions and exact GitHub commits. */
 export function validateWorkflowCli(source: string): string {
   if (
-    source === "jsr" ||
+    source === "jsr" || source === "jsr-latest" ||
     /^github:[A-Za-z0-9_-]+\/[A-Za-z0-9_-][A-Za-z0-9_.-]*@[0-9a-f]{40}$/.test(
       source,
     )
@@ -22,7 +22,7 @@ export function validateWorkflowCli(source: string): string {
     return source;
   }
   throw new TypeError(
-    "--workflow-cli must be jsr or github:owner/repository@<40-character commit SHA>.",
+    "--workflow-cli must be jsr, jsr-latest, or github:owner/repository@<40-character commit SHA>.",
   );
 }
 
@@ -62,9 +62,7 @@ export function workflowCliArtifact<
       }
       : artifact;
   }
-  const [repository, revision] = source.slice("github:".length).split("@");
-  const base = `https://raw.githubusercontent.com/${repository}/${revision}`;
-  const command = `--import-map=${base}/deno.json ${base}/src/cli/cli.ts`;
+  const command = workflowCommand(source);
   const newline = artifact.content.indexOf("\n") + 1;
   return {
     path: artifact.path,
@@ -72,6 +70,20 @@ export function workflowCliArtifact<
       artifact.content.slice(newline))
       .replaceAll(hjPackageReference, command),
   };
+}
+
+function workflowCommand(source: string): string {
+  if (source === "jsr-latest") {
+    const reference = hjPackageReference.slice(
+      0,
+      hjPackageReference.lastIndexOf("@"),
+    );
+    // Ignore local workspace resolution and refresh restored registry metadata.
+    return `--no-config --min-dep-age=0 --reload=${reference} ${reference}`;
+  }
+  const [repository, revision] = source.slice("github:".length).split("@");
+  const base = `https://raw.githubusercontent.com/${repository}/${revision}`;
+  return `--import-map=${base}/deno.json ${base}/src/cli/cli.ts`;
 }
 
 /** A different exact CLI pin is configuration, not a change to the workflow. */

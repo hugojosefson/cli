@@ -445,11 +445,14 @@ test("workflow source migration reaches enabled features through the CLI operati
   const services = {
     github: {
       ...github(true),
+      repository: () => Promise.resolve({ owner: "owner", name: "hj" }),
       upsertResources: () => Promise.resolve(),
       deleteResources: () => Promise.resolve(),
     },
   };
   try {
+    const readme = new URL("README.md", root);
+    await writeTextFile(readme, "# Example\n");
     const enable = parseFeatures([
       "repo",
       "features",
@@ -461,6 +464,39 @@ test("workflow source migration reaches enabled features through the CLI operati
     assertStringIncludes(
       await readTextFile(file),
       "# hj-workflow-cli: github:",
+    );
+    assertStringIncludes(await readTextFile(readme), "[![CI]");
+    const customReadme = "# Custom notes\n";
+    await writeTextFile(readme, customReadme);
+    const latest = parseFeatures([
+      "repo",
+      "features",
+      "--github-ci",
+      "--workflow-cli=jsr-latest",
+      "--repair",
+    ], registry);
+    await runFeatureOperation(root, latest, registry, undefined, services);
+    assertEquals(await readTextFile(readme), customReadme);
+    for (const artifact of githubCiArtifacts) {
+      const content = await readTextFile(new URL(artifact.path, root));
+      assertStringIncludes(content, "# hj-workflow-cli: jsr-latest\n");
+      assertStringIncludes(content, "--no-lock");
+      assertStringIncludes(
+        content,
+        "--no-config --min-dep-age=0 --reload=jsr:@hugojosefson/cli jsr:@hugojosefson/cli",
+      );
+      assertEquals(content.includes("raw.githubusercontent.com"), false);
+    }
+    assertEquals(
+      (await githubCiFeature.detect({
+        ...context({}),
+        files: new LocalFileReader(root),
+      })).state,
+      "enabled",
+    );
+    assertStringIncludes(
+      await runFeatureOperation(root, latest, registry, undefined, services),
+      "No changes",
     );
     const migrate = parseFeatures([
       "repo",

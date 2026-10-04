@@ -4,6 +4,21 @@ import type {
   ResolvedFeatureChange,
 } from "../api/feature-change.ts";
 import type { FeatureRegistry } from "../features/feature-registry.ts";
+import type { OperationContext } from "../api/repository-context.ts";
+
+/** Source changes on enabled workflows do not change README contributions. */
+export function isWorkflowSourceOnlyChange(
+  context: Pick<OperationContext, "options" | "resolvedChanges" | "detections">,
+): boolean {
+  return context.options.workflowCli !== undefined &&
+    context.resolvedChanges.length > 0 &&
+    context.resolvedChanges.every((change) =>
+      change.enabled &&
+      (change.featureId === "github-ci" ||
+        change.featureId.startsWith("github-release-publish-")) &&
+      context.detections.get(change.featureId)?.state === "enabled"
+    );
+}
 
 export function workflowCliChanges(
   request: FeatureChangeRequest,
