@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.17.2
+
+### Fixes
+
+#### license
+
+- reject name placeholders and accept holder punctuation
+  ([1da7542](https://github.com/hugojosefson/cli/commit/1da7542fe4173c12d7cc24708837c831e0058324))
+
 ## 0.17.1
 
 ### Fixes
