@@ -14,7 +14,7 @@ export function prepareReleaseFixture(
   environment: ReleaseEnvironment,
   process: ReleaseProcess,
 ) {
-  return prepareRelease(root, environment, process, () => Promise.resolve());
+  return prepareRelease(root, environment, process, () => Promise.resolve([]));
 }
 
 export function isolatedReleaseProcess(root: URL): ReleaseProcess {

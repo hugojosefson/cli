@@ -32,6 +32,7 @@ for (
     "strict types",
     "invalid slow types",
     "drifted workflow",
+    "custom workflow",
     "failed contribution",
   ]
 ) {
@@ -89,7 +90,8 @@ for (
         await mkdir(new URL(".github/workflows/", root), { recursive: true });
         await writeTextFile(
           new URL(publishJsrArtifact.path, root),
-          publishJsrArtifact.content +
+          (scenario === "custom workflow" ? "# Custom workflow\n" : "") +
+            publishJsrArtifact.content +
             (scenario === "drifted workflow" ? "\n# externally edited\n" : ""),
         );
         await runOrThrow(process, "git", [
@@ -170,7 +172,7 @@ for (
           await assertRejects(
             prepare,
             Error,
-            scenario === "drifted workflow"
+            scenario.endsWith("workflow")
               ? "must be exact before release preparation"
               : scenario === "invalid slow types"
               ? "hj.jsr.allowSlowTypes must be a boolean."
@@ -182,6 +184,19 @@ for (
             calls.includes(publishCommand),
             scenario === "failed contribution",
           );
+          assertEquals(
+            calls.includes("deno task all"),
+            scenario === "failed contribution",
+          );
+          if (scenario !== "failed contribution") {
+            assertEquals(
+              await runOrThrow(process, "git", [
+                "status",
+                "--porcelain",
+              ]),
+              "",
+            );
+          }
           return;
         }
         const result = await prepare();
