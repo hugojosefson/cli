@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.17.0
+
+### Features
+
+#### ci
+
+- support latest JSR workflow CLI
+  ([625bcf1](https://github.com/hugojosefson/cli/commit/625bcf137499478bea939ae10fede16dd8058c79))
+
+### Fixes
+
+#### ci
+
+- refresh JSR metadata by registry URL
+  ([a6a2dd9](https://github.com/hugojosefson/cli/commit/a6a2dd9b00aa9c8074acb9ad82de36a397fe8e09))
+
 ## 0.16.4
 
 ### Fixes
