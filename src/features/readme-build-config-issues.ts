@@ -66,6 +66,15 @@ export async function readmeBuildConfigIssues(
       );
     }
   }
+  if (state.formatError && state.configPath) {
+    issues.push(
+      issue(
+        state.configPath,
+        state.formatError,
+        "Correct fmt and fmt.exclude manually. Preserve custom formatting options.",
+      ),
+    );
+  }
   return issues;
 }
 

@@ -54,7 +54,8 @@
       "readme"
     ],
     "exclude": [
-      "readme/generated"
+      "readme/generated",
+      "README.md"
     ]
   },
   "tasks": {

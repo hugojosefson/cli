@@ -51,11 +51,12 @@ export async function planEnableDenoFmt(
     });
   } else if (state.config.kind === "config") {
     const tasks = state.tasks!;
-    if (!await configuredDenoFmt(context, state)) {
-      changes.push(
-        ...formatExclusionChanges(state.config.path, state.config.value),
-      );
-    }
+    changes.push(
+      ...formatExclusionChanges(state.config.path, state.config.value, [
+        ...(!await configuredDenoFmt(context, state) ? ["coverage"] : []),
+        ...(readmeTransition(context)?.enabled ? ["README.md"] : []),
+      ]),
+    );
     if (tasks.kind === "missing-tasks") {
       changes.push({
         kind: "set-json",

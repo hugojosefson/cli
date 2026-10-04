@@ -1,5 +1,9 @@
 /** @module Generated README paths and read-only state inspection. */
 
+import {
+  formatExclusionError,
+  hasFormatExclusion,
+} from "./deno-fmt-exclusions.ts";
 import { readmeBuildError } from "./readme-build-error.ts";
 import { fileAccess } from "../repository/file-access.ts";
 import { inspectLegacyReadme, legacyDefaultTask } from "./legacy-readme.ts";
@@ -75,6 +79,11 @@ export async function inspectReadmeBuild(context: DetectionContext) {
     taskIds,
     taskPresent,
     exactTask,
+    formatExcluded: config.kind === "config" &&
+      hasFormatExclusion(config.value, "README.md"),
+    formatError: config.kind === "config"
+      ? formatExclusionError(config.value)
+      : undefined,
     exactDefault,
     taskUsable: config.kind === "config" && tasks !== undefined &&
       (!taskPresent || isObject(taskValue) || legacy.kind === "recognized"),

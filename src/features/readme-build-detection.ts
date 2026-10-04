@@ -41,7 +41,8 @@ export async function detectReadmeBuild(
     return { state: "ambiguous", evidence, issues };
   }
   if (
-    state.exactTask && state.exactDefault && state.rootMatches &&
+    state.exactTask && state.exactDefault && state.formatExcluded &&
+    state.rootMatches &&
     state.root.kind === "file" && !fileAccess(state.root).writable &&
     state.source.kind === "file" && fileAccess(state.source).writable
   ) {
@@ -61,7 +62,13 @@ export async function detectReadmeBuild(
   return {
     state: "drifted" as const,
     evidence,
-    issues: [issue("Generated README task, content, or mode differs.")],
+    issues: [
+      issue(
+        state.formatExcluded
+          ? "Generated README task, content, or mode differs."
+          : `${state.configPath}: configuration has no formatting exclusion for README.md.`,
+      ),
+    ],
   };
 }
 

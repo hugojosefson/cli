@@ -39,6 +39,7 @@ test("license and generated README accept access-equivalent modes and preserve t
       new URL("deno.json", root),
       JSON.stringify({
         name: "example",
+        fmt: { exclude: ["README.md"] },
         tasks: {
           ...denoTaskDefinitions([], true),
           readme: readmeTaskDefinition,

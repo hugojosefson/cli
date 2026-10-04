@@ -59,17 +59,22 @@ export async function initialDenoConfig(
       change.featureId === id && change.enabled
     )
   );
+  const readmeBuild = context.resolvedChanges.some((change) =>
+    change.featureId === "readme-build" && change.enabled
+  );
+  const formatting = withFormatExclusions(
+    result,
+    readmeBuild ? ["coverage", "README.md"] : ["coverage"],
+  );
   const configured = fallbackFeatureId === denoFmtFeatureId ||
       context.resolvedChanges.some((change) =>
         change.featureId === denoFmtFeatureId && change.enabled
       )
-    ? mergeObjects(withFormatExclusions(result), {
+    ? mergeObjects(formatting, {
       tasks: {
         ...denoTaskDefinitions(
           enabled,
-          context.resolvedChanges.some((change) =>
-            change.featureId === "readme-build" && change.enabled
-          ),
+          readmeBuild,
         ),
         ...(enabled.includes("deno-test")
           ? denoTestTasks(

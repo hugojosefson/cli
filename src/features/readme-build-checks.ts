@@ -20,8 +20,11 @@ export async function checkEnableReadmeBuild(
   context: OperationContext,
 ): Promise<OperationCheck> {
   const state = await inspectReadmeBuild(context);
+  if (state.formatError) {
+    return blocked(state.formatError);
+  }
   if (
-    exact(state) && state.source.kind === "file" &&
+    exact(state) && state.formatExcluded && state.source.kind === "file" &&
     layoutBadges(state.source.content) === state.source.content
   ) {
     return noOp("Generated README is already adopted.");

@@ -547,6 +547,10 @@ section lines, and required SPDX markup. Custom or duplicate license sections
 prevent automatic replacement. Template access errors have different messages
 from content differences.
 
+Enabling or repairing `readme-build` adds `README.md` to `fmt.exclude` unless
+the global exclusions already cover it. Existing exclusions and formatting
+options are preserved. Generated output stays read-only.
+
 The `readme-build` feature requires Deno tasks. Inspection names missing Deno
 configuration, incorrect task types, and conflicting file types. If
 `package.json` has `scripts.readme`, the message identifies the custom builder
