@@ -206,6 +206,38 @@ project checks alone do not prove that the package was checked. This
 repository's `publish-check` also retains its frozen-lockfile check. The real
 publisher still requires the exact tagged source.
 
+### JSR slow types
+
+The JSR publisher rejects slow types by default. For slow types, JSR calculates
+exported types from the source code. To accept slow types, set this boolean in
+the package's `deno.json` or `deno.jsonc`:
+
+```json
+{
+  "hj": {
+    "jsr": {
+      "allowSlowTypes": true
+    }
+  }
+}
+```
+
+`hj release publish-jsr` reads this value from the release checkout. A value of
+`true` adds `--allow-slow-types` to the dry run and publication. A value of
+`false`, or a missing value, keeps strict type validation. Other values cause a
+configuration error before registry access or publication.
+
+The generated JSR workflow uses this configuration without changes to the
+workflow. Existing workflows must use an `hj` version that supports this
+configuration. If a project's `publish-check` task must accept slow types, add
+`--allow-slow-types` to that task too.
+
+The publisher does not use arguments from project tasks, for example,
+`--allow-dirty`. The publisher continues to examine the clean checkout, release
+identity, and provenance.
+
+### Release commit
+
 The release commit uses the standard `github-actions[bot]` Git identity. The
 workflow does not need a runner's global Git identity.
 

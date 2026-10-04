@@ -6,6 +6,7 @@ import { runOrThrow } from "./release-process.ts";
 import { digestBytes } from "../repository/digest-bytes.ts";
 import { jsrImportBytes } from "./jsr-import-bytes.ts";
 import { jsrImportMap } from "./jsr-import-map.ts";
+import { jsrPublishOptions } from "./jsr-publish-options.ts";
 import {
   confirmPublication,
   type ReleaseClock,
@@ -160,6 +161,7 @@ export async function publishJsr(input: {
   if (config.name !== packageName || config.version !== release.version) {
     throw new TypeError("JSR package name or version differs from release.");
   }
+  const publishOptions = jsrPublishOptions(config);
   const exports = exportMap(config.exports);
   const verify = (remote: JsrVersion) =>
     verifyVersion(
@@ -178,10 +180,10 @@ export async function publishJsr(input: {
       "Workflow commit differs from the release. Retry the JSR workflow with --ref set to the release tag.",
     );
   }
-  await run(input.process, ["publish", "--dry-run"]);
+  await run(input.process, ["publish", "--dry-run", ...publishOptions]);
   let publishFailed = false;
   try {
-    await run(input.process, ["publish"]);
+    await run(input.process, ["publish", ...publishOptions]);
   } catch (_error) {
     publishFailed = true;
   }
