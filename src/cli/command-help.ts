@@ -2,6 +2,11 @@
 import { colorText } from "./terminal-colors.ts";
 import { formatTable } from "./format-table.ts";
 export const commandDefinitions = {
+  version: {
+    usage: "hj version",
+    description: "Show the CLI version (alias: hj --version).",
+    details: "The output is the version of the installed CLI package.",
+  },
   "repo features": {
     usage: "hj repo features",
     description: "Inspect or change repository features.",
