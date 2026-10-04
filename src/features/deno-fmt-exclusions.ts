@@ -28,16 +28,20 @@ export function formatExclusions(config: JsonObject): readonly JsonValue[] {
     : [];
 }
 
-/** Keep existing exclusions and add the generated coverage directory once. */
-export function withFormatExclusions(config: JsonObject): JsonObject {
+/** Keep existing exclusions and add required generated paths once. */
+export function withFormatExclusions(
+  config: JsonObject,
+  required: readonly string[] = ["coverage"],
+): JsonObject {
   const exclude = formatExclusions(config);
   return {
     ...config,
     fmt: {
       ...(isObject(config.fmt) ? config.fmt : {}),
-      exclude: hasCoverageExclusion(config)
-        ? exclude
-        : [...exclude, "coverage"],
+      exclude: [
+        ...exclude,
+        ...required.filter((path) => !hasFormatExclusion(config, path)),
+      ],
     },
   };
 }
@@ -45,19 +49,29 @@ export function withFormatExclusions(config: JsonObject): JsonObject {
 export function formatExclusionChanges(
   path: string,
   config: JsonObject,
+  required: readonly string[] = ["coverage"],
 ): PlannedChange[] {
-  if (hasCoverageExclusion(config)) {
+  const missing = required.filter((entry) =>
+    !hasFormatExclusion(config, entry)
+  );
+  if (missing.length === 0) {
     return [];
+  }
+  if (isObject(config.fmt) && Array.isArray(config.fmt.exclude)) {
+    const length = config.fmt.exclude.length;
+    return missing.map((value, index) => ({
+      kind: "set-json",
+      path,
+      jsonPath: ["fmt", "exclude", length + index],
+      value,
+      expected: undefined,
+    }));
   }
   return [{
     kind: "set-json",
     path,
-    jsonPath: isObject(config.fmt) && Array.isArray(config.fmt.exclude)
-      ? ["fmt", "exclude", config.fmt.exclude.length]
-      : ["fmt", "exclude"],
-    value: isObject(config.fmt) && Array.isArray(config.fmt.exclude)
-      ? "coverage"
-      : ["coverage"],
+    jsonPath: ["fmt", "exclude"],
+    value: missing,
     expected: undefined,
   }];
 }
@@ -78,11 +92,23 @@ export function missingFormatExclusion(config: JsonObject): boolean {
 
 /** Deno accepts these directory spellings for the same coverage path. */
 export function hasCoverageExclusion(config: JsonObject): boolean {
+  return hasFormatExclusion(config, "coverage");
+}
+
+export function hasFormatExclusion(
+  config: JsonObject,
+  required: string,
+): boolean {
   const paths = [
     ...formatExclusions(config),
     ...(Array.isArray(config.exclude) ? config.exclude : []),
   ];
-  return paths.some((path) =>
-    typeof path === "string" && /^(?:\.\/)?coverage\/?$/.test(path)
-  );
+  return paths.some((path) => {
+    if (typeof path !== "string") {
+      return false;
+    }
+    const normalized = path.replace(/^\.\//, "");
+    return normalized === required ||
+      required === "coverage" && normalized === "coverage/";
+  });
 }

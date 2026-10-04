@@ -1,4 +1,4 @@
-import { externalDeno } from "../testing/runtime-test-fixtures.ts";
+import { externalDeno, sourceFile } from "../testing/runtime-test-fixtures.ts";
 import { test as nativeTest } from "node:test";
 import { trackTests } from "../testing/inventory-test-fixtures.ts";
 const test = trackTests(import.meta.url, nativeTest);
@@ -127,6 +127,7 @@ test("readme-build converts static content and reverses it", async () => {
     assert(observed.kind === "file");
     assertEquals(fileAccess(observed).writable, false);
     const config = JSON.parse(await read(root, "deno.jsonc"));
+    assert(config.fmt.exclude.includes("README.md"));
     assertEquals(config.tasks.readme, readmeTaskDefinition);
     assertEquals(config.tasks.default, denoTaskDefinitions([], true).default);
 
@@ -149,6 +150,111 @@ test("readme-build converts static content and reverses it", async () => {
     assertEquals(await files.exists("readme"), false);
   });
 });
+
+test("readme-build excludes generated output during real default tasks and repair", async () => {
+  await withRepository(async (root) => {
+    const sourceConfig = JSON.parse(
+      await readTextFile(sourceFile("deno.json")),
+    );
+    await write(
+      root,
+      "deno.json",
+      JSON.stringify({
+        imports: {
+          ...sourceConfig.imports,
+          [hjPackageReference]: sourceFile("src/cli/cli.ts").href,
+        },
+        fmt: { lineWidth: 40, exclude: ["custom.md"] },
+      }),
+    );
+    await write(
+      root,
+      "README.md",
+      "# Example\n\nA sentence with enough words to require wrapping under the custom formatting limit.\n",
+    );
+    await write(root, "custom.md", "#  Preserve custom formatting\n");
+    await git(root, "init");
+    await git(root, "config", "user.name", "Test User");
+    await git(root, "config", "user.email", "test@example.invalid");
+    await git(root, "add", ".");
+    await git(root, "commit", "-m", "docs: add fixture");
+    await runCli(root, ["repo", "features", "--readme-build", "--yes"]);
+    const enabled = JSON.parse(await read(root, "deno.json"));
+    assertEquals(enabled.fmt, {
+      lineWidth: 40,
+      exclude: ["custom.md", "coverage", "README.md"],
+    });
+    await runDefault(root);
+    await assertReadOnly(root);
+    assertEquals(
+      await read(root, "custom.md"),
+      "#  Preserve custom formatting\n",
+    );
+
+    const config = JSON.parse(await read(root, "deno.json"));
+    config.fmt.exclude = ["custom.md", "coverage"];
+    await write(root, "deno.json", JSON.stringify(config));
+    const before = await read(root, "deno.json");
+    const status = (await runCli(root, ["repo", "features"])).output;
+    assertStringIncludes(status.replace(/ +/g, " "), "readme-build drifted");
+    assertStringIncludes(status, 'fmt.exclude.2 = "README.md"');
+    assertEquals(await read(root, "deno.json"), before);
+    await git(root, "add", ".");
+    await git(root, "commit", "-m", "test: reproduce missing README exclusion");
+    await runCli(root, [
+      "repo",
+      "features",
+      "--repair",
+      "--readme-build",
+      "--yes",
+    ]);
+    assertEquals(JSON.parse(await read(root, "deno.json")).fmt, enabled.fmt);
+    await runDefault(root);
+    await assertReadOnly(root);
+    const repeat = await runCli(root, [
+      "repo",
+      "features",
+      "--repair",
+      "--readme-build",
+      "--yes",
+    ]);
+    assertStringIncludes(repeat.output, "No changes.");
+  });
+});
+
+test("readme-build accepts a global output exclusion and rejects invalid formatting data", async () => {
+  await withRepository(async (root) => {
+    await write(
+      root,
+      "deno.json",
+      JSON.stringify({ exclude: ["./README.md"] }),
+    );
+    await runCli(root, ["repo", "features", "--readme-build"]);
+    const config = JSON.parse(await read(root, "deno.json"));
+    assertEquals(config.exclude, ["./README.md"]);
+    assertEquals(config.fmt.exclude, ["coverage"]);
+    config.fmt.exclude = false;
+    await write(root, "deno.json", JSON.stringify(config));
+    const before = await read(root, "deno.json");
+    const status = (await runCli(root, ["repo", "features"])).output;
+    assertStringIncludes(status.replace(/ +/g, " "), "readme-build ambiguous");
+    assertStringIncludes(status, "fmt.exclude must be an array of paths.");
+    await assertRejects(() =>
+      runCli(root, ["repo", "features", "--readme-build", "--repair"])
+    );
+    assertEquals(await read(root, "deno.json"), before);
+  });
+});
+
+async function runDefault(root: URL): Promise<void> {
+  const result = await runCommand(externalDeno, {
+    args: ["task", "default"],
+    cwd: root,
+    stdout: "piped",
+    stderr: "piped",
+  });
+  assert(result.success, new TextDecoder().decode(result.stderr));
+}
 
 test("readme-build composes existing config and simultaneous removal", async () => {
   await withRepository(async (root) => {
@@ -199,6 +305,7 @@ test("readme-build extends an enabled deno.json without stale edits", async () =
     await runCli(root, ["repo", "features", "--readme-build"]);
     const config = JSON.parse(await read(root, "deno.json"));
     assertEquals(config.custom, true);
+    assert(config.fmt.exclude.includes("README.md"));
     assertEquals(config.tasks.readme, readmeTaskDefinition);
     assertEquals(config.tasks.default, denoTaskDefinitions([], true).default);
     assertEquals(await new LocalFileReader(root).exists("deno.jsonc"), false);

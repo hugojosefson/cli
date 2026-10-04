@@ -1,5 +1,6 @@
 /** @module Guarded generated README change plans. */
 
+import { formatExclusionChanges } from "./deno-fmt-exclusions.ts";
 import { layoutBadges } from "../readme/badge-layout.ts";
 import { fileAccess, repairFileMode } from "../repository/file-access.ts";
 import { legacyReadmePreview } from "./readme-build-checks.ts";
@@ -63,11 +64,16 @@ export async function planEnableReadmeBuild(
       expectedDigest: state.source.digest,
     });
   }
-  if (state.configPath && !denoFmtChanges(context)) {
+  if (state.config.kind === "config" && !denoFmtChanges(context)) {
+    changes.push(
+      ...formatExclusionChanges(state.config.path, state.config.value, [
+        "README.md",
+      ]),
+    );
     if (!state.exactTask) {
       changes.push({
         kind: "set-json",
-        path: state.configPath,
+        path: state.config.path,
         jsonPath: ["tasks", "readme"],
         value: readmeTaskDefinition,
         expected: state.taskValue,
@@ -76,7 +82,7 @@ export async function planEnableReadmeBuild(
     if (!state.exactDefault) {
       changes.push({
         kind: "set-json",
-        path: state.configPath,
+        path: state.config.path,
         jsonPath: ["tasks", "default"],
         value: denoTaskDefinitions(state.taskIds, true).default!,
         expected: state.defaultValue,
