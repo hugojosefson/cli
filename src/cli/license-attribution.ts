@@ -3,6 +3,7 @@
 import type { GithubIdentityReader } from "../api/repository-context.ts";
 
 import { promptTerminalText } from "./terminal-prompt.ts";
+import { validLicenseHolder } from "../features/license-holder.ts";
 
 export type AttributionPrompt = () =>
   | string
@@ -23,15 +24,11 @@ export async function resolveLicenseAttribution(
   const viewer = await context.githubIdentity?.viewer();
   const holder = viewer?.name || await context.git.userName?.() ||
     await prompt();
-  if (!holder || !safe(holder)) {
+  if (!holder || !validLicenseHolder(holder)) {
     throw new Error("License attribution is required.");
   }
   return {
     licenseHolder: holder.trim(),
     licenseYear: String(new Date().getUTCFullYear()),
   };
-}
-
-function safe(value: string): boolean {
-  return value.trim().length > 0 && !/[\0\r\n]/.test(value);
 }

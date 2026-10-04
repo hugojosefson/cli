@@ -537,6 +537,12 @@ value must remain valid and on one line. A custom README license section can
 prevent adoption. Recognition is a file-management check, not a legal
 assessment.
 
+Detection accepts any four-digit year and any non-placeholder holder name on one
+line. Names can contain Unicode, punctuation, email addresses, and URLs.
+Detection rejects known name placeholders from SPDX, Choose a License, GNU, and
+license-templates. Creation uses the same holder checks. Repair preserves the
+year, holder, and whitespace of a recognized license.
+
 README providers own README permissions and generated output. License detection
 does not require specific README modes or current generated output. License
 content edits preserve existing README permissions.
