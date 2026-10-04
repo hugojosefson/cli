@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.16.3
+
+### Fixes
+
+#### deno-lib
+
+- preserve custom library source and exports
+  ([491a381](https://github.com/hugojosefson/cli/commit/491a381157d4c3909487f2455016d973b83966ab))
+
+#### release
+
+- apply the JSR slow-type configuration
+  ([0c7e8d3](https://github.com/hugojosefson/cli/commit/0c7e8d39bb8a769e39e025fd06141b02d8bbfc0d))
+
 ## 0.16.2
 
 ### Other
