@@ -36,20 +36,26 @@ async function runParsedCli(
       terminalNewline: true,
     };
   }
-  if (root.protocol !== "file:") {
+  const version = args[0] === "--version" || args[0] === "version";
+  if (!version && root.protocol !== "file:") {
     throw new TypeError("Repository root must be a file URL.");
   }
   root = root.pathname.endsWith("/") ? root : new URL(`${root.href}/`);
-  const name = `${args[0]} ${args[1]}`;
+  const name = version ? "version" : `${args[0]} ${args[1]}`;
   if (!Object.hasOwn(commandDefinitions, name)) {
     throw new Error("Unknown command. Run `hj --help` for available commands.");
   }
   const command = name as CommandName;
-  if (args.length === 3 && isHelp(args[2])) {
+  const commandLength = version ? 1 : 2;
+  if (args.length === commandLength + 1 && isHelp(args[commandLength])) {
     return {
       output: commandHelp(command, services.colors?.stdout),
       terminalNewline: true,
     };
+  }
+  if (command === "version") {
+    const { runVersion } = await import("./run-version.ts");
+    return runVersion(args);
   }
   if (
     command === "config get" || command === "config set" ||
