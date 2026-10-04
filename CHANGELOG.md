@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.16.4
+
+### Fixes
+
+#### release
+
+- apply slow-type policy during tag preparation
+  ([337be20](https://github.com/hugojosefson/cli/commit/337be207fd3ec2694ac27ce4631eb7bf331ba1a1))
+
 ## 0.16.3
 
 ### Fixes
