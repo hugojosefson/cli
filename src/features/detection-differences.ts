@@ -109,7 +109,11 @@ export function versionDifference(path: string, value: unknown): string {
   return `${path} version: expected an exact SemVer string such as "1.2.3". Found ${found}.`;
 }
 
-export function modulePathDifference(path: string, value: unknown): string {
+export function modulePathDifference(
+  path: string,
+  value: unknown,
+  key = "./cli",
+): string {
   const reason = typeof value !== "string"
     ? valueType(value)
     : !value.startsWith("./")
@@ -121,7 +125,9 @@ export function modulePathDifference(path: string, value: unknown): string {
     : value.includes(":")
     ? "a colon in the module path"
     : "an empty, . or .. path segment";
-  return `${path} exports["./cli"]: expected a relative path below the repository root, beginning with ./ and without traversal segments. Found ${reason}.`;
+  return `${path} exports[${
+    JSON.stringify(key)
+  }]: expected a relative path below the repository root, beginning with ./ and without traversal segments. Found ${reason}.`;
 }
 
 export function packageNameDifference(path: string, value: unknown): string {

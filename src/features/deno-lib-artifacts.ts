@@ -57,6 +57,13 @@ export function isPreservedDenoLibTest(item: ExactArtifactInspection): boolean {
 export async function needsDenoLibAssert(
   context: DetectionContext,
 ): Promise<boolean> {
+  const source = await context.files.observe("src/lib/mod.ts");
+  if (
+    source.kind !== "absent" &&
+    (source.kind !== "file" || source.content !== denoLibArtifacts[0].content)
+  ) {
+    return false;
+  }
   const test = await context.files.observe("test/lib_test.ts");
   return test.kind === "absent" ||
     test.kind === "file" && test.content === denoLibArtifacts[1].content;
